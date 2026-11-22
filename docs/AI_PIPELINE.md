@@ -154,56 +154,118 @@ Both of the household's phones (iPhone 17 Pro and iPhone 15 Pro Max) qualify for
 
 ## 7. Step 4: classification with the Decisions API
 
+Built in WP-33 (`server/lib/decide/`, app client `app/lib/services/decisions_client.dart`) from the WP-S4 spike ([`docs/spikes/WP-S4.md`](spikes/WP-S4.md)). Where this section and the spike once differed, the spike won.
+
 ### API facts (verified)
 
 - `POST https://generativelanguage.googleapis.com/v1beta/decisions`, model `gemini-decision-1`, API key in `x-goog-api-key`. Beta. Gemini Developer API only (not Vertex AI yet). No Dart SDK and no Genkit plugin: called over REST from the server.
-- One request carries a shared `input` and a map of 1 to 1,000 `questions`. Types: `noul` (yes/no; the type string really is `noul`), `choice` (2 to 255 options with descriptions), `score`.
-- Answers return calibrated `probabilities` and `confidence`. No text generation, no system instruction, no conversation history.
-- Option keys are sorted alphabetically by the API; a catch-all option is recommended.
-- Price: USD 0.10 per 1M input tokens, zero output tokens. Shared input is billed once per request.
-- Accepts text, image, audio, video and PDF.
-- Language coverage is not documented. The app uses it in English only for now.
+- Request body: exactly `{model, input, questions}`. **Unknown fields are rejected** (`400 invalid_request: Unknown parameter 'generationConfig'`), so the proxy sends nothing else. `input` is a string (or `Content` blocks). `questions` maps a key (1 to 64 characters, `[A-Za-z0-9_-]+`) to `{type, instructions, criteria}`; 1 to 1,000 questions.
+- Types: `noul` (yes/no; the type string really is `noul`), `choice` (2 to 255 options), `score`. For `choice`, `criteria` maps option key to description and is required. For `noul`, `criteria` is `{true_description, false_description}`.
+- Answers: `choice` → `{type, choice, probabilities, confidence}`; `noul` → `{type, noul, confidence}`, where `noul` is P(yes) clipped to 0.01 to 0.99 and `confidence` is `max(noul, 1 − noul)`. No text generation, no system instruction, no conversation history.
+- `usage` carries only `total_tokens`, `total_input_tokens`, `input_tokens_by_modality` and `total_output_tokens` (always 0).
+- Option keys are sorted by the API and never shown to the model: everything the model knows about an option is in its description. A catch-all option is recommended.
+- Deterministic: two passes over 439 answers changed nothing (WP-S4), so caching is safe.
+- Price: USD 0.10 per 1M input tokens, zero output tokens. Shared input is billed once per request. No context caching, Batch API or Flex.
+- Rate limits are **per project** (Tier 1: 1,500 RPM, 1M TPM, 50,000 RPD); about 500 calls a minute at 2,000 tokens each, shared by every household.
+- Accepts text, image, audio, video and PDF. Language coverage is not documented; the app uses it in English only.
+
+**Two error shapes** (WP-S4, confirmed again live in WP-33):
+
+| Response | Shape | Proxy treats it as |
+|---|---|---|
+| 400 `invalid_request`, 404 `not_found` | the Decisions API's own: `error.code` is a **string** | a proxy bug or wrong model id: log an error, go to the fallback; the user's message is fine |
+| 400 with `error.code` in `safety`, `prohibited_content`, `blocklist`, `image_safety`, `content_blocked` (the guide) | same string shape | a **block** |
+| 200 with `prompt_feedback.block_reason` (the API reference) | | a **block** |
+| 400 `INVALID_ARGUMENT` "API key not valid", 401, 403 `PERMISSION_DENIED` | Google's usual shape: a **numeric** `code` plus `status` | a key error: re-read the key once, then alert and go to the fallback |
+| 429 `RESOURCE_EXHAUSTED`, 5xx, timeout, no response | | transient: one retry |
+
+Only a string code from the safety list is a block, so a request error is never mistaken for one, nor a block for a request error. Neither block shape has been seen live: ten realistic sensitive messages were all answered.
 
 ### The proxy
 
-The phone calls `POST /decide` with `{text, lang, parsed: {amountMinor, currency, date}, hints, ask: [question keys], candidates?}`. The server builds the request from the household's categories, accounts and members, so the phone cannot inject options, and the key stays server-side.
+The phone calls `POST /v1/decide` (Genkit flow `decide`, behind the context provider, metered on `decisions`) with `{text, lang, parsed: {amountMinor, currency, date}, hints, ask: [question keys], candidates?}`. The agent's `prepareEntries` tool (WP-32) calls the same `EntryClassifier` in process. The server builds the request from the household's own categories, accounts, members and people, limited to what the speaker may see (`visibleTo`), so the phone cannot inject options and the key stays server-side.
 
-Shared `input` (plain text, serialised context):
+- An unknown question key or empty or over-long text (over 2,000 characters) is refused with 400. A `lang` other than `en` gets `{unavailable: true}`. An On-device member is refused by the context provider (403 `on_device_mode`), and a household at its daily `decisions` limit gets 429 `over_limit`.
+- One REST call per message: every question goes in one request. The only second call is the retry.
+- The household-local date comes from the household time zone. The server has no time-zone database, so `local_day.dart` holds fixed offsets for the region's zones (none uses daylight saving time); an unknown zone falls back to `Asia/Baghdad` and is logged.
+
+Shared `input` (plain text, serialised context; the people line was added in WP-S4 and helped `repayable`):
 
 ```
-Today: 2026-11-22 (Sunday). Household currency: USD. Speaker: member A (me). Partner: member B.
-Already parsed: amount 10000 IQD, date today.
+Today: 2026-11-22 (Sunday). Household currency: USD. Speaker: Dara (me). Partner: Shilan.
+People: Alex (also Al), Mom (also my mother).
+Already parsed: amount IQD 10,000, date today.
 Message: """Spent ten thousand dinars on lunch with the kids"""
+Recent entries:
+- IQD 10,000, 2026-11-21, Lunch, Cash wallet
 ```
+
+`Recent entries` appears only when `duplicate` is asked. Triple quotes inside the message are collapsed, so the message cannot close its own quotes. People who are household members are not listed on the people line.
 
 ### Question set
+
+Option keys are document ids or slugs only; names, groups and examples live in the descriptions. Every choice has a catch-all.
 
 | Key | Type | Instructions | Options |
 |---|---|---|---|
 | `intent` | choice | "What kind of money event does the message describe?" | the 12 intents with one-line descriptions; `other` is the catch-all |
-| `category` | choice | "Which category fits this spending or income best?" | household category slugs, each described with its name and typical examples; `other_expense`, `other_income` |
-| `account` | choice | "Which account was the money paid from or received into?" | account ids described as "Cash wallet, IQD, mine"; `unspecified` |
-| `who` | choice | "Whose spending or income is this?" | `me`, `partner`, `joint`, `unspecified` |
+| `category` | choice | "Which category fits this spending or income best?" | the household's leaf categories (groups that have sub-categories are left out), each described as "Spending: Groceries (Food). Examples: …"; categories a household adds get no examples; `other_expense` and `other_income` always exist |
+| `account` | choice | "Which account was the money paid from or received into?" When `to_account` is asked too: "Which account did the money come from? For income, which account received it." | account ids described as "Cash wallet, IQD, cash, mine (Dara's)"; `unspecified` |
+| `to_account` | choice | "If money was moved between accounts or into a savings goal, which account did it go into?" | the same accounts; `unspecified` ("the message does not say, or no money moved between accounts") |
+| `who` | choice | "Whose spending or income is this?" | `me`, `partner` (only when the partner has joined), `joint`, `unspecified`, described with the members' names |
+| `person` | choice | "Which person did the money go to or come from, as a loan, a repayment, a gift or support?" | person ids described with name and aliases ("Alex (also Al)", "Shilan, a household member"); `other_person` (named but not listed) and `none` |
 | `multi_entry` | noul | "Does the message describe more than one separate money event?" | |
-| `repayable` | noul | "Money went to or came from a person. Is it expected to be paid back?" | asked only when a person is detected |
+| `repayable` | noul | "Money went to or came from a person. Is it expected to be paid back?" | |
 | `needs_followup` | noul | "Is information that is essential to record this event missing or ambiguous?" | |
 | `is_recurring` | noul | "Is this a payment or income that normally repeats every month or week?" | |
-| `duplicate` | noul | "Is the message the same event as one of the listed recent entries?" | asked only when candidates exist; candidates are appended to `input` |
+| `duplicate` | noul | "Do the message and one of the recent entries describe the same real-world payment, so that saving the message would record it twice?" (WP-S4 v2 wording) | asked only when candidates exist |
+
+Every yes/no question carries `true_description` and `false_description` (wording in `question_set.dart`, as WP-S4 tested it). `to_account` and `person` were added in WP-33; they were not part of the WP-S4 evaluation.
 
 Rules of use:
 
-- Ask only the keys in `ask`; a field already settled by a rule or explicit words is not asked.
+- Ask only the keys in `ask`; a field already settled by a rule or explicit words is not asked. Ask `to_account` only when the parser's cue is a transfer or savings move: asked on a plain expense it picked the paying account again at 0.51 instead of `unspecified` (WP-33 live check). Ask `repayable` and `person` only when the parser finds a person.
 - If `multi_entry ≥ 0.5`, the phone discards the result and re-routes to path A.
-- Duplicate candidates are found deterministically first (same account, same amount, date within one day). The model only judges when candidates exist.
-- Option keys never contain names or free text; names live in descriptions. Keys match `[A-Za-z0-9_-]+`.
+- Duplicate candidates are found deterministically first: the household's entries visible to the speaker with the same amount and currency, dated within one day of the message's date, not deleted, and on the same account when a hint names one (Firestore index `visibleTo`, `amountMinor`, `occurredOn`). Candidates the phone sends are kept only if they pass the same rule. At most five, nearest date first. The model judges only when there is at least one; otherwise `duplicate` is dropped from the request.
+- The response's `duplicate_of` is the nearest candidate's id, set whenever `duplicate` is answered. The phone shows "Looks like one you already saved" on the slip (`EntryDraft.duplicate`) when P(yes) reaches `dup_warn` (`duplicateHintFrom` in the app client).
+- An answer whose choice is not one of the options sent, or whose numbers are outside 0 to 1, is dropped.
+- Option keys match `[A-Za-z0-9_-]+`; an id that does not is left out of the options. A choice is capped at 255 options with the catch-alls kept.
 
 ### Fallback chain for `/decide`
 
-1. Decisions API, one retry on 429 or 5xx with jitter.
-2. `gemini-3.5-flash-lite` with `classify_fallback.prompt` and a constrained JSON schema that mirrors the answers; the response is marked `calibrated: false`, and the phone caps those confidences at 0.80.
-3. Return `{unavailable: true}`; the phone falls back to on-device classification or local pickers.
+1. Decisions API. One retry with 100 to 400 ms jitter on 429, 5xx, a timeout (8 s) or no response. A key error re-reads the key once and sends again.
+2. **Block** (either shape): no retry and no fallback; return `{unavailable: true}`.
+3. Anything else that did not answer (`invalid_request`, `not_found`, a refused key, a retry that failed too, an unexpected body): `gemini-3.5-flash-lite` (`config/runtime` role `decideFallback`) answers the same questions with a constrained JSON schema built from the plan, so each choice can only be one of the household's own option keys. The response is marked `calibrated: false`, and the phone caps those confidences at `conf_on_device_cap` (0.80). The prompt is generated in `fallback.dart` from the same question set rather than kept as a `.prompt` file.
+4. When the fallback cannot answer (no Gemini key on the server, a model error, no output): `{unavailable: true}`. The phone falls back to on-device classification or local pickers; the app client returns this as `ServiceUnavailable`.
 
-A safety block (HTTP 400 with an `error.code`) is not retried; it goes straight to step 3.
+The switch `decideEnabled` in `config/runtime` turns step 1 to 3 off (`{unavailable: true}` with no call).
+
+### Cache and usage
+
+- **Cache:** in memory per instance, LRU of 500, 10 minutes. The key is the household, the speaker and the exact request body, which holds the date, the message, every option and every candidate, so a change to the household's lists or a new day is a miss. Only calibrated Decisions answers are stored. A hit makes no call and counts no usage.
+- **Usage** (`households/{hid}/usage/{day}`), added after each classification that called out: `decisions` +1; `inputTokens`; `outputTokens` (fallback only); `costMicrosUsd`, at USD 0.10 per 1M input for `gemini-decision-1` and USD 0.30 in / 2.50 out per 1M for `gemini-3.5-flash-lite`. A block counts one decision and no tokens. A failed usage write is logged and does not fail the answer.
+- Logs carry the household id, question keys, status, codes and token counts, never the message, a name or the key.
+
+### Measured (WP-33 live check, 2026-11-22)
+
+`server/tool/decide_live_check.dart` ran the real classifier against `gemini-decision-1` and `gemini-3.5-flash-lite` on a fixture household from the owner's Mac, with the key read from Secret Manager (`latest`, version 2) at run time:
+
+| Measure | Result |
+|---|---|
+| scored answers (intent, category, account, to_account, person on 9 messages) | 20/20 right |
+| input tokens, 7 default questions | 1,896 (WP-S4: mean 2,002) |
+| input tokens, all 10 questions without `duplicate` | 2,388 |
+| input tokens, 4 questions | 876 to 1,570 (category is about 860 of it) |
+| latency per call | 301 to 480 ms |
+| transfers with `to_account` | "Moved 500 dollars from checking to savings": from checking 0.99, to savings 0.88; "Withdrew 200 dollars cash from checking": to Cash dollars 0.84 (`needs_followup` still 0.62) |
+| `person` | Alex 1.00 on a loan; Mom 1.00 on family support; `none` 1.00 on bread |
+| duplicates | generator payment against yesterday's generator entry 0.75 (below `dup_warn` 0.80, as WP-S4 found); bread against yesterday's bread 0.10 |
+| key re-read | a stale key was refused, `latest` re-read once, answered |
+| error shapes | unknown field → 400 `invalid_request`; unknown model → 404 `not_found`; both classified as request errors, not blocks |
+| cache | repeat answered in under 1 ms, no usage counted |
+| Flash-Lite fallback | same answers on the three cases tried; 947 to 2,130 input and 141 to 261 output tokens; 1.0 to 1.4 s; about USD 0.0010 per call |
+
+Not exercised live: a safety block (neither shape has been observed), a 429 or 5xx, and Cloud Run to API latency. These paths are covered by unit tests with a fake HTTP client.
 
 ## 8. Step 5: the agent
 
@@ -432,7 +494,7 @@ Prices are the verified paid-tier rates. Token counts are estimates to be replac
 
 | Call | Tokens (estimate) | Cost |
 |---|---|---|
-| `/decide` | 1,100 in (message, context, about 45 category and 8 account options) | USD 0.00011 |
+| `/decide` | 1,900 in, measured (7 questions, 36 category and 8 account options; WP-33); 2,400 with all 10 questions; Flash-Lite fallback about 2,000 in and 200 out | USD 0.00019 (fallback USD 0.0011) |
 | agent capture turn, Flash-Lite, two model calls + one Decisions call | 16,000 in (about 12,000 of it catalog instructions), 450 out | USD 0.0060 |
 | average agent capture (1.25 turns) | | USD 0.0075 |
 | cloud audio, 8 s | + 256 in (32 tokens per second) | + USD 0.00008 |

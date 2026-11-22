@@ -30,6 +30,26 @@ final decisionsClientProvider = Provider<DecisionsClient>(
   name: 'decisionsClientProvider',
 );
 
+/// The slip's duplicate warning from a decide answer (S3.14), or null.
+///
+/// Warns when `duplicate` was answered for a candidate (`duplicateOf`) and
+/// P(yes) reaches [warnAt] (`dup_warn`). Answers from the uncalibrated
+/// fallback are first capped at [uncalibratedCap] (`conf_on_device_cap`).
+DuplicateHint? duplicateHintFrom(
+  DecideResponse response, {
+  required double warnAt,
+  required double uncalibratedCap,
+}) {
+  final txnId = response.duplicateOf;
+  final p = response.duplicate?.probability;
+  if (txnId == null || p == null) return null;
+  final probability = response.calibrated == false
+      ? (p < uncalibratedCap ? p : uncalibratedCap)
+      : p;
+  if (probability < warnAt) return null;
+  return DuplicateHint(txnId: txnId, probability: probability);
+}
+
 /// One HTTP response: status and body text.
 typedef DecideHttpResponse = ({int status, String body});
 

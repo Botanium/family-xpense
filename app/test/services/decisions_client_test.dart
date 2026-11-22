@@ -167,4 +167,43 @@ void main() {
       const Err<DecideResponse, ServiceFailure>(ServiceOffline()),
     );
   });
+
+  group('duplicateHintFrom', () {
+    DuplicateHint? hint(
+      double p, {
+      bool calibrated = true,
+      String? of = 't1',
+    }) => duplicateHintFrom(
+      DecideResponse(
+        duplicate: YesNoAnswer(probability: p),
+        duplicateOf: of,
+        calibrated: calibrated,
+      ),
+      warnAt: 0.8,
+      uncalibratedCap: 0.8,
+    );
+
+    test('warns at dup_warn with the candidate id', () {
+      final h = hint(0.85);
+      expect(h?.txnId, 't1');
+      expect(h?.probability, 0.85);
+      expect(hint(0.75), isNull);
+    });
+
+    test('no candidate or no answer: no warning', () {
+      expect(hint(0.99, of: null), isNull);
+      expect(
+        duplicateHintFrom(
+          DecideResponse(calibrated: true),
+          warnAt: 0.8,
+          uncalibratedCap: 0.8,
+        ),
+        isNull,
+      );
+    });
+
+    test('uncalibrated answers are capped first', () {
+      expect(hint(0.99, calibrated: false)?.probability, 0.8);
+    });
+  });
 }

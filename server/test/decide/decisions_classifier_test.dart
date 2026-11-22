@@ -445,6 +445,7 @@ void main() {
           ),
         );
         expect(r.duplicate?.probability, 0.9);
+        expect(r.duplicateOf, 't-gen');
       },
     );
 
@@ -468,6 +469,7 @@ void main() {
       final r = await classify(c, ask: {.intent, .duplicate});
       expect(asked(net), {'intent'});
       expect(r.duplicate, isNull);
+      expect(r.duplicateOf, isNull);
     });
 
     test('no candidates and nothing else: no call at all', () async {

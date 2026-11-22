@@ -110,6 +110,12 @@ abstract class $DecideResponse {
   /// Answer to `duplicate`: whether the message is one of the candidates.
   $YesNoAnswer? get duplicate;
 
+  /// The transaction id of the nearest duplicate candidate, set whenever
+  /// [duplicate] is. The slip's "Looks like one you already saved" links to
+  /// it (`EntryDraft.duplicate.txnId`).
+  @Field(name: 'duplicate_of')
+  String? get duplicateOf;
+
   /// `false` when the answers came from the Flash-Lite fallback; the phone
   /// then caps confidences at `conf_on_device_cap`.
   bool? get calibrated;

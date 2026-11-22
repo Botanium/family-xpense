@@ -156,7 +156,12 @@ final class DecisionsClassifier implements EntryClassifier {
     };
     switch (outcome) {
       case DecisionAnswered(:final answers, :final inputTokens):
-        final response = mapAnswers(plan, answers, calibrated: true);
+        final response = mapAnswers(
+          plan,
+          answers,
+          calibrated: true,
+          duplicateOf: found.firstOrNull?.txnId,
+        );
         _cache.put(cacheKey, response);
         await _count(context.hid, {
           UsageCounter.decisions: 1,
@@ -204,13 +209,14 @@ final class DecisionsClassifier implements EntryClassifier {
           'detail': detail,
         });
     }
-    return await _runFallback(context, plan, config);
+    return await _runFallback(context, plan, config, found);
   }
 
   Future<DecideResponse> _runFallback(
     XpenseContext context,
     DecideRequestPlan plan,
     RuntimeConfig config,
+    List<DuplicateCandidate> found,
   ) async {
     final result = await _fallback.answer(
       plan,
@@ -226,7 +232,12 @@ final class DecisionsClassifier implements EntryClassifier {
         result.outputTokens,
       ),
     });
-    final response = mapAnswers(plan, result.answers, calibrated: false);
+    final response = mapAnswers(
+      plan,
+      result.answers,
+      calibrated: false,
+      duplicateOf: found.firstOrNull?.txnId,
+    );
     _log.info({
       'message': 'decide: fallback answered',
       'hid': context.hid,

@@ -11,10 +11,14 @@ import 'package:xpense_agent/decide/question_set.dart';
 import 'package:xpense_shared/xpense_shared.dart';
 
 /// The response for [plan] from the API's [answers].
+///
+/// [duplicateOf] is the nearest duplicate candidate's id; it is set on the
+/// response only when `duplicate` was answered.
 DecideResponse mapAnswers(
   DecideRequestPlan plan,
   Map<String, Object?> answers, {
   required bool calibrated,
+  String? duplicateOf,
 }) {
   final json = <String, Object?>{};
   for (final q in plan.asked) {
@@ -25,6 +29,9 @@ DecideResponse mapAnswers(
         ? _choice(answer, plan.options[q] ?? const {})
         : _yesNo(answer);
     if (mapped != null) json[q.key] = mapped;
+  }
+  if (json.containsKey(DecideQuestion.duplicate.key)) {
+    json['duplicate_of'] = duplicateOf;
   }
   json['calibrated'] = calibrated;
   return DecideResponse.fromJson(json);
