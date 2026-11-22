@@ -62,6 +62,7 @@ Behaviour on the phone:
 - Fields listed in the draft's `guessed` show a "Guessed" badge; tapping any field opens a local picker and writes back into the data model.
 - For the first field in `missing`, shows an inline question with options built from household data (accounts, categories, members), ranked by the draft's probabilities.
 - A duplicate hint shows "Looks like one you already saved" with View and Save anyway.
+- When a draft needs a conversion and nobody has entered today's rate, the slip asks for it inline (prefilled with the latest rate; "Use 1,705" or "Change"). The answer is saved as the day's rate for the household.
 - One primary button: "Save", "Save both", or "Save 3 entries". Disabled while any draft has `missing` fields.
 - After saving: the slip shows the saved line (for example "SAVED · DINING 85,000 / 120,000" when a budget exists), an Undo link for 10 seconds, and the recurring offer when the hint passes the threshold.
 
@@ -83,7 +84,6 @@ A pick writes `value` locally. Without `action`, no message is sent to the agent
 |---|---|---|
 | `text` | dyn string | |
 | `seconds?` | dyn number | recording length |
-| `lang?` | enum `en` \| `ckb` \| `ar` | sets text direction and font fallback |
 
 **`ReceiptSummary`**: the result of a scan, shown in the glass sheet.
 
@@ -116,7 +116,7 @@ Behaviour: totals per group, the switch regroups locally with `allocate()` so gr
 | `tone?` | enum `ink` \| `income` \| `muted` \| `loan` \| `saving` | |
 | `approx?` | dyn object `{amountMinor, currency}` | renders "≈ USD 6.58" beneath |
 
-Formatting (grouping, decimals, digits, currency position) is done by the phone from the member's settings. The agent never formats money as text.
+Formatting (grouping, decimals, currency position) is done by the phone from the member's settings. The agent never formats money as text.
 
 **`LedgerRow`**: dot, label, dotted leader, mono value.
 
@@ -336,7 +336,7 @@ Output for one draft with a missing account (one `createSurface` carrying compon
     "components": [
       {"id": "root", "component": "Column", "children": ["heard", "list"]},
       {"id": "heard", "component": "Transcript",
-       "text": "Spent ten thousand dinars on lunch with the kids", "seconds": 6, "lang": "en"},
+       "text": "Spent ten thousand dinars on lunch with the kids", "seconds": 6},
       {"id": "list", "component": "EntryList", "drafts": {"@path": "/drafts"}, "status": "review"}
     ],
     "dataModel": {
@@ -344,7 +344,7 @@ Output for one draft with a missing account (one `createSurface` carrying compon
         "id": "d1", "intent": "expense", "amountMinor": 10000, "currency": "IQD",
         "categoryId": "dining", "who": "me", "occurredOn": "2026-11-22", "occurredTime": "13:20",
         "title": "Lunch with the kids",
-        "fx": {"pair": "USD/IQD", "pairRate": "1520", "source": "official", "asOf": "2026-11-22", "baseAmountMinor": 658},
+        "fx": {"pair": "USD/IQD", "pairRate": "1705", "source": "market", "asOf": "2026-11-22", "baseAmountMinor": 587},
         "confidence": {"intent": 0.97, "category": 0.94, "account": 0.31},
         "missing": ["accountId"], "origin": "decisions"
       }]
@@ -369,11 +369,11 @@ The fixture set `packages/xpense_shared/test/fixtures/surfaces/*.json` holds exp
 | Markdown | `A2uiMarkdown` with `flutter_markdown_plus`, links and images disabled |
 | Typed drafts | `EntryList` parses each draft with `EntryDraft.$schema`; a draft that fails validation renders as "Needs review" with an Edit button and cannot be saved directly |
 | Validation before save | account, category, person, loan and goal ids must exist in the household cache; amount in `1 … 10^12`; currency matches the account; at most 20 drafts |
-| RTL | components use directional padding and alignment only; figures stay left-to-right inside an isolate span |
+| Direction | components use directional padding and alignment only, so right-to-left can be added later without rework |
 | Accessibility | every component declares a semantics label; `MiniBars` requires `description`; "Guessed" is conveyed by a text badge, not colour alone; live updates (saved state) announce politely |
 | Unknown content | an unknown component or a failed message is skipped and counted; the rest of the surface renders |
 | Deleted surfaces | a `deleteSurface` for an unknown id is ignored; `genkit_a2ui` sends one before every `createSurface` |
-| Testing | golden tests: each component × light and dark × LTR and RTL × text scale 1.0 and 1.5, from the shared fixtures; widget tests for save, undo, pick and validation flows |
+| Testing | golden tests: each component × light and dark × text scale 1.0 and 1.5, from the shared fixtures; widget tests for save, undo, pick and validation flows |
 
 ## 10. Versioning
 

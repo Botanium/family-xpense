@@ -25,7 +25,7 @@ Every prompt below starts by pointing the session here. These rules apply to all
 | 1 | WP-01, WP-02, WP-03, WP-05, WP-S1, WP-S2, WP-S3 | all parallel; WP-01 and WP-S3 need the owner present |
 | 2 | WP-04, WP-S4, WP-10, WP-30 | parallel |
 | 3 | WP-11 → WP-12 → WP-13 | in sequence |
-| 4 | WP-20, then WP-21, WP-22, WP-23, WP-24 in parallel | |
+| 4 | WP-20, then WP-21, WP-22, WP-23 in parallel; WP-24 after WP-23 | |
 | 5 | WP-31 and WP-33 in parallel; WP-32 once WP-31 has merged the catalog JSON; then WP-34; then WP-35 | |
 | 6 | WP-40, WP-41, WP-50, WP-51, WP-52, WP-53 | parallel; each owns one feature folder |
 | 7 | WP-60 → WP-61, WP-62 | |
@@ -64,7 +64,7 @@ You are building WP-01 for Family Xpense. Read docs/DELEGATION.md "Rules for eve
 Create two NEW projects, xpense-dev and xpense-prod (ask the owner to confirm the ids are free and to link billing). The gcloud project currently active on this machine belongs to something else: never use it, and pass --project on every command. The owner chose region me-central1 (Doha) for everything; Firestore's location cannot be changed later, so confirm each service below enables cleanly there in xpense-dev before creating xpense-prod, and stop and report if one does not. In each project enable Firestore (Native), Auth (Apple, Google, email), Storage, App Check (App Attest; debug provider in dev only), Cloud Run, Scheduler, Eventarc, Secret Manager. Create the GEMINI_API_KEY secret placeholder and tell the owner how to add a paid-tier key. Create service accounts for the two Cloud Run services, the scheduler and Eventarc with least privilege. Configure the emulator suite (Auth, Firestore, Storage) and register the iOS apps. Write docs/ENVIRONMENTS.md as a runbook of exactly what you did. List every step that needs the owner's hands.
 ```
 
-### WP-02 Shared core: money, FX, digits, schemas
+### WP-02 Shared core: money, FX, schemas
 - **Goal:** the pure Dart foundation used by app and server.
 - **Owns:** `packages/xpense_shared/lib/money/`, `lib/schema/`, `lib/taxonomy/`, their tests.
 - **Depends on:** WP-00. **Parallel-safe:** yes.
@@ -74,20 +74,20 @@ Create two NEW projects, xpense-dev and xpense-prod (ask the owner to confirm th
 
 ```text
 You are building WP-02 for Family Xpense. Read docs/DELEGATION.md "Rules for every package", docs/DATA_MODEL.md section 1 and docs/AI_PIPELINE.md sections 4 and 8 (schemas).
-In packages/xpense_shared implement: Currency (explicit exponent table: USD 2, IQD 0; unknown code is a typed failure), Money (int minor units), allocate() with the verified vectors from the value-objects skill, FX conversion using decimal-string pair rates ("USD/IQD" convention, half-even rounding once), digit and separator folding for Arabic-Indic and Persian digits, the intent taxonomy, the default category tree with en/ckb/ar names, and the schemantic types EntryDraft, FxQuote, DraftConfidence, DuplicateHint, RecurringHint, ParseResult, DecideRequest, DecideResponse, ReceiptExtraction. All optional fields nullable. No Flutter, dart:io, Firebase or a2ui_core imports. Table-driven tests for everything, including property tests that allocate() always sums exactly.
+In packages/xpense_shared implement: Currency (explicit exponent table: USD 2, IQD 0; unknown code is a typed failure), Money (int minor units), allocate() with the verified vectors from the value-objects skill, FX conversion using decimal-string pair rates ("USD/IQD" convention, half-even rounding once), the intent taxonomy, the default category tree (English names; the names map is keyed by language code so others can be added), and the schemantic types EntryDraft, FxQuote, DraftConfidence, DuplicateHint, RecurringHint, ParseResult, DecideRequest, DecideResponse, ReceiptExtraction. All optional fields nullable. No Flutter, dart:io, Firebase or a2ui_core imports. Table-driven tests for everything, including property tests that allocate() always sums exactly. Digit folding for other scripts is deferred (D-36).
 ```
 
 ### WP-03 Design system
 - **Goal:** Signal tokens, themes, `GlassSurface`, core UI components, gallery.
 - **Owns:** `app/lib/core/theme/`, `app/lib/core/ui/`, `app/assets/fonts/`, `app/ios/Runner/` accessibility channel file, their tests and goldens.
 - **Depends on:** WP-00. **Parallel-safe:** yes.
-- **Skills and tools:** `flutter:design-system-structure`, `flutter:accessibility-as-code`, `flutter:widget-composition`, `flutter:widget-golden-and-a11y-testing`, `flutter:motion-and-haptics`, `flutter:i18n-rtl-l10n`, `mobile-app-design:ios-screens`; Dart MCP; iOS Simulator.
+- **Skills and tools:** `flutter:design-system-structure`, `flutter:accessibility-as-code`, `flutter:widget-composition`, `flutter:widget-golden-and-a11y-testing`, `flutter:motion-and-haptics`, `mobile-app-design:ios-screens`; Dart MCP; iOS Simulator.
 - **Done:** S0.6, S0.7, S0.8.
-- **Test:** `flutter test test/theme test/ui`; run `/gallery` in the simulator in light, dark and RTL and attach screenshots.
+- **Test:** `flutter test test/theme test/ui`; run `/gallery` in the simulator in light and dark and attach screenshots.
 
 ```text
 You are building WP-03 for Family Xpense. Read docs/DELEGATION.md "Rules for every package" and all of docs/DESIGN_SYSTEM.md. Open the design prototype with the Artifact tool (read action) at https://claude.ai/artifact/XxHQWTHVpRGpvSfzEQdX9S, files project/S3Home.dc.html, S3Ask.dc.html, S3Receipt.dc.html, for visual reference.
-Implement the two-tier tokens and ThemeExtensions (light and graphite dark), the hand-authored ColorScheme, bundled Geist, Geist Mono and an Arabic-script family (confirm Vazirmatn covers Sorani letters and tabular digits, or propose another OFL family), the contrast unit test, and the raw-value CI gate. Implement GlassSurface over liquid_glass_widgets 1.19.0 with the six variants and four tiers, the Reduce Transparency platform channel, and Increase Contrast handling. Read the package source before using it. Implement every component in DESIGN_SYSTEM section 8 with a debug gallery route and goldens (light/dark, LTR/RTL, text scale 1.0 and 1.5). Do not build product screens.
+Implement the two-tier tokens and ThemeExtensions (light and graphite dark), the hand-authored ColorScheme, bundled Geist and Geist Mono, the contrast unit test, and the raw-value CI gate. Implement GlassSurface over liquid_glass_widgets 1.19.0 with the six variants and four tiers, the Reduce Transparency platform channel, and Increase Contrast handling. Read the package source before using it. Implement every component in DESIGN_SYSTEM section 8, including RatePrompt, with a debug gallery route and goldens (light and dark, text scale 1.0 and 1.5). Use directional insets and alignments only. Do not build product screens.
 ```
 
 ### WP-04 Server skeleton
@@ -131,12 +131,12 @@ In spikes/a2ui build the smallest thing that answers these questions with eviden
 
 ### WP-S2 Spike: Liquid Glass performance
 - **Owns:** `spikes/glass/`, `docs/spikes/WP-S2.md`. **Depends on:** WP-00. **Parallel-safe:** yes.
-- **Skills and tools:** `flutter:flutter-performance`; Dart MCP; iOS Simulator; a physical iPhone if the owner can connect one.
+- **Skills and tools:** `flutter:flutter-performance`; Dart MCP; iOS Simulator; the owner's iPhone 15 Pro Max and iPhone 17 Pro.
 - **Done:** S0.12.
 
 ```text
 You are running spike WP-S2 for Family Xpense. Read docs/DELEGATION.md "Rules for every package" and docs/DESIGN_SYSTEM.md section 6.
-Build a test screen in spikes/glass: a long scrolling list of mono figures with a glass tab bar, the orange Ask button, a glass dock and a glass sheet over it, using liquid_glass_widgets 1.19.0 (read its source and PLATFORM_SUPPORT doc first). Measure frame build and raster times in profile mode for the package's premium, standard and minimal qualities and for a solid fallback, on the oldest iPhone available and a current one (the simulator is CPU-only, so say clearly which numbers come from real hardware). Test Reduce Transparency, Low Power Mode and glass over a camera preview. Recommend the device-to-tier table and any recipe changes. Write docs/spikes/WP-S2.md.
+Build a test screen in spikes/glass: a long scrolling list of mono figures with a glass tab bar, the orange Ask button, a glass dock and a glass sheet over it, using liquid_glass_widgets 1.19.0 (read its source and PLATFORM_SUPPORT doc first). Measure frame build and raster times in profile mode for the package's premium, standard and minimal qualities and for a solid fallback, on the owner's iPhone 15 Pro Max and iPhone 17 Pro (the simulator is CPU-only, so say clearly which numbers come from real hardware). Test Reduce Transparency, Low Power Mode and glass over a camera preview. Recommend the device-to-tier table and any recipe changes. Write docs/spikes/WP-S2.md.
 ```
 
 ### WP-S3 Spike: on-device AI, speech and OCR
@@ -146,17 +146,17 @@ Build a test screen in spikes/glass: a long scrolling list of mono figures with 
 
 ```text
 You are running spike WP-S3 for Family Xpense. Read docs/DELEGATION.md "Rules for every package" and docs/AI_PIPELINE.md sections 3 and 6.
-On a real iPhone (ask the owner which model and iOS version), measure: (1) flutter_edge_ai_builtin_ai: availability status, languages accepted, JSON extraction quality on 10 English utterances; (2) flutter_edge_ai_litertlm with Gemma 4 E2B: download size, load time, peak memory, constrained JSON output, extraction on 10 English, 10 Arabic and 10 Sorani utterances from docs/AI_PIPELINE.md samples (ask the owner to supply or check the Kurdish ones); (3) speech_to_text with onDevice: true for en-US and ar-SA, and what happens for ckb; (4) Apple Vision OCR through a minimal platform channel on 3 Latin and 3 Arabic-script receipts, including Sorani letters; compare with google_mlkit_text_recognition. Read each package's source before use. Write docs/spikes/WP-S3.md with a capability table and a recommendation for each row of the tables in AI_PIPELINE 3 and 6.
+On the owner's two phones, an iPhone 15 Pro Max and an iPhone 17 Pro (ask which iOS version each runs and whether Apple Intelligence is on), measure: (1) flutter_edge_ai_builtin_ai: availability status and JSON extraction quality on 15 English utterances from docs/AI_PIPELINE.md; (2) flutter_edge_ai_litertlm with Gemma 4 E2B: download size, load time, peak memory, constrained JSON output, extraction on the same 15 utterances; (3) speech_to_text with onDevice: true for en-US, including what happens when on-device recognition is unavailable; (4) google_mlkit_text_recognition on 5 Latin-script receipts and 2 Arabic-script ones (to see how failure looks, since those go to the cloud path for now). Read each package's source before use. Write docs/spikes/WP-S3.md with a capability table and a recommendation for each row of the tables in AI_PIPELINE 3 and 6.
 ```
 
-### WP-S4 Spike: Decisions API and Kurdish audio
+### WP-S4 Spike: Decisions API and cloud voice
 - **Owns:** `spikes/decide/`, `docs/spikes/WP-S4.md`. **Depends on:** WP-01 (API key). **Parallel-safe:** yes.
 - **Skills and tools:** `developing-genkit-dart`; `genkit` MCP.
 - **Done:** S0.14.
 
 ```text
 You are running spike WP-S4 for Family Xpense. Read docs/DELEGATION.md "Rules for every package" and docs/AI_PIPELINE.md sections 7, 11 and 12.
-Using the paid-tier key from Secret Manager in xpense-dev (never print it), call POST https://generativelanguage.googleapis.com/v1beta/decisions with model gemini-decision-1 over REST from Dart. Fetch the current API docs first; do not rely on the summary in our docs. Run the question set from AI_PIPELINE 7 against the default category tree on 60 utterances (20 English, 20 Arabic, 20 Sorani; the owner reviews the non-English ones). Report accuracy per question and language, a reliability table for calibration, measured input tokens and latency, and behaviour on errors and safety blocks. Separately, send 10 Sorani and 5 Arabic audio clips (recorded by the owner) to gemini-3.5-flash-lite and gemini-3.8-flash and score the transcripts. Recommend go or no-go for Decisions on each language and for Kurdish voice, and update the cost table inputs. Write docs/spikes/WP-S4.md.
+Using the paid-tier key from Secret Manager in xpense-dev (never print it), call POST https://generativelanguage.googleapis.com/v1beta/decisions with model gemini-decision-1 over REST from Dart. Fetch the current API docs first; do not rely on the summary in our docs. Run the question set from AI_PIPELINE 7 against the default category tree on 60 English utterances covering every slice in AI_PIPELINE 11. Report accuracy per question, a reliability table for calibration, measured input tokens and latency, and behaviour on errors and safety blocks. Separately, send 10 English audio clips (recorded by the owner, some with background noise) to gemini-3.5-flash-lite and score the transcripts, with attention to amounts. Recommend go or no-go for the Decisions path and for the cloud voice fallback, and update the cost table inputs. Write docs/spikes/WP-S4.md.
 ```
 
 ## M1
@@ -166,11 +166,11 @@ Using the paid-tier key from Secret Manager in xpense-dev (never print it), call
 - **Depends on:** WP-03. **Parallel-safe:** yes.
 - **Skills and tools:** `flutter:app-startup-and-bootstrap`, `flutter:navigation-and-routing`, `flutter:state-management-riverpod`, `flutter:flutter-architecture`, `flutter:i18n-rtl-l10n`, `flutter:async-safety`; Dart MCP; iOS Simulator.
 - **Done:** S1.1, S1.2.
-- **Test:** `flutter test`; launch in the simulator, switch language to Arabic, attach screenshots of the four tabs in LTR and RTL.
+- **Test:** `flutter test`; launch in the simulator and attach screenshots of the four tabs in light and dark.
 
 ```text
 You are building WP-10 for Family Xpense. Read docs/DELEGATION.md "Rules for every package", docs/ARCHITECTURE.md section 3 and docs/DESIGN_SYSTEM.md sections 8 to 10.
-Build the app shell: startup order from ARCHITECTURE 3.3, Riverpod composition root with overridable providers, go_router with a StatefulShellRoute for Home, Activity, Goals, Accounts (placeholder screens), the Ask route above the shell opened by the round glass button, deep-link parsing, gen-l10n with en, ckb and ar and a language switch, the settings store, the Face ID lock overlay, and the service interfaces listed in ARCHITECTURE 3.2 (interfaces and fakes only). Create a routes.dart stub in every feature folder so later packages never edit the central router. Add the import-rule test for the layer table in ARCHITECTURE 3.1.
+Build the app shell: startup order from ARCHITECTURE 3.3, Riverpod composition root with overridable providers, go_router with a StatefulShellRoute for Home, Activity, Goals, Accounts (placeholder screens), the Ask route above the shell opened by the round glass button, deep-link parsing, gen-l10n with one English ARB file (no hard-coded strings anywhere), the settings store, the Face ID lock overlay, and the service interfaces listed in ARCHITECTURE 3.2 (interfaces and fakes only). Create a routes.dart stub in every feature folder so later packages never edit the central router. Add the import-rule test for the layer table in ARCHITECTURE 3.1.
 ```
 
 ### WP-11 Auth and onboarding screens
@@ -194,7 +194,7 @@ Build Welcome, Create account and Try it in the Signal style using only componen
 
 ```text
 You are building WP-12 for Family Xpense. Read docs/DELEGATION.md "Rules for every package", docs/DATA_MODEL.md sections 2.2, 2.3, 2.15 and 5, and docs/ARCHITECTURE.md 4.2.
-Build screen 3 (household name, display name, base currency, invite). Creating a household writes the household, the member document and the default categories in one batch from the phone. Invites and joins go through the server flows /household/invite and /household/join (admin SDK): 10-character base32 codes, SHA-256 stored, 7-day expiry, single use, at most two members, rate limited per uid. Support the xpense://join?code= deep link and manual code entry ("I have an invite"). Tests: server flow unit tests with the Firestore emulator; widget tests; a rules test proving the phone cannot change memberIds.
+Build screen 3 (household name, display name, base currency with USD preselected, invite). Creating a household writes the household, the member document and the default categories in one batch from the phone. Invites and joins go through the server flows /household/invite and /household/join (admin SDK): 10-character base32 codes, SHA-256 stored, 7-day expiry, single use, at most two members, rate limited per uid. Support the xpense://join?code= deep link and manual code entry ("I have an invite"). Tests: server flow unit tests with the Firestore emulator; widget tests; a rules test proving the phone cannot change memberIds.
 ```
 
 ### WP-13 Accounts
@@ -253,27 +253,27 @@ You are building WP-23 for Family Xpense. Read docs/DELEGATION.md "Rules for eve
 Build Home exactly in the Signal layout: mono header, bell and avatar pair, HeroBalance in the base currency with the other-currency line, month delta, MiniBars for daily spending with a spoken summary, the three ledger rows (Income, Spent, Saved), a NudgeRow slot (static provider for now), and Recent with "See all". Totals are derived from the viewer's visible transactions for the month, in base currency, using stored baseAmountMinor. Stepped hero sizing and stacking at large text sizes. Goldens in light, dark, RTL and text scale 1.5.
 ```
 
-### WP-24 FX rates and categories editor
-- **Owns:** `server/lib/jobs/fx_rates.dart`, `data/fx_repository.dart`, `features/settings_privacy/fx/`, `features/settings_privacy/categories/`.
-- **Depends on:** WP-20, WP-04. **Parallel-safe:** yes.
+### WP-24 Daily exchange rate and categories editor
+- **Owns:** `data/fx_repository.dart`, `features/settings_privacy/fx/`, `features/settings_privacy/categories/`, the rate prompt wiring in the Home notice slot.
+- **Depends on:** WP-20, WP-23. **Parallel-safe:** yes, after WP-23.
 - **Done:** S2.6, S2.7.
 
 ```text
-You are building WP-24 for Family Xpense. Read docs/DELEGATION.md "Rules for every package", docs/DATA_MODEL.md sections 1, 2.6 and 2.13, and docs/DECISIONS.md D-15 and D-16.
-Server: /jobs/fx-rates fetches the official USD/IQD figures (Frankfurter v2 CBI provider, with open.er-api as a cross-check; fetch their current docs and terms first), writes fxRates/{day} with sources, and never overwrites a day with missing data. Phone: FxRepository resolves the rate for a date and source (official cash 1520-style, CBI, or the household's market rate); settings screens to choose the source and enter the market rate with a stale warning after 7 days; the rate used is shown on every converted amount. Also build the categories editor (rename in three languages, add, reorder, archive).
+You are building WP-24 for Family Xpense. Read docs/DELEGATION.md "Rules for every package", docs/ARCHITECTURE.md section 3.5, docs/DATA_MODEL.md sections 1, 2.6 and 2.13, and docs/DECISIONS.md D-16.
+There is no rate feed and no server job: the app asks the user every day. Build FxRepository (the day's rate from households/{hid}/fxRates/{day}, else the most recent earlier one, as a decimal string in the USD/IQD convention); the daily RatePrompt on Home (first open of each household-local day, only when the household has accounts in both currencies; Same keeps yesterday's rate, Change opens a number pad, and a rate more than 5% from the previous one asks for confirmation; one answer covers both partners); the inline ask used by slips and the manual form when the day has no rate (skippable: the entry then uses the latest rate and records its date); and the Settings screens for the rate label (official or market), rate history and editing a day's rate, which never rewrites saved transactions. Also build the categories editor (rename, add, reorder, archive). Widget tests with an injected Clock for first open, already answered, answered by the partner, and skipped.
 ```
 
 ## M3
 
 ### WP-30 Fast parser
 - **Owns:** `packages/xpense_shared/lib/parse/`. **Depends on:** WP-02. **Parallel-safe:** yes.
-- **Skills:** `flutter:dart3-idioms-and-coding-standards`, `flutter:i18n-rtl-l10n`, `flutter:testing-strategy`.
+- **Skills:** `flutter:dart3-idioms-and-coding-standards`, `flutter:testing-strategy`.
 - **Done:** S3.1.
 - **Test:** `dart test test/parse` in `packages/xpense_shared`.
 
 ```text
-You are building WP-30 for Family Xpense. Read docs/DELEGATION.md "Rules for every package" and docs/AI_PIPELINE.md sections 2 (signals), 3 (language detection) and 5.
-Implement the deterministic fast parser as pure, total functions: normalisation, amounts (digits, separators, k/m, number words and multipliers in English, Arabic and Sorani), local slang (daftar, waraqa, dropped thousands), currency lexicon with the magnitude check, dates, account and person hints, rule application, complexity signals, language detection, and the receipt-text parser (merchant, date, total, lines). Table-driven tests with at least 150 cases across the three languages; mark every Kurdish and Arabic expectation that needs owner review. No model, no I/O.
+You are building WP-30 for Family Xpense. Read docs/DELEGATION.md "Rules for every package" and docs/AI_PIPELINE.md sections 2 (signals) and 5.
+Implement the deterministic fast parser as pure, total functions: normalisation, amounts (digits, separators, k/m, number words and multipliers), dropped thousands, currency lexicon with the magnitude check, dates, account and person hints, rule application, complexity signals, and the receipt-text parser (merchant, date, total, lines). English lexicons only, held in tables keyed by language so others can be added later. Table-driven tests with at least 150 cases. No model, no I/O.
 ```
 
 ### WP-31 Xpense catalog, host and local builder
@@ -285,7 +285,7 @@ Implement the deterministic fast parser as pure, total functions: normalisation,
 
 ```text
 You are building WP-31 for Family Xpense. Read docs/DELEGATION.md "Rules for every package", all of docs/A2UI_CATALOG.md, docs/ARCHITECTURE.md section 7 and docs/spikes/WP-S1.md (its findings override the catalog doc where they differ; update the doc).
-First PR: xpense_catalog.json in the A2UI catalog.json shape for all 24 components, property order as documented. Then: SurfaceBuilder in xpense_shared (raw spec-shaped maps, no a2ui_core) with fixtures; the phone catalog (one ComponentImplementation per component mapping props to typed widgets built from core/ui); EntryList and ReceiptSummary as smart components with local editing, validation and save through an XpenseActions interface; XpenseSurfaceHost (one MessageProcessor per conversation, ordered queue, action routing by the xp.local. prefix, per-message error isolation, restricted Markdown); the catalog parity test; goldens from the fixtures (light/dark, LTR/RTL, scale 1.0 and 1.5); widget tests for save, undo, pick and validation. Only app/lib/a2ui may import a2ui_core and a2ui_flutter.
+First PR: xpense_catalog.json in the A2UI catalog.json shape for all 24 components, property order as documented. Then: SurfaceBuilder in xpense_shared (raw spec-shaped maps, no a2ui_core) with fixtures; the phone catalog (one ComponentImplementation per component mapping props to typed widgets built from core/ui); EntryList and ReceiptSummary as smart components with local editing, validation and save through an XpenseActions interface; XpenseSurfaceHost (one MessageProcessor per conversation, ordered queue, action routing by the xp.local. prefix, per-message error isolation, restricted Markdown); the catalog parity test; goldens from the fixtures (light/dark, scale 1.0 and 1.5); widget tests for save, undo, pick and validation. Only app/lib/a2ui may import a2ui_core and a2ui_flutter.
 ```
 
 ### WP-32 Agent, tools and prompts
@@ -332,7 +332,7 @@ Implement the router as a pure function with one test per row of the decision ta
 
 ```text
 You are building WP-35 for Family Xpense. Read docs/DELEGATION.md "Rules for every package" and docs/AI_PIPELINE.md sections 9, 11 and 12.
-Create the datasets (at least 182 utterances per the slice table, plus receipt fixtures; draft Kurdish and Arabic cases and flag them for owner review), the wrapper flows, and the custom evaluators with ai.defineEvaluator. Add the CI job that runs on main and nightly and fails below the gates. Run the suite, tune the thresholds in section 9 against the results, replace the estimated token counts and costs in section 12 with measured ones, and report per-language results honestly, including any gate that cannot be met yet.
+Create the datasets (at least 156 English utterances per the slice table, plus receipt fixtures), the wrapper flows, and the custom evaluators with ai.defineEvaluator. Add the CI job that runs on main and nightly and fails below the gates. Run the suite, tune the thresholds in section 9 against the results, replace the estimated token counts and costs in section 12 with measured ones, and report the results honestly, including any gate that cannot be met yet.
 ```
 
 ## M4
@@ -344,16 +344,16 @@ Create the datasets (at least 182 utterances per the slice table, plus receipt f
 
 ```text
 You are building WP-40 for Family Xpense. Read docs/DELEGATION.md "Rules for every package", docs/AI_PIPELINE.md section 3, docs/ARCHITECTURE.md 5.4 and docs/spikes/WP-S3.md and WP-S4.md.
-Implement SpeechCapture: on-device recognition with speech_to_text (onDevice: true) for the languages the spike confirmed, raw recording with record (AAC mono 16 kHz, 60 s cap) for the cloud fallback, live waveform levels, and the permission pre-prompts. Dock voice mode: tap to start, stop button, switch to type or camera. Cloud fallback sends the audio part to the agent, shows the returned Transcript, and lets the user correct it by typing. In On-device mode, unsupported languages show the Notice with "Type instead". Audio is never stored.
+Implement SpeechCapture: on-device recognition with speech_to_text (onDevice: true) for English (en-US), raw recording with record (AAC mono 16 kHz, 60 s cap) for the cloud fallback, live waveform levels, and the permission pre-prompts. Dock voice mode: tap to start, stop button, switch to type or camera. Cloud fallback sends the audio part to the agent, shows the returned Transcript, and lets the user correct it by typing. In On-device mode, a phone without on-device recognition shows the Notice with "Type instead". Audio is never stored.
 ```
 
 ### WP-41 Receipts
-- **Owns:** `services/ocr_engine*.dart`, `app/ios/Runner/` Vision channel, `features/capture/receipt/`, `data/receipt_store.dart`. **Depends on:** WP-34, WP-S3. **Parallel-safe:** yes.
+- **Owns:** `services/ocr_engine*.dart`, `features/capture/receipt/`, `data/receipt_store.dart`. **Depends on:** WP-34, WP-S3. **Parallel-safe:** yes.
 - **Done:** S4.3, S4.4, S4.5.
 
 ```text
 You are building WP-41 for Family Xpense. Read docs/DELEGATION.md "Rules for every package", docs/AI_PIPELINE.md sections 3 and 10, docs/ARCHITECTURE.md 5.5, docs/DESIGN_SYSTEM.md screen 8 and docs/spikes/WP-S3.md.
-Implement OcrEngine with Apple Vision through a platform channel (accurate level, languages from the spike) and ML Kit for Latin as fallback; the scan screen with the camera preview, scan frame, glass controls over media with the scrim, and the ReceiptSummary sheet. Use the shared receipt parser for merchant, date and total; classify through /decide; for line-item split in Smart and Cloud send the image to the agent (receipt_lines prompt) and regroup locally with allocate() so groups sum exactly. OCR text is untrusted: pass it only inside the data delimiters. Images stay in the app's documents directory unless backup is on.
+Implement OcrEngine over google_mlkit_text_recognition (Latin script), keeping the interface so another engine can be added later. Receipts ML Kit cannot read, including Arabic-script ones, go to the agent as an image in Smart and Cloud, or to manual entry of the total in On-device mode. Build the scan screen with the camera preview, scan frame, glass controls over media with the scrim, and the ReceiptSummary sheet. Use the shared receipt parser for merchant, date and total; classify through /decide; for line-item split in Smart and Cloud send the image to the agent (receipt_lines prompt) and regroup locally with allocate() so groups sum exactly. OCR text is untrusted: pass it only inside the data delimiters. Images stay in the app's documents directory unless backup is on.
 ```
 
 ## M5
@@ -400,7 +400,7 @@ After saving an entry whose recurring hint passes the threshold, show the offer 
 
 ```text
 You are building WP-60 for Family Xpense. Read docs/DELEGATION.md "Rules for every package", docs/ARCHITECTURE.md 4.1, 4.2 and 5.6, and docs/DATA_MODEL.md sections 2.14, 3 and 9.
-Implement the jobs as idempotent flows on the private xpense-jobs service: nudges (missed bill, budget warning, loan due, stale rate; at most two per member per day; dedupe keys), recurring detection over three months of history and posting of auto templates with source: recurring, nightly reconcile using the shared balance-effect table, and retention. Detection is rule-based; no model call. Create Cloud Scheduler jobs in xpense-dev with OIDC to the private service. Test each job against the emulator with seeded data, including a drift-correction case.
+Implement the jobs as idempotent flows on the private xpense-jobs service: nudges (missed bill, budget warning, loan due, the daily rate reminder when nobody has entered today's rate; at most two per member per day; dedupe keys), recurring detection over three months of history and posting of auto templates with source: recurring, nightly reconcile using the shared balance-effect table, and retention. Detection is rule-based; no model call. Create Cloud Scheduler jobs in xpense-dev with OIDC to the private service. Test each job against the emulator with seeded data, including a drift-correction case.
 ```
 
 ### WP-61 Push and notification centre
@@ -408,7 +408,7 @@ Implement the jobs as idempotent flows on the private xpense-jobs service: nudge
 
 ```text
 You are building WP-61 for Family Xpense. Read docs/DELEGATION.md "Rules for every package", docs/DATA_MODEL.md 2.14 and docs/DESIGN_SYSTEM.md screen 19 and review item 7.
-Register FCM tokens per device, ask for notification permission in context (after the first reminder is set), send pushes from the server for new notifications in the member's language, build the notification centre with read state, and open a tapped notification as a locally built Nudge surface in Ask or the right screen. Feed the Home NudgeRow from the latest unread nudge.
+Register FCM tokens per device, ask for notification permission in context (after the first reminder is set), send pushes from the server for new notifications, build the notification centre with read state, and open a tapped notification as a locally built Nudge surface in Ask or the right screen. Feed the Home NudgeRow from the latest unread nudge.
 ```
 
 ### WP-62 Monthly report, export and import
@@ -416,7 +416,7 @@ Register FCM tokens per device, ask for notification permission in context (afte
 
 ```text
 You are building WP-62 for Family Xpense. Read docs/DELEGATION.md "Rules for every package", docs/AI_PIPELINE.md section 8 (monthly_report prompt rule: no arithmetic by the model) and docs/DESIGN_SYSTEM.md screen 22.
-Compute the report numbers in code (shared ReportNumbers), narrate with the escalation model only when cloudInsights is true, otherwise fill a localised template. Build the report screen, PDF and Excel export on the phone (check pdf and excel package compatibility with the pinned SDK first), CSV export of entries, and CSV import with a column-mapping step and a dry-run preview.
+Compute the report numbers in code (shared ReportNumbers), narrate with the escalation model only when cloudInsights is true, otherwise fill a template. Build the report screen, PDF and Excel export on the phone (check pdf and excel package compatibility with the pinned SDK first), CSV export of entries, and CSV import with a column-mapping step and a dry-run preview.
 ```
 
 ## M7
@@ -427,7 +427,7 @@ Compute the report numbers in code (shared ReportNumbers), narrate with the esca
 
 ```text
 You are building WP-70 for Family Xpense. Read docs/DELEGATION.md "Rules for every package", docs/AI_PIPELINE.md sections 2 and 6, docs/ARCHITECTURE.md section 6 and docs/spikes/WP-S3.md.
-Implement OnDeviceLlm over flutter_edge_ai (read the package source; the 3.0 API renames are coming): engine selection, capability per language, extraction against the EntryDraft schema with validation and one retry, the 0.80 confidence cap, a 4 s timeout, and classification for On-device mode. Build the privacy settings with plain descriptions of the three modes, the optional Gemma download (size shown, Wi-Fi only, resumable, deletable), and the pickers-only path when no model is present. The server already refuses AI routes for On-device members; make the phone never call them in that mode.
+Implement OnDeviceLlm over flutter_edge_ai (read the package source; the 3.0 API renames are coming): engine selection, capability detection, extraction against the EntryDraft schema with validation and one retry, the 0.80 confidence cap, a 4 s timeout, and classification for On-device mode. Build the privacy settings with plain descriptions of the three modes, the optional Gemma download (size shown, Wi-Fi only, resumable, deletable), and the pickers-only path when no model is present. The server already refuses AI routes for On-device members; make the phone never call them in that mode.
 ```
 
 ### WP-71 Privacy egress test, offline queue, on-device evaluation
@@ -448,12 +448,13 @@ You are building WP-80 for Family Xpense. Read docs/DELEGATION.md "Rules for eve
 Add an App Shortcut "Log an expense" with a text parameter that opens Ask with the text (evaluate app_intents 0.21.1 against a small native App Intents target; read the source first), home and lock screen widgets (balance for the viewer's visible data, and a quick-add button) with home_widget or native WidgetKit, and a share extension that sends a receipt image into the scan flow. Widgets must respect the Face ID lock setting: hide figures when the lock is on.
 ```
 
-### WP-81 Localisation and RTL completion
-- **Owns:** `app/lib/l10n/*.arb`, RTL goldens. **Depends on:** all screens. **Parallel-safe:** yes (ARB only). **Done:** S8.2.
+### WP-81 English copy pass
+- **Owns:** `app/lib/l10n/app_en.arb`. **Depends on:** all screens. **Parallel-safe:** yes (ARB only). **Done:** S8.2.
+- **Skills:** `design:ux-copy`.
 
 ```text
-You are building WP-81 for Family Xpense. Read docs/DELEGATION.md "Rules for every package" and docs/DESIGN_SYSTEM.md sections 4 and 10.
-Complete the ckb and ar ARB files (draft translations, flagged for native review by the owner; never ship unreviewed financial terms), the digits setting (latn or arab) through the money and date formatters, plural rules, and RTL goldens for every screen. Fix every layout that uses non-directional insets. List strings that are hard to translate with context notes.
+You are building WP-81 for Family Xpense. Read docs/DELEGATION.md "Rules for every package" and docs/DESIGN_SYSTEM.md sections 1 and 10.
+The app is English only for now. Review every string in the ARB file for clarity, tone and consistency (plain words, no jargon, the same term for the same thing everywhere), fix plural and number placeholders, and add a test that fails on hard-coded user-facing strings outside the ARB file and on non-directional insets or alignments. List the strings that will be hardest to translate later, with context notes.
 ```
 
 ### WP-82 Account deletion, data export, legal and store
@@ -461,7 +462,7 @@ Complete the ckb and ar ARB files (draft translations, flagged for native review
 
 ```text
 You are building WP-82 for Family Xpense. Read docs/DELEGATION.md "Rules for every package" and docs/DATA_MODEL.md section 9.
-Implement /account/delete (re-authentication on the phone, then server-side deletion of the Auth user, the user and member documents and personal-scope data; joint data stays with the remaining partner; the household is deleted when no member remains) and a full data export as a zip of CSV and JSON. Draft, for the owner's review: Terms, Privacy Policy (covering the three privacy modes and Google's paid-tier data terms), App Store privacy labels, review notes with a demo account, and store listing text in three languages.
+Implement /account/delete (re-authentication on the phone, then server-side deletion of the Auth user, the user and member documents and personal-scope data; joint data stays with the remaining partner; the household is deleted when no member remains) and a full data export as a zip of CSV and JSON. Draft, for the owner's review: Terms, Privacy Policy (covering the three privacy modes and Google's paid-tier data terms), App Store privacy labels, review notes with a demo account, and store listing text.
 ```
 
 ### WP-83 Observability, cost controls, App Check enforcement
@@ -479,7 +480,7 @@ Export OTLP traces and metrics from genkit_otel to Cloud Trace and Monitoring wi
 
 ```text
 You are running WP-84 for Family Xpense. Read docs/DELEGATION.md "Rules for every package" and docs/DESIGN_SYSTEM.md, especially section 12.
-Run one structured review on a release build: every screen on a small and a large iPhone, light and dark, English and Arabic, largest accessibility text size, Reduce Motion, Reduce Transparency and Increase Contrast, plus a pass on a physical older iPhone. Grade findings (blocker, fix, note); every accessibility-floor violation is a blocker. Do one fix round, re-check, and write a dated sign-off with screenshots. Measure cold start and scrolling with glass on iPhone 12-class hardware and finalise the glass tier table. Say plainly what you could not check.
+Run one structured review on a release build: every screen on a small and a large iPhone, light and dark, largest accessibility text size, Reduce Motion, Reduce Transparency and Increase Contrast, plus a pass on the owner's iPhone 15 Pro Max and iPhone 17 Pro (simulators stand in for smaller and older models; say so in the sign-off). Grade findings (blocker, fix, note); every accessibility-floor violation is a blocker. Do one fix round, re-check, and write a dated sign-off with screenshots. Measure cold start and scrolling with glass on the iPhone 15 Pro Max and finalise the glass tier table. Say plainly what you could not check.
 ```
 
 ---
@@ -487,6 +488,6 @@ Run one structured review on a release build: every screen on a small and a larg
 ## Escalate to Fable when
 
 - a locked decision turns out to be wrong or unbuildable;
-- a spike result changes the architecture (for example Express cannot carry drafts, or Kurdish accuracy is below the gate);
+- a spike result changes the architecture (for example Express cannot carry drafts, or Decisions accuracy is below the gate);
 - two packages need the same file in conflicting ways;
 - an evaluation gate cannot be met after tuning.

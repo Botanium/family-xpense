@@ -93,9 +93,8 @@ Fonts are bundled (no runtime fetch), licences registered with `LicenseRegistry`
 |---|---|---|
 | Geist | 400, 500, 600 | all Latin text |
 | Geist Mono | 300, 400, 500 | all figures and mono labels |
-| Vazirmatn (proposed) | 400, 500, 600 | Arabic-script text for Arabic and Sorani; `WP-03` confirms coverage of ە ێ ۆ ڵ ڕ ڤ and tabular digits |
 
-`fontFamilyFallback`: Geist → Vazirmatn → system. Mono: Geist Mono → Vazirmatn (tabular figures) → system.
+`fontFamilyFallback`: Geist → system. Mono: Geist Mono → system. An Arabic-script family is chosen when Kurdish and Arabic are added (D-35).
 
 | Style | Family, weight | Size / line | Tracking | Use | iOS role |
 |---|---|---|---|---|---|
@@ -121,9 +120,8 @@ Rules:
 - Sizes are logical points and scale with `MediaQuery.textScaler`. No style is clamped, with one exception: `tabLabel` stops at 1.35×, matching iOS tab bars, and the tab items carry full semantics labels.
 - `figureHero` steps down to `figureLarge`, then to compact notation ("IQD 16.3M") when the full figure does not fit the width. It never truncates and never uses a shrinking box.
 - At accessibility sizes, rows with a trailing figure stack: label above, figure below, both leading-aligned.
-- Mono labels are upper-cased in code for Latin only; Arabic-script labels keep their case and drop the tracking.
-- Figures are wrapped in a left-to-right isolate so RTL text never reorders "IQD 10,000".
-- Digits follow the member's setting (`latn` or `arab`); mono alignment uses tabular figures in both.
+- Mono labels are upper-cased in code, not in the strings.
+- Figures use tabular digits so columns align.
 
 ## 5. Space, size, shape
 
@@ -196,7 +194,7 @@ GlassSurface(
 - All glass on a screen shares one backdrop read (`GlassBackdropGroup`).
 - Reduce Transparency is not exposed by Flutter or by the glass package. `AccessibilityFlags` reads `UIAccessibility.isReduceTransparencyEnabled` through a small platform channel and listens for changes.
 - Increase Contrast: tint opacity rises to 90%, border becomes `ink` at 40%.
-- The tier is chosen at startup from a device table and can step down at runtime; it never steps up within a session. `WP-S2` measures tiers on an older iPhone before the table is locked.
+- The tier is chosen at startup from a device table and can step down at runtime; it never steps up within a session. `WP-S2` measures tiers on the household's iPhone 15 Pro Max and iPhone 17 Pro before the table is locked. Older iPhones default to the blur tier until one can be measured.
 - Glass over the camera preview (a platform view) needs the package's platform-view mode, which drops to the blur tier; the `overMedia` recipe is designed for that tier.
 - A legibility scrim (black 0 → 35%, 120 pt) sits under the top controls on the camera screen, so chips stay readable over a white receipt.
 
@@ -224,7 +222,7 @@ GlassSurface(
 
 ## 8. Components
 
-`app/lib/core/ui/`. Each has a gallery entry (debug-only route `/gallery`) and golden tests in light and dark, LTR and RTL, text scale 1.0 and 1.5.
+`app/lib/core/ui/`. Each has a gallery entry (debug-only route `/gallery`) and golden tests in light and dark, at text scale 1.0 and 1.5.
 
 ### 8.1 Mapped to the iOS catalogue
 
@@ -257,7 +255,7 @@ GlassSurface(
 
 | Component | Description |
 |---|---|
-| `MoneyText` | formats minor units by currency and member digits; styles `hero`, `large`, `medium`, `body`, `small`; optional sign and converted line |
+| `MoneyText` | formats minor units by currency; styles `hero`, `large`, `medium`, `body`, `small`; optional sign and converted line |
 | `HeroBalance` | label, currency mark, hero figure with tertiary decimals, delta line |
 | `MiniBars` | 64 pt daily bars, last bar orange, spoken summary required |
 | `LedgerRow` | dot, label, dotted leader, mono value |
@@ -273,6 +271,7 @@ GlassSurface(
 | `UndoToast` | glass, 10 s, single action |
 | `EmptyState` | one line, one action, no illustration |
 | `OfflineBanner` | hairline strip under the top bar |
+| `RatePrompt` | one line with yesterday's rate in mono, **Same** (primary text action) and **Change** (opens a number pad sheet); used on Home and inline on a slip |
 | `LockOverlay` | blurred canvas, app mark, Face ID button |
 | `ProgressRing` / `GoalBar` | thin goal progress with percentage in mono |
 | `HistoryRow` | who changed what, when; Restore action |
@@ -285,10 +284,10 @@ The whole v1 flow restyled in Signal, plus screens the brief's gap list requires
 |---|---|---|---|---|
 | 1 | Welcome | app mark; one sample exchange shown as a quote and a slip; headline "Say it. We'll sort it."; primary "Get started"; text link for invite | `TranscriptQuote`, `EntrySlip`, `XpButton` | value before account |
 | 2 | Create account | `StepBar` 1 of 4; Apple, Google, email buttons of equal weight; privacy note; Terms and Privacy links | `XpButton`, `XpTopBar` | Sign in with Apple first |
-| 3 | Household and invite | name, display name, base currency chips (USD, IQD), invite code in mono with Share; shared vs private explained in two ledger rows | `XpTextField`, `ChoiceChips`, `LedgerRow` | "Invite later" link |
+| 3 | Household and invite | name, display name, base currency chips (USD preselected, IQD), invite code in mono with Share; shared vs private explained in two ledger rows | `XpTextField`, `ChoiceChips`, `LedgerRow` | "Invite later" link |
 | 4 | Add accounts | kind chips; account rows with owner tag and mono balance; "Or just say it" example | `XpListRow`, `AmountField` | opening balances become `adjustment` entries |
 | 5 | Try it | hold-to-talk orange button; example lines with mono tags | `CaptureDock`, `XpListRow` | microphone pre-prompt sits here; "Type instead" always visible |
-| 6 | Home | mono header with month and household, bell (glass) and `AvatarPair`; `HeroBalance`; `MiniBars`; three `LedgerRow`s (Income, Spent, Saved); `NudgeRow`; Recent list | as listed | no cards; pull to refresh |
+| 6 | Home | mono header with month and household, bell (glass) and `AvatarPair`; `HeroBalance`; `MiniBars`; three `LedgerRow`s (Income, Spent, Saved); `NudgeRow`; Recent list | as listed, plus `RatePrompt` | no cards; pull to refresh; on the first open of the day the `NudgeRow` slot shows the rate prompt ("Today's dollar rate? 1,705" with **Same** and **Change**) |
 | 7 | Ask | glass back, "ASK", `ModeChip`; thread of quotes and slips; `CaptureDock` | `XpSurfaceHost` surfaces | full-height route above the tabs; thread scrolls under the dock |
 | 8 | Receipt scan | camera with `ScanFrame`; glass close and "READ ON DEVICE" pill; `ReceiptSheet` | `GlassSurface.overMedia`, `GlassSheet` | dark in both themes |
 | 9 | Add manually | `GlassSheet` (large): type filter bar, `AmountField`, category chips, account, who, date, note, "Scan a receipt" | `XpFilterBar`, `ChoiceChips` | Cancel leading, Save trailing and as bottom primary |
@@ -302,17 +301,15 @@ The whole v1 flow restyled in Signal, plus screens the brief's gap list requires
 | 17 | Entry detail and history *new* | amount, fields as rows (tap to edit), rate used, source, revisions | `HistoryRow` | |
 | 18 | Budgets *new* | month total meter, category meters | `ThinBar` | v1 |
 | 19 | Notifications *new* | list of nudges, unread dot | `NudgeRow` | v1 |
-| 20 | Settings *new* | privacy mode (three options with plain descriptions), language, digits, exchange rate source and market rate entry, Face ID, categories, export, account (sign out, delete) | `XpDisclosure`, `XpSwitch` | delete account is at most two taps from Settings |
+| 20 | Settings *new* | privacy mode (three options with plain descriptions), today's exchange rate with its label (official or market) and the daily reminder time, Face ID, categories, export, account (sign out, delete) | `XpDisclosure`, `XpSwitch` | delete account is at most two taps from Settings |
 | 21 | Lock | `LockOverlay` | | |
 | 22 | Monthly report *new* | narrative paragraph, breakdown, compare with last month, Export | `BreakdownList` | v1 |
 
-## 10. Right-to-left and languages
+## 10. Languages
 
-- Layout uses directional insets and alignments only. The tab order mirrors, and the Ask button stays on the trailing side, which is the left edge in RTL.
-- Back chevrons and disclosure chevrons flip. The waveform, charts' time axis and receipt preview do not.
-- Dotted leader rows mirror: label on the right, figure on the left, figure itself left-to-right.
-- Strings come from ARB files (`en`, `ckb`, `ar`). No concatenated sentences; amounts are placeholders.
-- Golden tests run in `en` and `ar` for every component and for Home, Ask, Activity and Add manually.
+- English only for now (owner decision, 2026-11-22). Kurdish (Sorani), Arabic, right-to-left layout and local digits are deferred.
+- Strings still come from an ARB file (`en`), with no concatenated sentences and amounts as placeholders, so adding a language later is a translation task, not a refactor.
+- Layout uses directional insets and alignments only (`EdgeInsetsDirectional`, `AlignmentDirectional`). This costs nothing now and avoids rework when right-to-left is added. No right-to-left goldens are kept until then.
 
 ## 11. Accessibility checklist
 

@@ -14,11 +14,11 @@ These rules apply to every field that holds money. The pure-Dart implementation 
 | One currency per account | A transaction's `currency` always equals its account's currency. |
 | Base amount | Every transaction also stores `baseAmountMinor` in the household base currency, computed once at save time and never recomputed. Reports sum this field. |
 | Stored rate | `fx.pair` is always `"USD/IQD"` style (market convention), `fx.pairRate` is a decimal **string** (for example `"1520"`), never a float. |
-| Rate source | `official`, `market` or `manual`. The household picks a default; a transaction can override. |
+| Rate source | A member enters the day's USD/IQD rate when the app asks (once a day). `official` or `market` is the household's label for that rate; `manual` marks a rate typed for a single transaction. No rate is fetched automatically (D-16). |
 | Rounding | Half-even, once, when computing `baseAmountMinor`. Cash IQD is not snapped to 250; what the user says is what is stored. |
 | Splits | Every division of money (receipt split, shared items) goes through `allocate()` (largest remainder), so parts sum exactly to the total. |
 | Derived totals | Month totals, category totals and goal progress are derived on read. The only stored aggregates are `account.balanceMinor` and `loan.outstandingMinor`, which are maintained by increments and re-verified nightly (section 7). |
-| Digits | Input is folded to ASCII before parsing: U+0660–0669, U+06F0–06F9, separators U+066B, U+066C, U+060C; bidi marks U+200C, U+200F, U+061C are stripped. |
+| Digits | Western digits only for now. Folding of Arabic-Indic and Persian digits arrives with the deferred languages (D-36). |
 | Time | Stored as UTC `Timestamp`. `occurredOn` (local calendar date string, `YYYY-MM-DD`, household time zone) is stored too, so day grouping never shifts. |
 
 ## 2. Collections
@@ -27,7 +27,6 @@ These rules apply to every field that holds money. The pure-Dart implementation 
 users/{uid}
 users/{uid}/devices/{deviceId}
 invites/{codeHash}                         server-only
-fxRates/{yyyy-mm-dd}                       global, server-written
 config/runtime                             server-only tunables
 agentSessions*, agentSessions-pointers*, agentSessions-shards*   server-only (D-11)
 households/{hid}
@@ -42,7 +41,7 @@ households/{hid}
   budgets/{budgetId}
   recurring/{recurringId}
   rules/{ruleId}
-  fxRates/{yyyy-mm-dd}                     manual household overrides only
+  fxRates/{yyyy-mm-dd}                     the day's rate, entered by a member
   notifications/{notificationId}
   usage/{yyyy-mm-dd}                       server-only AI counters
 ```
@@ -53,8 +52,7 @@ All documents carry `createdAt`, `updatedAt` (server timestamps), `createdBy`, `
 | Field | Type | Notes |
 |---|---|---|
 | `displayName` | string | |
-| `locale` | `en` \| `ckb` \| `ar` | UI language |
-| `digits` | `latn` \| `arab` | output digits, default `latn` |
+| `locale` | `en` | UI language; only English for now (D-36) |
 | `householdId` | string? | one household per user in v1 |
 | `deletionRequestedAt` | timestamp? | account deletion flow |
 
@@ -67,8 +65,8 @@ All documents carry `createdAt`, `updatedAt` (server timestamps), `createdBy`, `
 | `baseCurrency` | `USD` \| `IQD` | set at creation; changing it later is a migration, not an edit |
 | `timeZone` | IANA string | default `Asia/Baghdad` |
 | `memberIds` | string[] (max 2) | used by rules; written by the server only |
-| `iqdRateSource` | `official` \| `market` \| `manual` | household default |
-| `officialRateKind` | `cash_1520` \| `cbi_1510` | which official figure to use, default `cash_1520` (D-15) |
+| `rateKind` | `official` \| `market` | label for the rate the household enters each day, default `market` |
+| `rateAskedOn` | date string? | last day the daily rate prompt was answered or dismissed |
 | `cloudInsights` | bool | false when any member is On-device only; gates LLM narration in jobs |
 | `weekStart` | `sat` \| `sun` \| `mon` | default `sat` |
 | `moneySchema` | int | currently 1 |
@@ -125,7 +123,7 @@ One document per money event. A transfer is one document with both accounts (D-1
 `revisions/{revId}`: append-only. `{rev, before (map of changed fields), changedBy, changedAt, reason: edit | undo | delete | restore | system}`.
 
 ### 2.6 `categories/{categoryId}`
-`slug` (stable, for example `groceries`), `names` `{en, ckb, ar}`, `kind` (`expense` \| `income`), `parentId?`, `colorKey` (design token name, not a hex), `iconKey`, `order`, `system` (bool), `archived`. The default tree is in [AI_PIPELINE.md](AI_PIPELINE.md) section 4 and is seeded when the household is created.
+`slug` (stable, for example `groceries`), `names` (a map by language code; only `en` is filled for now), `kind` (`expense` \| `income`), `parentId?`, `colorKey` (design token name, not a hex), `iconKey`, `order`, `system` (bool), `archived`. The default tree is in [AI_PIPELINE.md](AI_PIPELINE.md) section 4 and is seeded when the household is created.
 
 ### 2.7 `people/{personId}`
 Counterparties for loans and for "person → account" rules. `name`, `aliases[]`, `memberUid?` (when the person is a household member), `visibleTo`.
@@ -157,15 +155,19 @@ Counterparties for loans and for "person → account" rules. `name`, `aliases[]`
 ### 2.12 `rules/{ruleId}`
 Learned from corrections, applied by the on-device fast parser.
 
-`kind` (`merchant` \| `keyword` \| `person`), `pattern` (normalised, lower-case, digits folded), `lang?`, `sets` (`{categoryId?, accountId?, whoScope?, whoUid?, type?}`), `ownerUid?` (personal rule) or household-wide, `hits`, `lastUsedAt`, `fromTxnId`, `visibleTo`.
+`kind` (`merchant` \| `keyword` \| `person`), `pattern` (normalised, lower-case), `sets` (`{categoryId?, accountId?, whoScope?, whoUid?, type?}`), `ownerUid?` (personal rule) or household-wide, `hits`, `lastUsedAt`, `fromTxnId`, `visibleTo`.
 
-### 2.13 `fxRates`
-Global `fxRates/{yyyy-mm-dd}`: `{usdIqdOfficialCbi: "1510", usdIqdOfficialCash: "1520", usdIqdMid: "1516.42", sources: [...], fetchedAt}`. Written by `/jobs/fx-rates`.
+### 2.13 `fxRates/{yyyy-mm-dd}` (under the household)
 
-Household `fxRates/{yyyy-mm-dd}`: `{usdIqdMarket: "1705", enteredBy, note?}`. The market rate is entered by a member, because no licensed machine-readable market feed exists (D-16). The latest entry stays in force until replaced; the app prompts when it is older than 7 days.
+`{usdIqd: "1705", kind: official | market, enteredBy, enteredAt}`. One document per household-local day, written when a member answers the daily rate prompt (ARCHITECTURE 3.5).
+
+- A conversion on a given date uses that day's document, or the most recent earlier one when the day has none.
+- The rate is a decimal string in the `USD/IQD` convention.
+- Editing a past day's rate does not change transactions already saved; each keeps the rate it was saved with.
+- There is no global rate collection and no rate job. An automatic feed is a later option.
 
 ### 2.14 `notifications/{notificationId}`
-`type` (`budget_warning` \| `bill_missed` \| `loan_due` \| `recurring_suggested` \| `monthly_report` \| `partner_activity` \| `rate_stale` \| `queue_ready`), `titleKey`, `bodyKey`, `params` (map; the phone localises), `action` (`{route, args}`), `targetUids[]`, `readBy[]`, `dedupeKey`, `expiresAt`.
+`type` (`budget_warning` \| `bill_missed` \| `loan_due` \| `recurring_suggested` \| `monthly_report` \| `partner_activity` \| `rate_ask` \| `queue_ready`), `titleKey`, `bodyKey`, `params` (map; the phone localises), `action` (`{route, args}`), `targetUids[]`, `readBy[]`, `dedupeKey`, `expiresAt`.
 
 ### 2.15 Server-only documents
 - `invites/{codeHash}`: `{hid, createdBy, expiresAt, usedBy?}`. Codes are 10 base32 characters, valid 7 days, single use. Only the SHA-256 is stored.
@@ -234,7 +236,6 @@ service cloud.firestore {
       match /devices/{deviceId} { allow read, write: if signedIn() && uid() == userId; }
     }
 
-    match /fxRates/{day} { allow read: if signedIn(); allow write: if false; }
     match /invites/{code} { allow read, write: if false; }
     match /config/{doc} { allow read, write: if false; }
     match /{sessionCollection}/{doc=**} {

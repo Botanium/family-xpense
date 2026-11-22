@@ -12,7 +12,7 @@ flowchart TB
     Fast["Fast parser + learned rules"]
     Edge["On-device LLM (flutter_edge_ai)"]
     STT["Speech (speech_to_text)"]
-    OCR["OCR (Apple Vision, ML Kit Latin)"]
+    OCR["OCR (ML Kit, Latin)"]
     Builder["Local A2UI builder"]
     Host["A2UI host: a2ui_core + a2ui_flutter + Xpense catalog"]
     Repo["Repositories (single write path)"]
@@ -38,7 +38,6 @@ flowchart TB
     Gem["Gemini Flash-Lite / Flash"]
   end
 
-  FX["FX sources: Frankfurter (CBI), open.er-api"]
 
   UI --> Router
   STT --> Router
@@ -56,7 +55,6 @@ flowchart TB
   Jobs --> FS
   Jobs --> FCM --> UI
   Jobs --> Gem
-  Jobs --> FX
   SM -. "GEMINI_API_KEY" .-> Agent
   Agent -.-> Trace
   Jobs -.-> Trace
@@ -68,7 +66,7 @@ flowchart TB
 ```
 app/                       Flutter app (package xpense_app)
 server/                    Dart service (package xpense_agent), one image, two Cloud Run services
-packages/xpense_shared/    pure Dart: money, FX, digits, fast parser, schemas, taxonomy, catalog JSON, surface builder
+packages/xpense_shared/    pure Dart: money, FX, fast parser, schemas, taxonomy, catalog JSON, surface builder
 firebase/                  firestore.rules, indexes, storage.rules, emulator config, rules tests
 evals/                     datasets (JSONL), receipt fixtures, expected outputs
 docs/
@@ -88,7 +86,7 @@ Feature-first. A feature owns its screens, its view model (one Riverpod `Notifie
 ```
 app/lib/
   main.dart, bootstrap.dart, app.dart
-  core/            theme tokens + ThemeExtensions, GlassSurface, formatting (money, dates, digits), l10n, routing, errors (Result/Failure)
+  core/            theme tokens + ThemeExtensions, GlassSurface, formatting (money, dates), l10n, routing, errors (Result/Failure)
   data/            Firestore repositories, DTO mapping, offline queue, local receipt store
   services/        interfaces + implementations for everything native or remote (table 3.2)
   a2ui/            Xpense catalog widgets, XpenseSurfaceHost (adapter), local surface feeding, action routing
@@ -116,8 +114,8 @@ A grep-based CI test enforces these import rules.
 | `AgentClient` | `remoteAgent` from `package:genkit/experimental_client.dart` | experimental API |
 | `DecisionsClient` | `POST /decide` | beta API, may be swapped |
 | `OnDeviceLlm` | `flutter_edge_ai` + `flutter_edge_ai_builtin_ai` + `flutter_edge_ai_litertlm` | fast-moving package, engines differ by device |
-| `SpeechCapture` | `speech_to_text` (on-device flag), `record` for raw audio | platform limits per language |
-| `OcrEngine` | Apple Vision via a platform channel; `google_mlkit_text_recognition` for Latin and Android | ML Kit has no Arabic script (D-08) |
+| `SpeechCapture` | `speech_to_text` (on-device flag), `record` for raw audio | on-device recognition differs by phone |
+| `OcrEngine` | `google_mlkit_text_recognition` (Latin script) | an interface, so an Arabic-script engine (Apple Vision) can be added with the deferred languages (D-08) |
 | `GlassSurface` (widget, in `core/`) | `liquid_glass_widgets` | shader package, needs fallbacks |
 | `AccessibilityFlags` | platform channel for Reduce Transparency; `MediaQuery` for the rest | Flutter does not expose Reduce Transparency |
 | `BiometricLock` | `local_auth` | |
@@ -136,7 +134,18 @@ A grep-based CI test enforces these import rules.
 
 All user-confirmed writes go through repositories on the phone, including entries proposed by the cloud agent (D-10). The agent never writes transactions for a chat turn. Reasons: saves work offline, one code path for both AI paths, Firestore rules stay the enforcement point, and injected text cannot make the server write money data.
 
-Server-side writes are limited to: joining a household, recurring posts in `auto` mode, notifications, FX rates, reconcile corrections, visibility backfill, usage counters, deletion.
+Server-side writes are limited to: joining a household, recurring posts in `auto` mode, notifications, reconcile corrections, visibility backfill, usage counters, deletion.
+
+### 3.5 Daily exchange rate
+
+The app does not fetch exchange rates. It asks (D-16):
+
+- On the first open of each household-local day, if the household has accounts in both currencies, Home shows one prompt: "Today's dollar rate?" with yesterday's figure. Two actions: **Same as yesterday** (one tap) and **Change** (number pad).
+- The answer is written to `households/{hid}/fxRates/{day}` and covers both partners. Whoever opens the app first answers; the other is not asked.
+- If a cross-currency entry is saved before anyone answered, the slip asks for the rate inline. The user can also skip: the entry then uses the most recent rate and records that rate's date in `fx.asOf`.
+- An optional daily reminder push arrives with notifications (`WP-61`), at a time the member chooses.
+- A typed rate more than 5% away from the previous one asks for confirmation, to catch typos.
+- The rate carries a label, `official` or `market`, taken from the household setting, so reports can say which one was used.
 
 ## 4. Backend
 
@@ -158,9 +167,8 @@ Same container, `XPENSE_ROLE=agent|jobs` selects which routes mount. Region `me-
 | `POST /household/join` | flow | Validates an invite code, adds the member, updates `memberIds`. |
 | `POST /household/invite` | flow | Creates an invite, returns the code and link. |
 | `POST /account/delete` | flow | App Store account deletion. |
-| `POST /jobs/fx-rates` | job, daily 06:00 Baghdad | Fetch official rates, write `fxRates/{day}`. |
 | `POST /jobs/recurring` | job, daily 07:00 | Detect recurring patterns, post `auto` items, queue reminders. |
-| `POST /jobs/nudges` | job, daily 08:00 | Budget warnings, loan due dates, missed bills, stale market rate. |
+| `POST /jobs/nudges` | job, daily 08:00 | Budget warnings, loan due dates, missed bills, the daily rate reminder. |
 | `POST /jobs/monthly-report` | job, 1st of month | Build summary; narrate with Flash when `cloudInsights` is true, else template. |
 | `POST /jobs/reconcile` | job, nightly | Recompute balances and loan totals. |
 | `POST /jobs/retention` | job, weekly | Delete old sessions, invites, usage. |
@@ -247,7 +255,7 @@ Other controls: `maxTurns: 6` on the agent, output token cap, per-request timeou
 - Development: `genkit start -- dart run bin/server.dart` (Developer UI at `localhost:4000`), `genkit start:flutter -- -d <simulator>` for app-side traces.
 - Production: there is no Genkit Monitoring plugin for Dart (checked in the Genkit Dart docs). `genkit_otel` exports OTLP to Google Cloud's OTLP endpoint for Cloud Trace and Cloud Monitoring. Content capture stays `noContent`; prompts and transaction text are never exported.
 - Structured logs carry trace id, route, household id hash, model, tokens, latency and outcome. No message text.
-- App: Crashlytics, and Analytics events without content (path, language, durations, counts).
+- App: Crashlytics, and Analytics events without content (path, durations, counts).
 
 ## 5. Capture paths
 
@@ -273,7 +281,7 @@ sequenceDiagram
   U->>R: "42.80 at Costco"
   R->>P: parse(text, locale, rules)
   P-->>R: amount, currency, date, rule hits (category, account)
-  opt fields missing and a model supports the language
+  opt fields missing and an on-device model is available
     R->>E: extract(text, schema EntryDraft)
     E-->>R: draft fields + self-reported certainty
   end
@@ -297,7 +305,7 @@ sequenceDiagram
   participant B as Local A2UI builder
   R->>P: parse
   P-->>R: amount, currency, date (category unknown)
-  opt model available for this language
+  opt on-device model available
     R->>E: extract merchant, person, note
   end
   R->>S: text, hints and question keys (intent, category, account, who, needs_followup, is_recurring)
@@ -348,15 +356,15 @@ sequenceDiagram
   participant R as Router
   participant A as /agent
   U->>V: hold to talk
-  alt language has on-device recognition (English, Arabic where the phone supports it)
+  alt the phone has on-device English recognition
     V-->>R: transcript (onDevice: true)
     R->>R: continue as text (path L, D or A)
-  else Kurdish, or no on-device recogniser, and mode is Smart or Cloud
+  else no on-device recogniser, and mode is Smart or Cloud
     V-->>R: recorded audio (AAC, max 60 s)
     R->>A: audio part + "transcribe, then file"
     A-->>R: transcript shown to the user + surface
   else mode is On-device only
-    V-->>U: "Voice in this language needs Smart mode. Type instead?"
+    V-->>U: "Voice needs Smart mode on this phone. Type instead?"
   end
 ```
 
@@ -365,14 +373,14 @@ sequenceDiagram
 ```mermaid
 sequenceDiagram
   participant U as User
-  participant O as OcrEngine (Vision)
+  participant O as OcrEngine (ML Kit)
   participant P as Receipt parser
   participant R as Router
   participant S as /decide or /agent
   participant B as Local builder
   U->>O: photo
   O-->>P: text lines with boxes
-  P-->>R: merchant, date, total, candidate line items, script detected
+  P-->>R: merchant, date, total, candidate line items
   alt total found, single category is enough
     R->>S: /decide (category for merchant + items text)
   else user wants split by category, or OCR is weak, and mode allows cloud
@@ -429,7 +437,7 @@ sequenceDiagram
 | Step | On-device only | Smart (default) | Cloud |
 |---|---|---|---|
 | Speech | on-device recogniser only | on-device first, Gemini audio fallback | on-device first, Gemini audio fallback |
-| OCR | Vision / ML Kit on device | on device; image to cloud only for line-item split or weak OCR | image to cloud allowed |
+| OCR | ML Kit on device | on device; image to cloud only for line-item split or weak OCR | image to cloud allowed |
 | Fast parse and rules | on device | on device | on device |
 | Extraction | on-device LLM, else manual pickers | on-device LLM when available | skipped |
 | Classification | on-device LLM, else manual pickers | Decisions API | Decisions API |
