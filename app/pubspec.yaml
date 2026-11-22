@@ -71,6 +71,10 @@ dev_dependencies:
   very_good_analysis: ^11.0.0
 
 flutter:
+  # iOS flavors (DECISIONS D-44, ENVIRONMENTS 3.7): `dev` is
+  # com.bitrelia.familyxpense.dev for development and TestFlight; `prod` is
+  # the reserved App Store id. Plain `flutter run` builds `dev`.
+  default-flavor: dev
   uses-material-design: true
   # gen-l10n (l10n.yaml): lib/l10n/app_en.arb -> lib/core/l10n/generated/.
   generate: true
