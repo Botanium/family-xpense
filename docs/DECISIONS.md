@@ -118,7 +118,24 @@ Three parts: decisions locked by the owner (L), decisions made while planning (D
 - The Gemini Developer API is not regional, so model calls leave the region either way.
 - Fallback if a needed service is missing in Doha: keep Firestore and Storage in `me-central1` and run only that service in `europe-west3`.
 
-**D-22. Material and Cupertino imports.** Flutter 3.50 deprecates the bundled libraries in favour of `material_ui 1.11.1` and `cupertino_ui 1.1.7`. Adopt the standalone packages if `a2ui_flutter 0.4.0` builds with them; otherwise stay on the bundled libraries and accept the deprecation notices until the renderer moves. Status: Verify (WP-00).
+**D-22. Material and Cupertino imports.** Flutter 3.50 deprecates the bundled libraries in favour of `material_ui 1.11.1` and `cupertino_ui 1.1.7`. Adopt the standalone packages if `a2ui_flutter 0.4.0` builds with them; otherwise stay on the bundled libraries and accept the deprecation notices until the renderer moves. Status: **Decided (verified in WP-00, 2026-11-22): adopt `material_ui` and `cupertino_ui`; bridge the `a2ui_flutter` basic widgets.**
+- **It builds.** `material_ui 1.11.1`, `cupertino_ui 1.1.7` and `a2ui_flutter 0.4.0` resolve together; `flutter analyze` is clean; `flutter build ios --simulator --debug` succeeded with a probe entry point that uses all three, plus every plugin in the app's pubspec, at iOS deployment target 15.0. The Flutter 3.50.1 app template itself imports `package:material_ui`.
+- **But they are separate libraries, not aliases.** Flutter's bundled `package:flutter/material.dart` and `cupertino.dart` are marked `@Deprecated` (since 3.47) and still hold their own classes. `material_ui` declares its own `ThemeData`, `Theme`, `Material` and `MaterialLocalizations`; `cupertino_ui` its own `CupertinoLocalizations`. `a2ui_flutter 0.4.0` imports the bundled library in 18 files (`// ignore: deprecated_member_use`, citing a2ui issue #3235).
+- **Probe** (widget tests; copy in the shared notes folder as `wp-00-d22_probe_test.dart`), rendering a basic-catalog surface with Text, TextField, CheckBox and Button:
+
+  | Set-up | Result |
+  |---|---|
+  | bundled `MaterialApp` (status quo) | works |
+  | `material_ui` `MaterialApp` only | TextField and CheckBox throw "No Material widget found"; layout collapses; a2ui reads the bundled fallback theme (purple), not the app's colours |
+  | `material_ui` app + `MaterialUiCompatibilityBridge` + bundled `Material` around the surface | no errors; typing and tapping work; same primary colour on both sides; `en` and `ar` (RTL) |
+  | same, without the bundled `Material` | fails as in row 2 |
+
+- **Consequences:**
+  1. App code imports `package:material_ui/material_ui.dart` and `package:cupertino_ui/cupertino_ui.dart`, never the bundled libraries.
+  2. `XpenseSurfaceHost` (WP-31) wraps each surface in `MaterialUiCompatibilityBridge` (shipped by `material_ui`) and a bundled `Material`. Scope it to surfaces, not the app-wide `MaterialApp.builder`, so nothing else depends on bundled types. Only `lib/a2ui/` may import `package:flutter/material.dart`; the import-rule test enforces it.
+  3. The bridge maps only `colorScheme`, `textTheme`, `visualDensity` and `platform`. Theme extensions (Signal tokens) and component themes are not mapped, so the reduced basic subset (D-23) gets the mapped colours and type only; the custom Xpense components read tokens from the `material_ui` theme directly. WP-31 checks the basic-subset goldens.
+  4. Localizations (WP-10; matters once the deferred languages return, D-36): `material_ui`'s `MaterialApp` registers `cupertino_ui`'s English-only Cupertino delegate, so `ar` warns unless the app also registers `cupertino_ui`'s `GlobalCupertinoLocalizations.delegate` and `material_ui`'s `GlobalMaterialLocalizations.delegate`. The bridge supplies the bundled `flutter_localizations` delegates for the surfaces (`flutter_localizations` is now in the app pubspec). None of the three libraries has `ckb` (Sorani); WP-10 needs a fallback, not checked here.
+  5. `MaterialUiCompatibilityBridge` is itself `@Deprecated` as a temporary migration utility. Remove it when `a2ui_flutter` moves to `material_ui` (watch a2ui issue #3235). If it is removed first, copy its mapping into `lib/a2ui/` (about 150 lines).
 
 **D-24. Email sign-in is email and password with verification in the MVP.** Passwordless links need extra hosting setup; revisit for v1.
 
@@ -152,6 +169,9 @@ Three parts: decisions locked by the owner (L), decisions made while planning (D
 | Server Firebase packages | pub.dev READMEs and publishers | see D-06 |
 | IQD rates | Shafaq News, CBI site, Frankfurter, open.er-api (research agent) | official rate devalued on 2026-10-07 to 1,500 / 1,510 / 1,520; market about 1,705 to 1,710 on 2026-11-21 |
 | Design tokens | Artifact read of the three Signal artboards and the fifteen v1 artboards | tokens in DESIGN_SYSTEM are copied from the artboard source; contrast ratios computed by hand from the hex values |
+| Package resolution (WP-00) | pub.dev API; `pub get` in `app/`, `server/`, `packages/xpense_shared/` | every version in the brief and the D-06/D-07/D-31 corrections still exists and is the latest; all resolve on Dart 3.14.0. The app locks `a2ui_core 0.8.0`, the server `0.7.0` (confirms D-05). **`genkit_otel 0.2.3` requires `dartastic_opentelemetry ^0.11.0`**, so the `0.12.0` named in ARCHITECTURE 4.3 cannot resolve; the server gets 0.11.0 transitively and WP-04 should add it as `^0.11.0` if it imports it directly |
+| Material/Cupertino with A2UI (WP-00) | package source, widget-test probe, iOS simulator build | see D-22 |
+| iOS build location (WP-00) | `flutter build ios --simulator` | fails in the project folder (iCloud-synced `~/Documents`): codesign rejects `Flutter.framework` with "resource fork, Finder information, or similar detritus not allowed". The same build from a copy outside `~/Documents` succeeds. Build in a worktree outside `~/Documents`, or exclude the folder from iCloud |
 
 Not verified, and settled by spikes: items marked Verify above; Express syntax for arrays of objects; Kurdish quality of every model involved; behaviour on a physical iPhone (all local probes ran on macOS or not at all).
 

@@ -1,0 +1,15 @@
+# Shared lint configuration for every Dart package in this repository.
+# Each package's analysis_options.yaml includes this file by relative path, and
+# each package lists very_good_analysis as a dev dependency so the include
+# below resolves. The include is pinned to a ruleset version on purpose:
+# bumping very_good_analysis must not silently change the rules.
+include: package:very_good_analysis/analysis_options.11.0.0.yaml
+
+analyzer:
+  exclude:
+    # Generated code is committed but not linted (see README, "Codegen").
+    - "**/*.g.dart"
+    - "**/*.freezed.dart"
+    - "**/*.drift.dart"
+    - "**/build/**"
+    - "**/.dart_tool/**"

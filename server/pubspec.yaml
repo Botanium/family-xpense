@@ -1,0 +1,38 @@
+name: xpense_agent
+description: Family Xpense agent service (Genkit Dart on Cloud Run). One image, two services (D-17).
+publish_to: none
+version: 0.1.0
+
+# Toolchain: Dart 3.14.0 (the SDK bundled with Flutter 3.50.1, see /.fvmrc).
+# Version policy (WP-00): packages at 1.0 or above use a caret range from the
+# version in the brief; pre-1.0 packages are pinned exactly because minor
+# bumps break them. pubspec.lock is committed and is the real pin.
+# Pre-1.0 packages are imported only in their module; enforced by
+# test/architecture/import_rules_test.dart.
+environment:
+  sdk: ^3.14.0
+
+dependencies:
+  # ID token, App Check, Firestore, Messaging; replaces firebase_admin (D-06).
+  # Only lib/admin/.
+  firebase_admin_sdk: 0.5.6
+  # Genkit Dart 1.0 (L-15).
+  genkit: ^1.0.3
+  genkit_a2ui: 0.6.0
+  # FirestoreSessionStore (D-31). Only lib/runtime/.
+  genkit_google_cloud: 0.3.3
+  genkit_google_genai: ^1.2.0
+  # Production telemetry over OTLP (D-29). Only lib/telemetry/. It requires
+  # dartastic_opentelemetry ^0.11.0, so 0.12.0 (ARCHITECTURE 4.3) cannot be
+  # added; see DECISIONS, D-29.
+  genkit_otel: 0.2.3
+  genkit_shelf: ^1.0.3
+  http: ^1.6.0
+  schemantic: ^1.0.0
+  # Shared pure-Dart core. Path dependency, separate lockfile (D-05).
+  xpense_shared:
+    path: ../packages/xpense_shared
+
+dev_dependencies:
+  test: ^1.33.0
+  very_good_analysis: ^11.0.0

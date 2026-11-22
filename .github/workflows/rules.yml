@@ -1,0 +1,59 @@
+# firebase/: Firestore and Storage rules tests against the emulator.
+# The suite itself arrives in WP-05 (`npm test` runs it under
+# `firebase emulators:exec`); until firebase/package.json exists this job
+# only reports that there is nothing to run.
+name: rules
+
+on:
+  pull_request:
+    paths:
+      - firebase/**
+      - .github/workflows/rules.yml
+  push:
+    branches: [main]
+    paths:
+      - firebase/**
+      - .github/workflows/rules.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  rules:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: firebase
+    steps:
+      - uses: actions/checkout@v7
+      - name: Detect rules test suite
+        id: detect
+        run: |
+          if [ -f package.json ]; then
+            echo "present=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "present=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::firebase/package.json not found; rules tests arrive in WP-05."
+          fi
+      - if: steps.detect.outputs.present == 'true'
+        uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: firebase/package-lock.json
+      - if: steps.detect.outputs.present == 'true'
+        uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: 21
+      - if: steps.detect.outputs.present == 'true'
+        name: Dependencies
+        run: npm ci
+      - if: steps.detect.outputs.present == 'true'
+        name: Rules tests (emulator)
+        run: npm test

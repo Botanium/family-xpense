@@ -1,0 +1,60 @@
+# app/: format, codegen freshness, analyze, import rules, tests.
+# iOS builds and on-device behaviour are not checked here (no macOS runner yet).
+name: app
+
+on:
+  pull_request:
+    paths:
+      - app/**
+      - packages/xpense_shared/**
+      - analysis_options.yaml
+      - .fvmrc
+      - .github/workflows/app.yml
+  push:
+    branches: [main]
+    paths:
+      - app/**
+      - packages/xpense_shared/**
+      - analysis_options.yaml
+      - .fvmrc
+      - .github/workflows/app.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  app:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: app
+    steps:
+      - uses: actions/checkout@v7
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version-file: .fvmrc
+          channel: stable
+          cache: true
+      - name: Dependencies (lockfile enforced)
+        run: flutter pub get --enforce-lockfile
+      - name: Codegen is up to date
+        run: |
+          if grep -q '^  build_runner:' pubspec.yaml; then
+            dart run build_runner build
+            git diff --exit-code -- .
+          else
+            echo "No build_runner yet; skipping."
+          fi
+      - name: Format
+        run: dart format --output=none --set-exit-if-changed lib test
+      - name: Analyze
+        run: flutter analyze --fatal-infos
+      - name: Import rules (ARCHITECTURE 3.1)
+        run: flutter test test/architecture
+      - name: Test
+        run: flutter test --test-randomize-ordering-seed random

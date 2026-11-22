@@ -1,0 +1,62 @@
+name: xpense_app
+description: Family Xpense, a household money app for two partners (iOS first).
+publish_to: none
+version: 0.1.0+1
+
+# Toolchain: Flutter 3.50.1 / Dart 3.14.0, pinned in /.fvmrc.
+# Version policy (WP-00): packages at 1.0 or above use a caret range from the
+# version in the brief; pre-1.0 packages are pinned exactly because minor
+# bumps break them. pubspec.lock is committed and is the real pin.
+# Which layer may import which package is enforced by
+# test/architecture/import_rules_test.dart (ARCHITECTURE 3.1 and 3.2).
+environment:
+  sdk: ^3.14.0
+  flutter: ">=3.50.1"
+
+dependencies:
+  # Generative UI, A2UI v1.0 (L-11). Pre-1.0; only lib/a2ui/.
+  a2ui_core: 0.8.0
+  a2ui_flutter: 0.4.0
+  # Firebase client (L-12). Firestore only in lib/data/ and the root.
+  cloud_firestore: ^7.2.0
+  # Standalone Cupertino and Material libraries (D-22).
+  cupertino_ui: ^1.1.7
+  firebase_analytics: ^13.1.0
+  firebase_app_check: 0.5.2
+  firebase_auth: ^7.1.0
+  firebase_core: ^5.2.0
+  firebase_crashlytics: ^6.1.0
+  firebase_messaging: ^17.1.0
+  firebase_remote_config: ^7.1.0
+  firebase_storage: ^14.1.0
+  fl_chart: ^1.3.1
+  flutter:
+    sdk: flutter
+  # On-device AI (L-13). Only lib/services/.
+  flutter_edge_ai: ^2.7.1
+  flutter_localizations:
+    sdk: flutter
+  # State and routing (L-10).
+  flutter_riverpod: ^3.5.0
+  flutter_secure_storage: ^11.2.0
+  go_router: ^18.1.4
+  # Latin OCR and Android (D-08). Only lib/services/.
+  google_mlkit_text_recognition: ^1.0.3
+  intl: ^0.20.3
+  # Liquid Glass (D-07). Only GlassSurface in lib/core/.
+  liquid_glass_widgets: ^1.19.0
+  local_auth: ^3.0.2
+  material_ui: ^1.11.1
+  speech_to_text: ^7.5.0
+  # Shared pure-Dart core. Path dependency; no pub workspace, because the app
+  # and the server need different a2ui_core versions (D-05).
+  xpense_shared:
+    path: ../packages/xpense_shared
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  very_good_analysis: ^11.0.0
+
+flutter:
+  uses-material-design: true

@@ -1,0 +1,55 @@
+# packages/xpense_shared: format, codegen freshness, analyze, test.
+name: shared
+
+on:
+  pull_request:
+    paths:
+      - packages/xpense_shared/**
+      - analysis_options.yaml
+      - .fvmrc
+      - .github/workflows/shared.yml
+  push:
+    branches: [main]
+    paths:
+      - packages/xpense_shared/**
+      - analysis_options.yaml
+      - .fvmrc
+      - .github/workflows/shared.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  shared:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: packages/xpense_shared
+    steps:
+      - uses: actions/checkout@v7
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version-file: .fvmrc
+          channel: stable
+          cache: true
+      - name: Dependencies (lockfile enforced)
+        run: dart pub get --enforce-lockfile
+      - name: Codegen is up to date
+        run: |
+          if grep -q '^  build_runner:' pubspec.yaml; then
+            dart run build_runner build
+            git diff --exit-code -- .
+          else
+            echo "No build_runner yet; skipping."
+          fi
+      - name: Format
+        run: dart format --output=none --set-exit-if-changed .
+      - name: Analyze
+        run: dart analyze --fatal-infos
+      - name: Test
+        run: dart test --test-randomize-ordering-seed=random

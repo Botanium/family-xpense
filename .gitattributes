@@ -1,0 +1,10 @@
+* text=auto eol=lf
+*.png binary
+*.jpg binary
+*.ttf binary
+*.otf binary
+
+# Collapse generated files and lockfiles in diffs.
+*.g.dart linguist-generated=true
+*.freezed.dart linguist-generated=true
+pubspec.lock linguist-generated=true
