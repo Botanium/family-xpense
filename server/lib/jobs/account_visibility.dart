@@ -144,7 +144,16 @@ final class AccountVisibilityJob {
           );
         }
         rewritten += pass;
-        final next = await _finish(accountPath, runId, target);
+        final List<String>? next;
+        try {
+          next = await _finish(accountPath, runId, target);
+        } on _LeaseLost {
+          return VisibilityResult(
+            VisibilityOutcome.busy,
+            rewritten: rewritten,
+            passes: passes,
+          );
+        }
         if (next == null) break;
         target = next;
       }
@@ -325,12 +334,21 @@ final class AccountVisibilityJob {
             }, merge: true),
           );
         }
-        await _store.writeAll(writes);
-        rewritten += writes.length;
         done += page.length;
-        if (!await _progress(accountPath, runId, target, done, total)) {
+        // The page's writes commit only while this run still holds the
+        // lease, in the same transaction that checks it: a run whose lease
+        // ran out and was taken over writes nothing more (Codex review).
+        if (!await _progress(
+          accountPath,
+          runId,
+          target,
+          done,
+          total,
+          writes: writes,
+        )) {
           return null;
         }
+        rewritten += writes.length;
         if (page.length < pageSize) break;
         after = page.last.path.split('/').last;
       }
@@ -338,19 +356,23 @@ final class AccountVisibilityJob {
     return rewritten;
   }
 
-  /// Writes progress and renews the lease. Returns false when another run
-  /// holds the account now.
+  /// In one transaction: checks that [runId] still holds the account's
+  /// lease, applies [writes] (a page of history), writes progress and renews
+  /// the lease. Returns false, writing nothing, when another run holds the
+  /// account now.
   Future<bool> _progress(
     String accountPath,
     String runId,
     List<String> target,
     int done,
-    int total,
-  ) => _store.transaction((tx) async {
+    int total, {
+    List<DocumentWrite> writes = const [],
+  }) => _store.transaction((tx) async {
     final account = await tx.read(accountPath);
-    if (account == null) return false;
-    final running = _map(account['visibilitySync']);
-    if (running == null || running['runId'] != runId) return false;
+    if (!_holds(account, runId)) return false;
+    for (final w in writes) {
+      tx.write(w.path, w.data, merge: w.merge);
+    }
     tx.write(accountPath, {
       'visibilitySync': _syncMap(
         runId,
@@ -366,6 +388,9 @@ final class AccountVisibilityJob {
   /// Records [target] as applied when it is still the account's
   /// `visibleTo` and releases the lease. Returns null when finished, or the
   /// account's new `visibleTo` to rewrite for.
+  ///
+  /// Throws [_LeaseLost] when another run holds the account now: then this
+  /// run records nothing.
   Future<List<String>?> _finish(
     String accountPath,
     String runId,
@@ -373,6 +398,7 @@ final class AccountVisibilityJob {
   ) => _store.transaction((tx) async {
     final account = await tx.read(accountPath);
     if (account == null) return null;
+    if (!_holds(account, runId)) throw const _LeaseLost();
     final current = _stringList(account['visibleTo'])..sort();
     final now = _clock.now().toUtc();
     if (current.isNotEmpty && !_sameSet(current, target)) {
@@ -407,6 +433,10 @@ final class AccountVisibilityJob {
       _log.warning('could not release the visibility lease', e);
     }
   }
+
+  /// Whether [account]'s running rewrite is [runId]'s.
+  static bool _holds(Map<String, Object?>? account, String runId) =>
+      _map(account?['visibilitySync'])?['runId'] == runId;
 
   Map<String, Object?> _syncMap(
     String runId,
@@ -519,6 +549,11 @@ final _accountPath = RegExp(
     }
   }
   return null;
+}
+
+/// A run found its lease taken over by another run.
+final class _LeaseLost implements Exception {
+  const new();
 }
 
 // ---------------------------------------------------------------- helpers

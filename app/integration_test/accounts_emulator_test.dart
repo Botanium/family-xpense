@@ -22,6 +22,8 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
@@ -30,6 +32,7 @@ import 'package:xpense_app/bootstrap.dart';
 import 'package:xpense_app/core/routing/routing.dart';
 import 'package:xpense_app/core/ui/ui.dart';
 import 'package:xpense_app/data/accounts_repository.dart';
+import 'package:xpense_app/data/accounts_repository_firebase.dart';
 import 'package:xpense_app/data/household_repository.dart';
 
 import 'household_emulator_test.dart' show signUp, startSignedOut;
@@ -291,6 +294,25 @@ void main() {
         reason: 'the opening adjustment incremented the balance',
       );
 
+      // Deleted entries never use up the detail screen's page (Codex
+      // review, PR #33): four entries, the two newest soft-deleted, read
+      // through an adapter that shows two.
+      final savings = idOf('Dinar savings');
+      final owner = FirebaseAuth.instance.currentUser!.uid;
+      await _ownerEntries(hid, owner, savings, deletedNewest: 2);
+      final small = FirebaseAccountsRepository(
+        auth: FirebaseAuth.instance,
+        firestore: FirebaseFirestore.instance,
+        households: container.read(householdRepositoryProvider),
+        entriesLimit: 2,
+      );
+      addTearDown(small.dispose);
+      final page = await small
+          .watchEntries(savings)
+          .firstWhere((entries) => entries.isNotEmpty)
+          .timeout(const Duration(seconds: 15));
+      expect(page.map((e) => e.title), ['Entry 2', 'Entry 1']);
+
       // The partner joins over the server; joint accounts widen to them.
       final partner = await _partnerSignUp();
       final (joinStatus, joinBody) = await _send(
@@ -451,4 +473,51 @@ Future<int> _partnerCommit(
     },
   );
   return status;
+}
+
+/// Writes four entries on [accountId] as the owner, through the rules, and
+/// soft-deletes the [deletedNewest] newest of them (`rev` + 1, `deletedAt`).
+Future<void> _ownerEntries(
+  String hid,
+  String owner,
+  String accountId, {
+  required int deletedNewest,
+}) async {
+  final transactions = FirebaseFirestore.instance.collection(
+    'households/$hid/transactions',
+  );
+  final base = DateTime.utc(2026, 11, 1, 12);
+  for (var i = 1; i <= 4; i++) {
+    final ref = transactions.doc('$accountId-entry-$i');
+    await ref.set({
+      'type': 'expense',
+      'amountMinor': 1000 * i,
+      'currency': 'IQD',
+      'accountId': accountId,
+      'baseAmountMinor': i,
+      'categoryId': null,
+      'whoUid': owner,
+      'whoScope': 'member',
+      'occurredAt': Timestamp.fromDate(base.add(Duration(days: i))),
+      'occurredOn': '2026-11-0${1 + i}',
+      'title': 'Entry $i',
+      'source': 'manual',
+      'visibleTo': [owner],
+      'deletedAt': null,
+      'rev': 0,
+      'createdAt': FieldValue.serverTimestamp(),
+      'createdBy': owner,
+      'updatedAt': FieldValue.serverTimestamp(),
+      'updatedBy': owner,
+      'schemaVersion': 1,
+    });
+    if (i > 4 - deletedNewest) {
+      await ref.update({
+        'deletedAt': FieldValue.serverTimestamp(),
+        'rev': 1,
+        'updatedAt': FieldValue.serverTimestamp(),
+        'updatedBy': owner,
+      });
+    }
+  }
 }

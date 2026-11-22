@@ -28,6 +28,7 @@ final class FirebaseAccountsRepository implements AccountsRepository {
     required HouseholdRepository households,
     Clock? clock,
     Random? random,
+    this.entriesLimit = defaultEntriesLimit,
   }) : _households = households,
        _clock = clock ?? const Clock(),
        _random = random ?? Random.secure() {
@@ -48,8 +49,11 @@ final class FirebaseAccountsRepository implements AccountsRepository {
   /// offline.
   static const Duration writeAckTimeout = Duration(seconds: 8);
 
+  /// Entries shown on an account's detail screen by default.
+  static const int defaultEntriesLimit = 50;
+
   /// Entries shown on an account's detail screen.
-  static const int entriesLimit = 50;
+  final int entriesLimit;
 
   final FirebaseAuth _auth;
   final FirebaseFirestore _firestore;
@@ -255,6 +259,10 @@ final class FirebaseAccountsRepository implements AccountsRepository {
           String field,
         ) => transactions
             .where(field, isEqualTo: accountId)
+            // Deleted entries are left out by the query, before the limit,
+            // so they never use up the page (Codex review, PR #33). Every
+            // write path stores `deletedAt: null` on a live entry.
+            .where('deletedAt', isNull: true)
             .orderBy('occurredAt', descending: true)
             .limit(entriesLimit)
             .snapshots()
@@ -268,13 +276,12 @@ final class FirebaseAccountsRepository implements AccountsRepository {
             for (final doc in {
               for (final d in [...both.$1, ...both.$2]) d.id: d,
             }.values)
-              if (doc.data()['deletedAt'] == null)
-                ?entryFromFirestore(
-                  doc.id,
-                  doc.data(),
-                  accountId,
-                  currency: currency,
-                ),
+              ?entryFromFirestore(
+                doc.id,
+                doc.data(),
+                accountId,
+                currency: currency,
+              ),
           ]..sort((a, b) => b.occurredAt.compareTo(a.occurredAt));
           return entries.take(entriesLimit).toList();
         });

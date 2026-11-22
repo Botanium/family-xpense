@@ -59,7 +59,33 @@
           "arrayConfig": "CONTAINS"
         },
         {
+          "fieldPath": "accountId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "deletedAt",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "occurredAt",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "transactions",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "visibleTo",
+          "arrayConfig": "CONTAINS"
+        },
+        {
           "fieldPath": "toAccountId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "deletedAt",
           "order": "ASCENDING"
         },
         {

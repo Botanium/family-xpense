@@ -137,7 +137,9 @@ void main() {
 
       // accountId pages of 2, 2, 1, then one empty toAccountId page.
       expect(progress, ['0/5', '2/5', '4/5', '5/5']);
-      expect(docs.batches.map((b) => b.length), [2, 2, 1]);
+      for (var i = 0; i < 5; i++) {
+        expect(visibleOf('$txns/t$i'), [owner, partner]);
+      }
     });
 
     test(
@@ -281,6 +283,77 @@ void main() {
       expect(result.outcome, VisibilityOutcome.synced);
       expect(visibleOf('$txns/t'), [owner]);
     });
+
+    test('a run whose lease was taken over writes no more history '
+        '(Codex review, PR #33)', () async {
+      seedAccount(
+        'chk',
+        visibleTo: [owner, partner],
+        shared: true,
+        applied: [owner],
+      );
+      for (var i = 0; i < 5; i++) {
+        seedTxn('t$i', 'chk', visibleTo: [owner]);
+      }
+      docs.onPage = (page) async {
+        if (page != 1) return;
+        // This run stalled past its lease; another run took the account
+        // over (for the owner's newer, private setting) before this run's
+        // second page is written.
+        docs.docs['$accounts/chk']!['visibilitySync'] = {
+          'runId': 'newer',
+          'target': [owner],
+          'leaseUntil': now.add(const Duration(seconds: 60)),
+          'done': 0,
+          'total': 5,
+        };
+      };
+
+      final result = await job.sync(hid, 'chk');
+
+      expect(result.outcome, VisibilityOutcome.busy);
+      // The first page was written under the lease; nothing after it.
+      expect(visibleOf('$txns/t0'), [owner, partner]);
+      expect(visibleOf('$txns/t1'), [owner, partner]);
+      for (var i = 2; i < 5; i++) {
+        expect(visibleOf('$txns/t$i'), [owner], reason: 't$i');
+      }
+      // The newer run's lease and the record of what was applied are left
+      // alone.
+      final account = docs.docs['$accounts/chk']!;
+      expect((account['visibilitySync']! as Map)['runId'], 'newer');
+      expect(account['visibilityAppliedTo'], [owner]);
+    });
+
+    test(
+      'a run that loses its lease just before finishing records nothing',
+      () async {
+        seedAccount(
+          'chk',
+          visibleTo: [owner, partner],
+          shared: true,
+          applied: [owner],
+        );
+        seedTxn('t0', 'chk', visibleTo: [owner]);
+        // One page of one: the next page read is the empty toAccountId page,
+        // after which the run finishes.
+        docs.onPage = (page) async {
+          if (page != 1) return;
+          docs.docs['$accounts/chk']!['visibilitySync'] = {
+            'runId': 'newer',
+            'target': [owner, partner],
+            'leaseUntil': now.add(const Duration(seconds: 60)),
+          };
+        };
+
+        final result = await job.sync(hid, 'chk');
+
+        expect(result.outcome, VisibilityOutcome.busy);
+        final account = docs.docs['$accounts/chk']!;
+        expect(account['visibilityAppliedTo'], [owner]);
+        expect((account['visibilitySync']! as Map)['runId'], 'newer');
+      },
+    );
 
     test('a missing account is reported, not created', () async {
       final result = await job.sync(hid, 'gone');
