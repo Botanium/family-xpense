@@ -21,6 +21,8 @@ void main() {
         'shell',
         'routing',
         'lock',
+        // The Xpense catalog cards (lib/a2ui/, WP-31).
+        'a2ui',
         for (final dir in Directory('lib/features').listSync())
           if (dir is Directory)
             dir.uri.pathSegments.reversed.skip(1).first.split('_').first,

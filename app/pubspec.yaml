@@ -45,6 +45,9 @@ dependencies:
   # Latin OCR and Android (D-08). Only lib/services/.
   google_mlkit_text_recognition: ^1.0.3
   intl: ^0.20.3
+  # The Schema type of a2ui_core's component schemas (WP-31). Pre-1.0, the
+  # version a2ui_core 0.8.0 resolves; only lib/a2ui/.
+  json_schema_builder: 0.1.7
   # Liquid Glass (D-07). Only GlassSurface in lib/core/.
   liquid_glass_widgets: ^1.19.0
   local_auth: ^3.0.2
