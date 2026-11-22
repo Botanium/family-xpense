@@ -4,11 +4,16 @@
 import 'dart:collection';
 import 'dart:io';
 
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_app_check/firebase_app_check.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/misc.dart';
 
+import 'package:xpense_app/a2ui/testing/fake_xpense_actions.dart';
+import 'package:xpense_app/a2ui/xpense_surface_host.dart';
 import 'package:xpense_app/app.dart';
 import 'package:xpense_app/core/theme/theme.dart';
 import 'package:xpense_app/core/ui/ui.dart';
@@ -18,8 +23,12 @@ import 'package:xpense_app/data/auth_repository_firebase.dart';
 import 'package:xpense_app/data/household_repository.dart';
 import 'package:xpense_app/data/household_repository_fake.dart';
 import 'package:xpense_app/data/household_repository_firebase.dart';
+import 'package:xpense_app/data/rules_repository.dart';
+import 'package:xpense_app/data/rules_repository_firestore.dart';
+import 'package:xpense_app/features/ask/ask_actions.dart';
 import 'package:xpense_app/services/agent_client.dart';
 import 'package:xpense_app/services/agent_client_fake.dart';
+import 'package:xpense_app/services/agent_client_remote.dart';
 import 'package:xpense_app/services/biometric_lock.dart';
 import 'package:xpense_app/services/biometric_lock_local_auth.dart';
 import 'package:xpense_app/services/clock.dart';
@@ -217,6 +226,65 @@ HouseholdRepository connectHouseholds(
   ),
 };
 
+/// The cloud capture services (ARCHITECTURE 5.2 and 5.3): the agent and
+/// the Decisions proxy on `xpense-agent`, or null in `fakes` and when no
+/// server address is set, which leaves the fakes (every cloud path then
+/// reports itself unavailable and the slip is built on the phone).
+({AgentClient agent, DecisionsClient decisions})? connectCaptureServices(
+  AppEnvironment environment,
+) {
+  final serverUrl = switch (environment) {
+    AppEnvironment.fakes => null,
+    AppEnvironment.dev ||
+    AppEnvironment.prod => usableServerUrl(serverUrlDefine),
+    AppEnvironment.emulators => usableServerUrl(
+      _or(serverUrlDefine, defaultLocalServer),
+    ),
+  };
+  if (serverUrl == null) return null;
+  // App Check cannot be emulated; the local server accepts any non-empty
+  // token (XPENSE_APP_CHECK=emulator).
+  Future<String?> appCheck() => environment.usesAppCheck
+      ? FirebaseAppCheck.instance.getToken()
+      : Future.value('emulator');
+  Future<String?> idToken({bool forceRefresh = false}) async =>
+      await FirebaseAuth.instance.currentUser?.getIdToken(forceRefresh);
+  return (
+    agent: RemoteAgentClient(
+      baseUrl: serverUrl,
+      idToken: idToken,
+      appCheckToken: appCheck,
+      timeout: RemoteAgentClient.defaultTimeout,
+    ),
+    decisions: HttpDecisionsClient(
+      baseUrl: serverUrl,
+      idToken: idToken,
+      appCheckToken: appCheck,
+      timeout: HttpDecisionsClient.defaultTimeout,
+    ),
+  );
+}
+
+/// The learned rules for the signed-in member (story S3.11): in Firestore
+/// once the member is in a household, in memory in `fakes` and until the
+/// membership is known.
+RulesRepository connectRules(Ref ref, {required AppEnvironment environment}) {
+  final membership = ref.watch(membershipProvider).value;
+  final uid = ref.watch(authRepositoryProvider).currentUser?.uid;
+  if (!environment.usesFirebase || uid == null || membership is! InHousehold) {
+    final memory = MemoryRulesRepository();
+    ref.onDispose(memory.dispose);
+    return memory;
+  }
+  final firestore = FirestoreRulesRepository(
+    firestore: FirebaseFirestore.instance,
+    hid: membership.household.id,
+    uid: uid,
+  );
+  ref.onDispose(firestore.dispose);
+  return firestore;
+}
+
 /// The crash sink the two error handlers write to.
 ///
 /// It keeps the last [capacity] errors in memory and prints them in debug
@@ -321,6 +389,7 @@ Future<Bootstrapped> bootstrap({required AppEnvironment environment}) async {
   final auth = await connectAuth(environment);
   final households = connectHouseholds(environment, auth: auth);
   final flags = await connectFeatureFlags(environment);
+  final capture = connectCaptureServices(environment);
   registerFontLicenses();
   final settings = await PrefsSettingsStore.open();
   await GlassSetup.initialize();
@@ -336,6 +405,9 @@ Future<Bootstrapped> bootstrap({required AppEnvironment environment}) async {
       authRepository: auth,
       householdRepository: households,
       featureFlags: flags,
+      agentClient: capture?.agent,
+      decisionsClient: capture?.decisions,
+      rules: (ref) => connectRules(ref, environment: environment),
     ),
   );
 }
@@ -360,6 +432,8 @@ List<Override> appOverrides({
   OnDeviceLlm? onDeviceLlm,
   SpeechCapture? speechCapture,
   OcrEngine? ocrEngine,
+  XpenseActions? xpenseActions,
+  RulesRepository Function(Ref ref)? rules,
 }) => [
   clockProvider.overrideWithValue(clock),
   settingsStoreProvider.overrideWithValue(settings),
@@ -378,4 +452,15 @@ List<Override> appOverrides({
   onDeviceLlmProvider.overrideWithValue(onDeviceLlm ?? FakeOnDeviceLlm()),
   speechCaptureProvider.overrideWithValue(speechCapture ?? FakeSpeechCapture()),
   ocrEngineProvider.overrideWithValue(ocrEngine ?? FakeOcrEngine()),
+  // Saving goes through the in-memory fake until the transaction write
+  // path (WP-20) lands.
+  xpenseActionsProvider.overrideWithValue(xpenseActions ?? FakeXpenseActions()),
+  rulesRepositoryProvider.overrideWith(
+    rules ??
+        (ref) {
+          final memory = MemoryRulesRepository();
+          ref.onDispose(memory.dispose);
+          return memory;
+        },
+  ),
 ];

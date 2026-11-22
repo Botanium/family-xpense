@@ -304,7 +304,7 @@ EntryDraft buildDraft({
 
   // Amount and currency.
   final amount = parse.amounts.firstOrNull;
-  final amountMinor = amount?.money?.minorUnits;
+  var amountMinor = amount?.money?.minorUnits;
   var currency = amount?.currency?.code ?? parse.currency?.code;
   if (amount != null && amount.guessed && currency != null) {
     guessed.add('currency');
@@ -332,8 +332,18 @@ EntryDraft buildDraft({
       if (p.show == FieldShow.guessed) guessed.add('accountId');
     }
   }
-  // An account settles a currency the parser could not read.
-  currency ??= household.account(accountId)?.currency;
+  // A currency the parser could not read: the account's, else the base
+  // currency as a guess (as the agent does), and the amount read in it.
+  if (currency == null && amount != null) {
+    final fromAccount = household.account(accountId)?.currency;
+    currency = fromAccount ?? household.baseCurrency;
+    if (fromAccount == null) guessed.add('currency');
+    if (Currency.tryParse(currency) case final c?) {
+      if (Money.parseMajor(amount.value.toString(), c) case Ok(:final value)) {
+        amountMinor = value.minorUnits;
+      }
+    }
+  }
 
   String? toAccountId;
   if (isTransfer) {
@@ -425,9 +435,9 @@ EntryDraft buildDraft({
 
   // Exchange rate, when the entry is not in the base currency.
   FxQuote? fx;
-  final money = amountMinor == null || currency == null
-      ? null
-      : Currency.tryParse(currency)?.let((c) => Money(amountMinor, c));
+  final minor = amountMinor;
+  final code = Currency.tryParse(currency ?? '');
+  final money = minor == null || code == null ? null : Money(minor, code);
   final base = Currency.tryParse(household.baseCurrency);
   final pairRate = household.latestRate;
   if (money != null &&
@@ -487,8 +497,4 @@ EntryDraft buildDraft({
     {...draft.toJson(), 'missing': missing.isEmpty ? null : missing}
       ..removeWhere((_, v) => v == null),
   );
-}
-
-extension<T extends Object> on T {
-  R let<R>(R Function(T) f) => f(this);
 }

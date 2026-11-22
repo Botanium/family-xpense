@@ -1,0 +1,50 @@
+[
+  {
+    "version": "1.0",
+    "deleteSurface": {
+      "surfaceId": "cap_c0s7"
+    }
+  },
+  {
+    "version": "1.0",
+    "createSurface": {
+      "surfaceId": "cap_c0s7",
+      "catalogId": "https://bitrelia.com/xpense/a2ui/catalogs/xpense/v1/catalog.json",
+      "sendDataModel": false,
+      "components": [
+        {
+          "id": "root",
+          "component": "EntryList",
+          "drafts": {
+            "@path": "/drafts"
+          },
+          "status": "review"
+        }
+      ],
+      "dataModel": {
+        "drafts": [
+          {
+            "id": "d1",
+            "intent": "expense",
+            "amountMinor": 4280,
+            "currency": "USD",
+            "accountId": "acc_chk",
+            "categoryId": "groceries",
+            "who": "me",
+            "occurredOn": "2026-11-22",
+            "title": "Costco",
+            "confidence": {
+              "category": 0.7,
+              "account": 0.95,
+              "who": 0.9
+            },
+            "guessed": [
+              "categoryId"
+            ],
+            "origin": "agent"
+          }
+        ]
+      }
+    }
+  }
+]

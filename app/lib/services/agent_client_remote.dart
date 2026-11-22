@@ -43,6 +43,10 @@ final class RemoteAgentClient implements AgentClient {
     http.Client Function()? httpClient,
   }) : _httpClient = httpClient ?? http.Client.new;
 
+  /// The longest one turn may take by default: a turn with a tool call
+  /// and a surface takes a few seconds; this catches a stalled connection.
+  static const Duration defaultTimeout = Duration(seconds: 90);
+
   /// The service origin, such as `https://xpense-agent-….run.app`.
   final Uri baseUrl;
 
@@ -56,7 +60,7 @@ final class RemoteAgentClient implements AgentClient {
   final http.Client Function() _httpClient;
 
   /// The turn endpoint.
-  Uri get endpoint => baseUrl.resolve('/v1/agent');
+  Uri get endpoint => baseUrl.resolve('v1/agent');
 
   @override
   AgentConversation open() => _RemoteConversation(this);
@@ -140,44 +144,79 @@ final class _RemoteConversation implements AgentConversation {
     }
   }
 
-  Future<_Outcome> _attempt(Message message, _Running running) async {
+  /// Runs one attempt. Never awaits the genkit turn after it is aborted
+  /// or timed out: a stalled connection may never settle it, and leaving
+  /// its stream must not wait for it.
+  Future<_Outcome> _attempt(Message message, _Running running) {
     final gkTurn = _chat.sendStream(message: message);
-    running.abort = gkTurn.abort;
-    try {
-      await for (final chunk in gkTurn.stream.timeout(_client.timeout)) {
-        if (running.cancelled) break;
+    final outcome = Completer<_Outcome>();
+    StreamSubscription<gk.AgentChunk<Object?>>? subscription;
+    Timer? stall;
+
+    void finish(_Outcome result) {
+      if (outcome.isCompleted) return;
+      outcome.complete(result);
+      stall?.cancel();
+      running.abort = null;
+      unawaited(subscription?.cancel());
+    }
+
+    void stop(ServiceFailure failure) {
+      finish(_Failed(failure));
+      gkTurn.abort();
+    }
+
+    // The limit applies between chunks, so a long answer that keeps
+    // streaming is not cut off.
+    void arm() {
+      stall?.cancel();
+      stall = Timer(_client.timeout, () {
+        debugPrint('AgentClient: no answer within the timeout');
+        stop(const ServiceOffline());
+      });
+    }
+
+    running.abort = () => stop(const ServiceCancelled());
+    arm();
+    subscription = gkTurn.stream.listen(
+      (chunk) {
+        if (outcome.isCompleted) return;
+        arm();
         final text = chunk.text;
         if (text.isNotEmpty) running.add(AgentReply(text));
         final messages = a2uiMessagesFrom(chunk.raw.modelChunk?.content);
         if (messages.isNotEmpty) running.add(AgentSurfaceMessages(messages));
-      }
-      if (running.cancelled) return const _Failed(ServiceCancelled());
-      await gkTurn.response.timeout(_client.timeout);
-      return const _Done();
-    } on TimeoutException {
-      gkTurn.abort();
-      return const _Failed(ServiceOffline());
-    } on gk.AgentError<Object?> catch (e) {
-      if (running.cancelled) return const _Failed(ServiceCancelled());
-      debugPrint('AgentClient: ${e.status} ${e.message}');
-      return _failureOf(status: e.status, message: e.message, cause: e.details);
-    } on Exception catch (e) {
-      // A transport failure before any server answer.
-      if (running.cancelled) return const _Failed(ServiceCancelled());
-      debugPrint('AgentClient: ${e.runtimeType}');
-      return const _Failed(ServiceOffline());
-    } finally {
-      running.abort = null;
-    }
+      },
+      onError: (Object error) {
+        if (error is gk.AgentError<Object?>) {
+          debugPrint('AgentClient: ${error.status} ${error.message}');
+          finish(
+            _failureOf(
+              status: error.status,
+              message: error.message,
+              cause: error.details,
+            ),
+          );
+        } else {
+          // A transport failure before any server answer.
+          debugPrint('AgentClient: ${error.runtimeType}');
+          finish(const _Failed(ServiceOffline()));
+        }
+      },
+      // The stream ends after genkit has settled the turn's response; a
+      // failed response arrives as an error first.
+      onDone: () => finish(const _Done()),
+      cancelOnError: true,
+    );
+    return outcome.future;
   }
 
   @override
   Future<void> cancel() async {
     final running = _running;
     if (running == null || running.cancelled) return;
-    running
-      ..cancelled = true
-      ..abort?.call();
+    running.cancelled = true;
+    running.abort?.call();
     // Ask the server to stop the turn too; best effort.
     try {
       await _chat.abort();

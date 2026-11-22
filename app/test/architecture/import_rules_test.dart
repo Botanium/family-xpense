@@ -108,6 +108,23 @@ import 'package:flutter_edge_ai_litertlm/flutter_edge_ai_litertlm.dart';
       );
     });
 
+    test('the capture router is the one shared feature folder', () {
+      expect(
+        reasons(
+          'features/ask/a.dart',
+          "import 'package:xpense_app/features/capture/router/capture_router.dart';",
+        ),
+        isEmpty,
+      );
+      expect(
+        reasons(
+          'features/ask/a.dart',
+          "import 'package:xpense_app/features/capture/voice_screen.dart';",
+        ),
+        ['a feature must not import another feature'],
+      );
+    });
+
     test('a feature may import only the surface host from a2ui/', () {
       expect(
         reasons(

@@ -53,6 +53,12 @@ String? featureOf(String libPath) {
   return parts.length > 2 && parts.first == 'features' ? parts[1] : null;
 }
 
+/// The one feature folder other features may import: the capture router
+/// (AI_PIPELINE 2), pure functions with no widgets, which Ask, voice,
+/// receipts and quick capture all route through (WP-34; DELEGATION puts
+/// the router in `features/capture/router/` and its callers elsewhere).
+const String sharedCaptureRouter = 'features/capture/router/';
+
 /// The only `a2ui/` file a feature may import: the surface host widget.
 const String a2uiHostFile = 'a2ui/xpense_surface_host.dart';
 
@@ -225,7 +231,9 @@ List<Violation> checkFile(
       if (layer == Layer.feature) {
         final own = featureOf(libPath);
         final other = featureOf(internal);
-        if (other != null && other != own) {
+        if (other != null &&
+            other != own &&
+            !internal.startsWith(sharedCaptureRouter)) {
           violations.add(
             Violation(
               libPath,

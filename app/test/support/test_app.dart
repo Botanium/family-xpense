@@ -2,14 +2,18 @@ import 'package:clock/clock.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/misc.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:xpense_app/a2ui/testing/fake_xpense_actions.dart';
 import 'package:xpense_app/app.dart';
 import 'package:xpense_app/bootstrap.dart';
 import 'package:xpense_app/core/ui/ui.dart';
 import 'package:xpense_app/data/auth_repository_fake.dart';
 import 'package:xpense_app/data/household_repository.dart';
 import 'package:xpense_app/data/household_repository_fake.dart';
+import 'package:xpense_app/data/rules_repository.dart';
+import 'package:xpense_app/services/agent_client_fake.dart';
 import 'package:xpense_app/services/biometric_lock.dart';
 import 'package:xpense_app/services/biometric_lock_fake.dart';
+import 'package:xpense_app/services/decisions_client_fake.dart';
 import 'package:xpense_app/services/feature_flags.dart';
 import 'package:xpense_app/services/feature_flags_fake.dart';
 import 'package:xpense_app/services/on_device_llm/on_device_llm_fake.dart';
@@ -96,6 +100,18 @@ final class TestServices {
   /// Speech to text; with no script, listening fails as unavailable.
   final FakeSpeechCapture speech = FakeSpeechCapture();
 
+  /// The cloud agent; with no script, every turn fails as unavailable.
+  final FakeAgentClient agent = FakeAgentClient();
+
+  /// The Decisions proxy; by default it reports itself unavailable.
+  final FakeDecisionsClient decisions = FakeDecisionsClient();
+
+  /// The household cache and the write path (WP-20 stand-in).
+  final FakeXpenseActions actions = FakeXpenseActions();
+
+  /// Learned rules.
+  final MemoryRulesRepository rules = MemoryRulesRepository();
+
   /// Time.
   final TestClock clock = TestClock();
 
@@ -113,6 +129,10 @@ final class TestServices {
     featureFlags: flags,
     onDeviceLlm: onDeviceLlm,
     speechCapture: speech,
+    agentClient: agent,
+    decisionsClient: decisions,
+    xpenseActions: actions,
+    rules: (_) => rules,
   );
 
   /// A container wired like the app, disposed with the test.
