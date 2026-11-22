@@ -106,10 +106,13 @@ final _decideResponse = DecideResponse(
     confidence: 0.96,
   ),
   category: ChoiceAnswer(choice: 'dining', probabilities: {'dining': 1}),
+  toAccount: ChoiceAnswer(choice: 'unspecified', confidence: 0.7),
+  person: ChoiceAnswer(choice: 'p1', confidence: 0.9),
   multiEntry: YesNoAnswer(probability: 0.02, confidence: 0.98),
   needsFollowup: YesNoAnswer(probability: 0.1),
   isRecurring: YesNoAnswer(probability: 0.05),
   duplicate: YesNoAnswer(probability: 0.3),
+  duplicateOf: 't1',
   calibrated: true,
 );
 
@@ -346,6 +349,7 @@ void main() {
       final keys = props(DecideResponse.$schema).keys.toSet();
       expect(keys, containsAll(decideQuestionKeys));
       expect(keys.difference(decideQuestionKeys.toSet()), {
+        'duplicate_of',
         'calibrated',
         'unavailable',
       });
@@ -363,10 +367,13 @@ void main() {
     test('snake_case keys on the wire, camelCase in Dart', () {
       final json = _wire(_decideResponse.toJson());
       expect(json.keys, containsAll(['multi_entry', 'needs_followup']));
-      expect(json.keys, contains('is_recurring'));
+      expect(json.keys, containsAll(['is_recurring', 'to_account']));
+      expect(json.keys, contains('person'));
       final parsed = DecideResponse.fromJson(json);
       expect(parsed.multiEntry?.probability, 0.02);
       expect(parsed.needsFollowup?.probability, 0.1);
+      expect(parsed.toAccount?.choice, 'unspecified');
+      expect(parsed.person?.choice, 'p1');
     });
 
     test('integer probabilities (0 or 1) still read', () {

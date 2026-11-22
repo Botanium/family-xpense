@@ -10,6 +10,8 @@ import 'package:xpense_app/data/household_repository.dart';
 import 'package:xpense_app/data/household_repository_fake.dart';
 import 'package:xpense_app/services/biometric_lock.dart';
 import 'package:xpense_app/services/biometric_lock_fake.dart';
+import 'package:xpense_app/services/feature_flags.dart';
+import 'package:xpense_app/services/feature_flags_fake.dart';
 import 'package:xpense_app/services/on_device_llm/on_device_llm_fake.dart';
 import 'package:xpense_app/services/settings_store.dart';
 import 'package:xpense_app/services/settings_store_fake.dart';
@@ -32,22 +34,25 @@ final class TestClock {
 
 /// The fakes behind one test app, for arranging and asserting.
 final class TestServices {
-  /// Creates fakes; [settings], [unlock], [signedIn] and [membership] set
-  /// the starting state. Signed in to a household by default, so the app
-  /// opens on Home. [onSignIn] is the membership a later sign-in finds:
-  /// none, as for someone new.
+  /// Creates fakes; [settings], [unlock], [signedIn], [membership] and
+  /// [flags] set the starting state. Signed in to a household by default,
+  /// so the app opens on Home; flags at their shipped defaults (Apple
+  /// sign-in off, D-39). [onSignIn] is the membership a later sign-in
+  /// finds: none, as for someone new.
   factory({
     AppSettings settings = AppSettings.defaults,
     UnlockOutcome unlock = const Unlocked(),
     bool signedIn = true,
     Membership? membership,
     Membership onSignIn = const NoHousehold(),
+    FeatureFlags flags = FeatureFlags.defaults,
   }) {
     final auth = FakeAuthRepository(
       signedIn: signedIn ? FakeAuthRepository.providerUser : null,
     );
     return TestServices._(
       settingsStore: MemorySettingsStore(settings),
+      flags: FakeFeatureFlags(flags),
       biometricLock: FakeBiometricLock(outcome: unlock),
       auth: auth,
       households: FakeHouseholdRepository(
@@ -64,6 +69,7 @@ final class TestServices {
 
   new _({
     required this.settingsStore,
+    required this.flags,
     required this.biometricLock,
     required this.auth,
     required this.households,
@@ -74,6 +80,9 @@ final class TestServices {
 
   /// Households: membership, creating, inviting, joining.
   final FakeHouseholdRepository households;
+
+  /// Remote Config flags; `flags.set` flips one while the app runs.
+  final FakeFeatureFlags flags;
 
   /// Settings, in memory.
   final MemorySettingsStore settingsStore;
@@ -101,6 +110,7 @@ final class TestServices {
     glass: glass,
     authRepository: auth,
     householdRepository: households,
+    featureFlags: flags,
     onDeviceLlm: onDeviceLlm,
     speechCapture: speech,
   );

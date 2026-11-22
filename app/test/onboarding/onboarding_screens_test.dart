@@ -5,12 +5,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:xpense_app/app.dart';
 import 'package:xpense_app/core/routing/routing.dart';
+import 'package:xpense_app/core/theme/theme.dart';
 import 'package:xpense_app/core/ui/ui.dart';
 import 'package:xpense_app/data/auth_repository.dart';
 import 'package:xpense_app/data/auth_repository_fake.dart';
 import 'package:xpense_app/data/household_repository.dart';
 import 'package:xpense_app/data/household_repository_fake.dart';
 import 'package:xpense_app/features/onboarding/onboarding_gate.dart';
+import 'package:xpense_app/services/feature_flags.dart';
 import 'package:xpense_app/services/service_failure.dart';
 import 'package:xpense_app/services/speech_capture.dart';
 
@@ -33,6 +35,12 @@ Future<ProviderContainer> pumpSignedOut(
   usePhone(tester);
   return pumpXpenseApp(tester, services ?? TestServices(signedIn: false));
 }
+
+/// Signed out, with Apple sign-in turned on in Remote Config.
+TestServices appleOn() => TestServices(
+  signedIn: false,
+  flags: const FeatureFlags(appleSignInEnabled: true),
+);
 
 Uri location(ProviderContainer container) =>
     container.read(routerProvider).state.uri;
@@ -131,10 +139,10 @@ void main() {
   });
 
   group('Create account (screen 2)', () {
-    testWidgets('three sign-in methods of equal weight, Apple first', (
+    testWidgets('flag on: three methods of equal weight, Apple first', (
       tester,
     ) async {
-      final container = await openCreateAccount(tester);
+      final container = await openCreateAccount(tester, appleOn());
 
       expect(location(container).path, OnboardingRoutes.createAccount);
       expect(find.text('CREATE ACCOUNT'), findsOneWidget);
@@ -161,6 +169,59 @@ void main() {
       );
     });
 
+    testWidgets('flag off (the default): no Apple; Google and email', (
+      tester,
+    ) async {
+      final services = TestServices(signedIn: false);
+      expect(services.flags.current.appleSignInEnabled, isFalse);
+      await openCreateAccount(tester, services);
+
+      expect(find.text('Continue with Apple'), findsNothing);
+      final buttons = [
+        for (final label in ['Continue with Google', 'Continue with email'])
+          find.ancestor(of: find.text(label), matching: find.byType(XpButton)),
+      ];
+      final widths = buttons.map((b) => tester.getSize(b).width).toSet();
+      expect(widths, hasLength(1), reason: 'equal width');
+      final kinds = buttons.map((b) => tester.widget<XpButton>(b).kind).toSet();
+      expect(kinds, {XpButtonKind.secondary}, reason: 'equal style');
+      // Google takes Apple's place: 32 pt under the paragraph, not 32 + 64.
+      final paragraph = find.text(
+        'Each of you signs in on your own phone. Your partner joins the same '
+        'household later with an invite.',
+      );
+      expect(
+        tester.getTopLeft(buttons.first).dy -
+            tester.getBottomLeft(paragraph).dy,
+        XpSpace.s32,
+      );
+
+      await tapLabel(tester, 'Continue with Google');
+      expect(services.auth.calls, ['google']);
+    });
+
+    testWidgets('turning the flag on in the console shows Apple live', (
+      tester,
+    ) async {
+      final services = TestServices(signedIn: false);
+      final container = await openCreateAccount(tester, services);
+      expect(find.text('Continue with Apple'), findsNothing);
+
+      services.flags.set(const FeatureFlags(appleSignInEnabled: true));
+      await tester.pumpAndSettle();
+      expect(find.text('Continue with Apple'), findsOneWidget);
+      await tapLabel(tester, 'Continue with Apple');
+      expect(services.auth.calls, ['apple']);
+      expect(location(container).path, AppRoutes.householdSetup);
+
+      // And off again hides it on the next visit.
+      services.flags.set(FeatureFlags.defaults);
+      await services.auth.signOut();
+      await tester.pumpAndSettle();
+      await tapLabel(tester, 'Get started');
+      expect(find.text('Continue with Apple'), findsNothing);
+    });
+
     testWidgets('Terms and Privacy Policy links open their pages', (
       tester,
     ) async {
@@ -182,7 +243,7 @@ void main() {
     testWidgets('Apple signs in and the gate moves on to household setup', (
       tester,
     ) async {
-      final services = TestServices(signedIn: false);
+      final services = appleOn();
       final container = await openCreateAccount(tester, services);
 
       await tapLabel(tester, 'Continue with Apple');
@@ -195,7 +256,7 @@ void main() {
     testWidgets('while signing in: a spinner, every button disabled', (
       tester,
     ) async {
-      final services = TestServices(signedIn: false);
+      final services = appleOn();
       final container = await openCreateAccount(tester, services);
       services.auth.hold = Completer<void>();
 
@@ -256,7 +317,7 @@ void main() {
         (const AuthUnknown('x'), "Couldn't sign in. Try again."),
       ]) {
         services.auth.nextFailure = failure;
-        await tapLabel(tester, 'Continue with Apple');
+        await tapLabel(tester, 'Continue with Google');
         expect(find.text(message), findsOneWidget, reason: failure.code);
       }
     });
@@ -293,7 +354,7 @@ void main() {
         findsOneWidget,
       );
 
-      await tapLabel(tester, 'Continue with Apple');
+      await tapLabel(tester, 'Continue with Google');
       expect(location(container).path, AppRoutes.join);
     });
 
@@ -549,7 +610,7 @@ void main() {
         onSignIn: const InHousehold(FakeHouseholdRepository.sampleHousehold),
       );
       final container = await openCreateAccount(tester, services);
-      await tapLabel(tester, 'Continue with Apple');
+      await tapLabel(tester, 'Continue with Google');
       expect(location(container).path, AppRoutes.home);
       container.read(routerProvider).go(OnboardingRoutes.tryIt);
       await tester.pumpAndSettle();
@@ -668,7 +729,8 @@ void main() {
           ..textScaleFactorTestValue = 2
           ..platformBrightnessTestValue = brightness;
         addTearDown(tester.platformDispatcher.clearAllTestValues);
-        final services = TestServices(signedIn: false);
+        // The fullest layout: all three sign-in methods.
+        final services = appleOn();
         final container = await pumpSignedOut(tester, services);
         expect(find.text('Get started', skipOffstage: false), findsOneWidget);
         await tapLabel(tester, 'Get started');

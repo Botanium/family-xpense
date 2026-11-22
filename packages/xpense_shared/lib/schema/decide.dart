@@ -26,8 +26,8 @@ abstract class $DecideRequest {
   /// The question keys to ask, from `decideQuestionKeys`.
   List<String> get ask;
 
-  /// Deterministic duplicate candidates (same account and amount, date
-  /// within one day). The `duplicate` question is asked only with these.
+  /// Ignored by the server since WP-33: it finds duplicate candidates itself
+  /// among the saved entries the speaker can see. Kept for compatibility.
   List<$DuplicateCandidate>? get candidates;
 }
 
@@ -76,8 +76,17 @@ abstract class $DecideResponse {
   /// Answer to `category`.
   $ChoiceAnswer? get category;
 
-  /// Answer to `account`.
+  /// Answer to `account`: the account the money left from or arrived in.
   $ChoiceAnswer? get account;
+
+  /// Answer to `to_account`: the destination account of a transfer or
+  /// savings move (WP-S4).
+  @Field(name: 'to_account')
+  $ChoiceAnswer? get toAccount;
+
+  /// Answer to `person`: the household's person a loan, repayment or gift
+  /// is with (WP-S4).
+  $ChoiceAnswer? get person;
 
   /// Answer to `who`.
   $ChoiceAnswer? get who;
@@ -100,6 +109,12 @@ abstract class $DecideResponse {
 
   /// Answer to `duplicate`: whether the message is one of the candidates.
   $YesNoAnswer? get duplicate;
+
+  /// The transaction id of the nearest duplicate candidate, set whenever
+  /// [duplicate] is. The slip's "Looks like one you already saved" links to
+  /// it (`EntryDraft.duplicate.txnId`).
+  @Field(name: 'duplicate_of')
+  String? get duplicateOf;
 
   /// `false` when the answers came from the Flash-Lite fallback; the phone
   /// then caps confidences at `conf_on_device_cap`.

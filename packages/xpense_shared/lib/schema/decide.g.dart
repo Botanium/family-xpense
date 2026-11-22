@@ -104,16 +104,16 @@ base class DecideRequest {
     _json['ask'] = value;
   }
 
-  /// Deterministic duplicate candidates (same account and amount, date
-  /// within one day). The `duplicate` question is asked only with these.
+  /// Ignored by the server since WP-33: it finds duplicate candidates itself
+  /// among the saved entries the speaker can see. Kept for compatibility.
   List<DuplicateCandidate>? get candidates {
     return (_json['candidates'] as List?)
         ?.map((e) => DuplicateCandidate.fromJson(e as Map<String, dynamic>))
         .toList();
   }
 
-  /// Deterministic duplicate candidates (same account and amount, date
-  /// within one day). The `duplicate` question is asked only with these.
+  /// Ignored by the server since WP-33: it finds duplicate candidates itself
+  /// among the saved entries the speaker can see. Kept for compatibility.
   set candidates(List<DuplicateCandidate>? value) {
     if (value == null) {
       _json.remove('candidates');
@@ -423,12 +423,15 @@ base class DecideResponse {
     ChoiceAnswer? intent,
     ChoiceAnswer? category,
     ChoiceAnswer? account,
+    ChoiceAnswer? toAccount,
+    ChoiceAnswer? person,
     ChoiceAnswer? who,
     YesNoAnswer? multiEntry,
     YesNoAnswer? repayable,
     YesNoAnswer? needsFollowup,
     YesNoAnswer? isRecurring,
     YesNoAnswer? duplicate,
+    String? duplicateOf,
     bool? calibrated,
     bool? unavailable,
   }) {
@@ -436,12 +439,15 @@ base class DecideResponse {
       'intent': ?intent?.toJson(),
       'category': ?category?.toJson(),
       'account': ?account?.toJson(),
+      'to_account': ?toAccount?.toJson(),
+      'person': ?person?.toJson(),
       'who': ?who?.toJson(),
       'multi_entry': ?multiEntry?.toJson(),
       'repayable': ?repayable?.toJson(),
       'needs_followup': ?needsFollowup?.toJson(),
       'is_recurring': ?isRecurring?.toJson(),
       'duplicate': ?duplicate?.toJson(),
+      'duplicate_of': ?duplicateOf,
       'calibrated': ?calibrated,
       'unavailable': ?unavailable,
     };
@@ -485,19 +491,55 @@ base class DecideResponse {
     }
   }
 
-  /// Answer to `account`.
+  /// Answer to `account`: the account the money left from or arrived in.
   ChoiceAnswer? get account {
     return _json['account'] == null
         ? null
         : ChoiceAnswer.fromJson(_json['account'] as Map<String, dynamic>);
   }
 
-  /// Answer to `account`.
+  /// Answer to `account`: the account the money left from or arrived in.
   set account(ChoiceAnswer? value) {
     if (value == null) {
       _json.remove('account');
     } else {
       _json['account'] = value.toJson();
+    }
+  }
+
+  /// Answer to `to_account`: the destination account of a transfer or
+  /// savings move (WP-S4).
+  ChoiceAnswer? get toAccount {
+    return _json['to_account'] == null
+        ? null
+        : ChoiceAnswer.fromJson(_json['to_account'] as Map<String, dynamic>);
+  }
+
+  /// Answer to `to_account`: the destination account of a transfer or
+  /// savings move (WP-S4).
+  set toAccount(ChoiceAnswer? value) {
+    if (value == null) {
+      _json.remove('to_account');
+    } else {
+      _json['to_account'] = value.toJson();
+    }
+  }
+
+  /// Answer to `person`: the household's person a loan, repayment or gift
+  /// is with (WP-S4).
+  ChoiceAnswer? get person {
+    return _json['person'] == null
+        ? null
+        : ChoiceAnswer.fromJson(_json['person'] as Map<String, dynamic>);
+  }
+
+  /// Answer to `person`: the household's person a loan, repayment or gift
+  /// is with (WP-S4).
+  set person(ChoiceAnswer? value) {
+    if (value == null) {
+      _json.remove('person');
+    } else {
+      _json['person'] = value.toJson();
     }
   }
 
@@ -599,6 +641,24 @@ base class DecideResponse {
     }
   }
 
+  /// The transaction id of the nearest duplicate candidate, set whenever
+  /// [duplicate] is. The slip's "Looks like one you already saved" links to
+  /// it (`EntryDraft.duplicate.txnId`).
+  String? get duplicateOf {
+    return _json['duplicate_of'] as String?;
+  }
+
+  /// The transaction id of the nearest duplicate candidate, set whenever
+  /// [duplicate] is. The slip's "Looks like one you already saved" links to
+  /// it (`EntryDraft.duplicate.txnId`).
+  set duplicateOf(String? value) {
+    if (value == null) {
+      _json.remove('duplicate_of');
+    } else {
+      _json['duplicate_of'] = value;
+    }
+  }
+
   /// `false` when the answers came from the Flash-Lite fallback; the phone
   /// then caps confidences at `conf_on_device_cap`.
   bool? get calibrated {
@@ -660,12 +720,15 @@ base class _DecideResponseTypeFactory extends SchemanticType<DecideResponse> {
         'intent': <String, Object?>{r'$ref': r'#/$defs/ChoiceAnswer'},
         'category': <String, Object?>{r'$ref': r'#/$defs/ChoiceAnswer'},
         'account': <String, Object?>{r'$ref': r'#/$defs/ChoiceAnswer'},
+        'to_account': <String, Object?>{r'$ref': r'#/$defs/ChoiceAnswer'},
+        'person': <String, Object?>{r'$ref': r'#/$defs/ChoiceAnswer'},
         'who': <String, Object?>{r'$ref': r'#/$defs/ChoiceAnswer'},
         'multi_entry': <String, Object?>{r'$ref': r'#/$defs/YesNoAnswer'},
         'repayable': <String, Object?>{r'$ref': r'#/$defs/YesNoAnswer'},
         'needs_followup': <String, Object?>{r'$ref': r'#/$defs/YesNoAnswer'},
         'is_recurring': <String, Object?>{r'$ref': r'#/$defs/YesNoAnswer'},
         'duplicate': <String, Object?>{r'$ref': r'#/$defs/YesNoAnswer'},
+        'duplicate_of': <String, Object?>{'type': 'string'},
         'calibrated': <String, Object?>{'type': 'boolean'},
         'unavailable': <String, Object?>{'type': 'boolean'},
       },

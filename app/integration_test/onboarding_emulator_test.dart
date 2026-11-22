@@ -119,9 +119,10 @@ void main() {
     await pause(tester, 25);
     await tapText(tester, 'Get started');
 
-    // Create account: three equal methods, Terms and Privacy.
-    expect(find.text('Continue with Apple'), findsOneWidget);
+    // Create account. Apple shows only once Remote Config turns
+    // apple_sign_in_enabled on (D-39), so this checks the other two.
     expect(find.text('Continue with Google'), findsOneWidget);
+    expect(find.text('Continue with email'), findsOneWidget);
     await pause(tester, 20);
     await tapText(tester, 'Continue with email');
 

@@ -9,7 +9,7 @@
     "version": "1.0",
     "createSurface": {
       "surfaceId": "ans_month_nov",
-      "catalogId": "https://familyxpense.app/a2ui/catalogs/xpense/v1/catalog.json",
+      "catalogId": "https://bitrelia.com/xpense/a2ui/catalogs/xpense/v1/catalog.json",
       "sendDataModel": false,
       "components": [
         {

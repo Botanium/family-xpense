@@ -10,12 +10,17 @@ library;
 import 'dart:async';
 import 'dart:io';
 
+import 'package:http/http.dart' as http_client;
 import 'package:logging/logging.dart';
 import 'package:shelf/shelf_io.dart' as shelf_io;
 
 import 'package:xpense_agent/admin/emulator_app_check.dart';
 import 'package:xpense_agent/admin/firebase_admin_gateway.dart';
+import 'package:xpense_agent/admin/firestore_household_source.dart';
 import 'package:xpense_agent/config/server_env.dart';
+import 'package:xpense_agent/decide/decisions_api.dart';
+import 'package:xpense_agent/decide/decisions_classifier.dart';
+import 'package:xpense_agent/decide/fallback.dart';
 import 'package:xpense_agent/genkit.dart';
 import 'package:xpense_agent/telemetry/otel.dart';
 import 'package:xpense_agent/telemetry/structured_log.dart';
@@ -49,11 +54,28 @@ Future<void> main() async {
         ? EmulatorAppCheckVerifier()
         : null,
   );
+  // `/decide` (WP-33): the Decisions API needs the key itself, over REST.
+  // Cloud Run resolves the secret to `latest` when the instance starts.
+  final geminiKey =
+      Platform.environment['GEMINI_API_KEY'] ??
+      Platform.environment['GOOGLE_API_KEY'];
   final server = XpenseServer.create(
     role: env.role,
     ai: ai,
     gateway: admin.gateway,
     projectId: env.projectId,
+    classifier: geminiKey == null || geminiKey.isEmpty
+        ? null
+        : (config, usage) => DecisionsClassifier(
+            api: DecisionsApi(
+              http: http_client.Client(),
+              keys: FixedApiKey(geminiKey),
+            ),
+            households: FirestoreHouseholdSource(admin.firestore),
+            config: config,
+            usage: usage,
+            fallback: GenkitFallbackClassifier(ai),
+          ),
   );
 
   final http = await shelf_io.serve(

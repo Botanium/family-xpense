@@ -12,6 +12,8 @@ import 'package:xpense_agent/auth/context_provider.dart';
 import 'package:xpense_agent/auth/member_directory.dart';
 import 'package:xpense_agent/config/runtime_config.dart';
 import 'package:xpense_agent/config/server_env.dart';
+import 'package:xpense_agent/decide/classifier.dart';
+import 'package:xpense_agent/decide/decide_flow.dart';
 import 'package:xpense_agent/flows/ping.dart';
 import 'package:xpense_agent/household/household_flows.dart';
 import 'package:xpense_agent/household/household_service.dart';
@@ -27,15 +29,22 @@ final class XpenseServer {
     required this.members,
     required this.config,
     required this.usage,
+    required this.classifier,
   });
 
   /// Builds the service for [role] on [ai] and [gateway].
+  ///
+  /// [classifier] builds the `/decide` classifier from the config loader and
+  /// the usage counters; without it (tests, a server with no Gemini key)
+  /// `/decide` answers `{unavailable: true}`.
   factory create({
     required XpenseRole role,
     required Genkit ai,
     required AdminGateway gateway,
     String? projectId,
     Clock? clock,
+    EntryClassifier Function(RuntimeConfigLoader config, UsageCounters usage)?
+    classifier,
   }) {
     final members = MemberDirectory(gateway.documents, clock: clock);
     final config = RuntimeConfigLoader(gateway.documents, clock: clock);
@@ -49,12 +58,16 @@ final class XpenseServer {
     // Flows are defined for both roles so the Developer UI lists the same
     // actions; only the agent role mounts the public router.
     final ping = definePingFlow(ai);
+    final entryClassifier =
+        classifier?.call(config, usage) ?? FakeEntryClassifier();
+    final decide = defineDecideFlow(ai, entryClassifier);
     final household = HouseholdService(gateway.documents, clock: clock);
     final handler = buildHandler(
       role: role,
       public: buildPublicRouter(
         auth: auth,
         ping: ping,
+        decide: decide,
         householdInvite: defineHouseholdInviteFlow(ai, household),
         householdJoin: defineHouseholdJoinFlow(ai, household, members),
       ),
@@ -67,6 +80,7 @@ final class XpenseServer {
       members: members,
       config: config,
       usage: usage,
+      classifier: entryClassifier,
     );
   }
 
@@ -84,4 +98,7 @@ final class XpenseServer {
 
   /// The usage counters.
   final UsageCounters usage;
+
+  /// The `/decide` classifier, for the agent's `prepareEntries` (WP-32).
+  final EntryClassifier classifier;
 }

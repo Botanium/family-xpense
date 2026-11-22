@@ -172,6 +172,16 @@ Three parts: decisions locked by the owner (L), decisions made while planning (D
 - The iOS bundle id is `com.bitrelia.familyxpense`, already registered in that project, replacing the `app.familyxpense.xpenseApp` placeholder.
 - Unchanged from L-22: never use the machine's active gcloud project. Every `gcloud` command passes `--project` and `--billing-project`, because some command groups bill the active project otherwise (ENVIRONMENTS 2).
 
+**D-39. Apple sign-in and App Attest gated off until the paid Apple Developer Program enrollment is approved; recheck the Team ID afterwards, since it may differ from `7TMGB6MVP7`.** Status: Decided on 2026-11-22. The owner's Apple account is a free Personal Team and the paid enrollment is pending.
+- **Sign in with Apple:** the "Continue with Apple" button shows only while the Remote Config flag `apple_sign_in_enabled` is on. The local default is off, so builds ship with it off; turning it on in the Firebase console needs no release, and open screens update live (`FeatureFlags.appleSignInEnabled`, `app/lib/services/feature_flags.dart`). Google and email are unaffected.
+- **App Check:** the debug provider is used on the simulator and in debug and profile builds. App Attest (with DeviceCheck before iOS 14) is used only in a release build on a device (`appleAppCheckFor` in `bootstrap.dart`), so nothing on the free team depends on App Attest.
+- **After approval:**
+  1. Read the Team ID again in the developer account and correct it on the Firebase iOS app if it changed (ENVIRONMENTS 3.7).
+  2. Turn on the *Sign in with Apple* and *App Attest* capabilities on the App ID (ENVIRONMENTS section 6, step 3).
+  3. Add the entitlements to `app/ios/Runner`.
+  4. Set `apple_sign_in_enabled` to true in Remote Config.
+- **Before the App Store:** the flag must be on, because App Review guideline 4.8 requires Sign in with Apple when Google sign-in is offered.
+
 ## 3. What was verified (2026-11-22)
 
 | Subject | How | Result |
@@ -201,15 +211,17 @@ Three parts: decisions locked by the owner (L), decisions made while planning (D
 
 Not verified, and settled by spikes: items marked Verify above; how a real Gemini model writes Express for this catalog (WP-32); behaviour on a physical iPhone (all local probes ran on macOS or not at all).
 
+**D-40. Catalog id uses the owner's domain.** `https://bitrelia.com/xpense/a2ui/catalogs/xpense/v1/catalog.json`, matching the bundle id `com.bitrelia.familyxpense`. Status: Locked by the owner on 2026-11-22. It is an identifier only and never has to resolve.
+
+**D-41. Category tree changes.** Status: Locked by the owner on 2026-11-22. `rent` removed; `apartment_gas` added under Home. On the owner's follow-up the same day, `internet_phone` was replaced by `internet_fee` and a new `phone_mobile_credit`, and `subscriptions` by `online_subscriptions`. Categories stay editable in the app (story S2.7).
+
+**D-42. The app is planned to go public as a paid subscription** after the owner and partner use it themselves. Status: Stated by the owner on 2026-11-22; not yet planned in detail. Consequences to plan before M8: in-app subscriptions and a paywall, a separate production Firebase project (already planned), per-user cost limits that fit the price, App Store review for a subscription finance app, and probably Kurdish and Arabic for the local market (D-36 deferred them). A planning pass is added as WP-P1 in DELEGATION.
+
 ## 4. Open questions for the owner
 
-Answered on 2026-11-22: region is Doha (D-18); English only for now (D-36); the app asks for the exchange rate every day (D-16); phones are iPhone 17 Pro and iPhone 15 Pro Max, and the base currency is USD (D-37).
+Answered on 2026-11-22: region is Doha (D-18); English only for now (D-36); the app asks for the exchange rate every day (D-16); phones are iPhone 17 Pro and iPhone 15 Pro Max, and the base currency is USD (D-37); orange means "act or live" as proposed (D-26, now Locked); the daily rate is labelled `market` (D-16); the catalog domain is bitrelia.com (D-40); categories (D-41, partly); email and password sign-in stays (D-24, Locked); Apple Intelligence is on for the iPhone 15 Pro Max.
 
 Still open:
 
-1. **Orange.** Is "act or live" (Ask, mic, plus live markers) acceptable, or should every marker other than Ask and mic become ink? (D-26)
-2. **Rate label.** Is the rate you will type each day the market rate (my default) or the official one? It only changes the label shown in reports.
-3. **Categories.** Review the default tree, especially `electricity_generator`, `family_support`, `charity` and `occasions`.
-4. **Domain and bundle id.** The catalog id uses `familyxpense.app` as a placeholder.
-5. **Email sign-in.** Email and password for the MVP, or is Apple plus Google enough?
-6. **Apple Intelligence.** Is it switched on, with iOS 26 or later, on both phones? On-device extraction depends on it.
+1. **Apple Intelligence on the iPhone 17 Pro.** Not yet checked.
+2. **Apple Developer Program.** Enrollment in progress; recheck the Team ID after approval (D-39).

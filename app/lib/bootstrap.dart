@@ -2,6 +2,7 @@
 // concrete implementations. Features see only the throwing providers in
 // `lib/services/`; this file overrides them.
 import 'dart:collection';
+import 'dart:io';
 
 import 'package:firebase_app_check/firebase_app_check.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -24,6 +25,9 @@ import 'package:xpense_app/services/biometric_lock_local_auth.dart';
 import 'package:xpense_app/services/clock.dart';
 import 'package:xpense_app/services/decisions_client.dart';
 import 'package:xpense_app/services/decisions_client_fake.dart';
+import 'package:xpense_app/services/feature_flags.dart';
+import 'package:xpense_app/services/feature_flags_fake.dart';
+import 'package:xpense_app/services/feature_flags_remote_config.dart';
 import 'package:xpense_app/services/ocr_engine.dart';
 import 'package:xpense_app/services/ocr_engine_fake.dart';
 import 'package:xpense_app/services/on_device_llm/on_device_llm.dart';
@@ -121,6 +125,42 @@ const String fakeHouseholdDefine = String.fromEnvironment(
 );
 
 String _or(String value, String fallback) => value.isEmpty ? fallback : value;
+
+/// The feature flags for [environment]: Remote Config in dev and prod, the
+/// local defaults (all off) in `fakes` and `emulators` (Remote Config has
+/// no emulator, and the demo project has none).
+Future<FeatureFlagSource> connectFeatureFlags(
+  AppEnvironment environment,
+) async => switch (environment) {
+  AppEnvironment.dev ||
+  AppEnvironment.prod => await RemoteConfigFeatureFlags.open(),
+  AppEnvironment.fakes || AppEnvironment.emulators => FakeFeatureFlags(),
+};
+
+/// Which App Check provider iOS uses.
+enum AppleAppCheck {
+  /// The debug provider; its token is registered per developer in the
+  /// console (ENVIRONMENTS 3.8).
+  debug,
+
+  /// App Attest, with DeviceCheck before iOS 14.
+  appAttest,
+}
+
+/// App Attest only in a release build on a device; the debug provider on
+/// the simulator and in debug and profile builds. App Attest needs the
+/// paid Apple Developer Program, which the team does not have yet
+/// (DECISIONS D-39), and never works on the simulator.
+AppleAppCheck appleAppCheckFor({
+  required bool releaseBuild,
+  required bool simulator,
+}) =>
+    releaseBuild && !simulator ? AppleAppCheck.appAttest : AppleAppCheck.debug;
+
+/// Whether this process runs in the iOS Simulator, which sets
+/// `SIMULATOR_UDID` in every app's environment.
+bool get runningOnSimulator =>
+    Platform.environment.containsKey('SIMULATOR_UDID');
 
 /// The auth repository for [environment].
 Future<AuthRepository> connectAuth(AppEnvironment environment) async =>
@@ -267,14 +307,20 @@ Future<Bootstrapped> bootstrap({required AppEnvironment environment}) async {
   }
   if (environment.usesAppCheck) {
     await FirebaseAppCheck.instance.activate(
-      providerApple: kDebugMode
-          ? const AppleDebugProvider()
-          : const AppleAppAttestWithDeviceCheckFallbackProvider(),
+      providerApple: switch (appleAppCheckFor(
+        releaseBuild: kReleaseMode,
+        simulator: runningOnSimulator,
+      )) {
+        AppleAppCheck.debug => const AppleDebugProvider(),
+        AppleAppCheck.appAttest =>
+          const AppleAppAttestWithDeviceCheckFallbackProvider(),
+      },
     );
   }
 
   final auth = await connectAuth(environment);
   final households = connectHouseholds(environment, auth: auth);
+  final flags = await connectFeatureFlags(environment);
   registerFontLicenses();
   final settings = await PrefsSettingsStore.open();
   await GlassSetup.initialize();
@@ -289,6 +335,7 @@ Future<Bootstrapped> bootstrap({required AppEnvironment environment}) async {
       glass: glass,
       authRepository: auth,
       householdRepository: households,
+      featureFlags: flags,
     ),
   );
 }
@@ -307,6 +354,7 @@ List<Override> appOverrides({
   required AuthRepository authRepository,
   required HouseholdRepository householdRepository,
   SecureStore? secureStore,
+  FeatureFlagSource? featureFlags,
   AgentClient? agentClient,
   DecisionsClient? decisionsClient,
   OnDeviceLlm? onDeviceLlm,
@@ -320,6 +368,9 @@ List<Override> appOverrides({
   authRepositoryProvider.overrideWithValue(authRepository),
   householdRepositoryProvider.overrideWithValue(householdRepository),
   secureStoreProvider.overrideWithValue(secureStore ?? MemorySecureStore()),
+  featureFlagSourceProvider.overrideWithValue(
+    featureFlags ?? FakeFeatureFlags(),
+  ),
   agentClientProvider.overrideWithValue(agentClient ?? FakeAgentClient()),
   decisionsClientProvider.overrideWithValue(
     decisionsClient ?? FakeDecisionsClient(),

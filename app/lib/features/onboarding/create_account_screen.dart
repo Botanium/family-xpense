@@ -12,10 +12,12 @@ import 'package:xpense_app/core/ui/ui.dart';
 import 'package:xpense_app/features/onboarding/create_account_view_model.dart';
 import 'package:xpense_app/features/onboarding/onboarding_gate.dart';
 import 'package:xpense_app/features/onboarding/onboarding_layout.dart';
+import 'package:xpense_app/services/feature_flags.dart';
 
 /// Create account (DESIGN_SYSTEM 9, screen 2; PRD ON-2): Apple, Google and
 /// email as three buttons of equal weight, Apple first, with the privacy
-/// note and the Terms and Privacy links (DESIGN_SYSTEM 12, item 8).
+/// note and the Terms and Privacy links (DESIGN_SYSTEM 12, item 8). Apple
+/// shows only while `appleSignInEnabled` is on (DECISIONS D-39).
 ///
 /// A successful sign-in does not navigate from here: the router's
 /// onboarding gate sees the new session and moves on.
@@ -33,6 +35,11 @@ class CreateAccountScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = context.l10n;
     final state = ref.watch(createAccountViewModelProvider);
+    // Off until the paid Apple Developer Program enrollment is approved;
+    // flipped in Remote Config, no release needed (DECISIONS D-39).
+    final appleEnabled = ref.watch(
+      featureFlagsProvider.select((flags) => flags.appleSignInEnabled),
+    );
     final viewModel = ref.read(createAccountViewModelProvider.notifier);
     final failure = state.failure;
     final message = failure == null ? null : authFailureMessage(l10n, failure);
@@ -68,13 +75,15 @@ class CreateAccountScreen extends ConsumerWidget {
                 : l10n.onboardingCreateAccountBody,
           ),
           const SizedBox(height: XpSpace.s32),
-          SignInButton(
-            label: l10n.onboardingContinueApple,
-            busy: state.busy == ProviderMethod.apple,
-            busyLabel: l10n.onboardingSigningIn,
-            onPressed: signIn(ProviderMethod.apple),
-          ),
-          const SizedBox(height: XpSpace.s12),
+          if (appleEnabled) ...[
+            SignInButton(
+              label: l10n.onboardingContinueApple,
+              busy: state.busy == ProviderMethod.apple,
+              busyLabel: l10n.onboardingSigningIn,
+              onPressed: signIn(ProviderMethod.apple),
+            ),
+            const SizedBox(height: XpSpace.s12),
+          ],
           SignInButton(
             label: l10n.onboardingContinueGoogle,
             busy: state.busy == ProviderMethod.google,

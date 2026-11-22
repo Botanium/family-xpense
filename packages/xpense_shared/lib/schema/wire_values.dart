@@ -49,11 +49,14 @@ const List<String> unresolvedFieldValues = ['category', 'account', 'intent'];
 const List<String> attachmentValues = ['none', 'audio', 'image'];
 
 /// The Decisions question keys a phone may ask for (AI_PIPELINE 7).
+/// `to_account` and `person` were added after WP-S4.
 const List<String> decideQuestionKeys = [
   'intent',
   'category',
   'account',
+  'to_account',
   'who',
+  'person',
   'multi_entry',
   'repayable',
   'needs_followup',

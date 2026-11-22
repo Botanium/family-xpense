@@ -8,7 +8,7 @@ Facts about the protocol and packages were read from the A2UI spec, the package 
 
 | Item | Value |
 |---|---|
-| `catalogId` | `https://familyxpense.app/a2ui/catalogs/xpense/v1/catalog.json` (a stable unique URI; it does not need to resolve; the owner confirms the domain) |
+| `catalogId` | `https://bitrelia.com/xpense/a2ui/catalogs/xpense/v1/catalog.json` (a stable unique URI on the owner's domain; it does not need to resolve; D-40) |
 | `protocolVersion` | `"1.0"` |
 | Server lookup id | `xpense` (used in `a2ui(catalog: 'xpense')`) |
 | Source of truth | `packages/xpense_shared/lib/catalog/xpense_catalog.json`, in the A2UI `catalog.json` shape |
@@ -338,7 +338,7 @@ Output for one draft with a missing account (one `createSurface` carrying compon
   "version": "1.0",
   "createSurface": {
     "surfaceId": "cap_k3m9",
-    "catalogId": "https://familyxpense.app/a2ui/catalogs/xpense/v1/catalog.json",
+    "catalogId": "https://bitrelia.com/xpense/a2ui/catalogs/xpense/v1/catalog.json",
     "components": [
       {"id": "root", "component": "Column", "children": ["heard", "list"]},
       {"id": "heard", "component": "Transcript",
