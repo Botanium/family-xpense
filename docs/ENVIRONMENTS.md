@@ -14,7 +14,7 @@ keys. The repository is public.
 | Firebase alias | `dev` in `firebase/.firebaserc` | |
 | Billing | Blaze, linked to the owner's billing account | |
 | Region | `me-central1` (Doha) for everything regional (D-18) | `me-central1` |
-| iOS bundle id | `com.bitrelia.familyxpense` | same |
+| iOS apps | "Family Xpense Dev" `com.bitrelia.familyxpense.dev` (flavor `dev`, used for development and TestFlight); "Family Xpense" `com.bitrelia.familyxpense` (registered, not used by any build, D-44) | `com.bitrelia.familyxpense` (flavor `prod`), reserved until the App Store seller is decided (D-44) |
 | App Check | App Attest registered; debug tokens allowed; not enforced yet | App Attest only, enforced on Firestore and Storage |
 | Data | test and seed data only | real |
 
@@ -134,11 +134,13 @@ Not enabled yet (the server deploy needs it): `cloudbuild` (server/DEPLOY.md ste
 |---|---|---|
 | Email and password | on, password required | before WP-01 |
 | Google | on (OAuth client created by the console) | before WP-01 |
-| Apple | on, for the iOS bundle `com.bitrelia.familyxpense` only | WP-01 |
+| Apple | on, for the iOS bundles `com.bitrelia.familyxpense` and `com.bitrelia.familyxpense.dev` | WP-01; `.dev` added for D-44 |
 
 - Apple was enabled with the Identity Toolkit admin API:
   `POST …/admin/v2/projects/expense-family-cc6ee/defaultSupportedIdpConfigs?idpId=apple.com`
   with `{"enabled":true,"appleSignInConfig":{"bundleIds":["com.bitrelia.familyxpense"]}}`.
+  The dev bundle id was added on 2026-11-22 (D-44) with
+  `PATCH …/defaultSupportedIdpConfigs/apple.com?updateMask=appleSignInConfig.bundleIds`.
   Native iOS sign-in needs nothing else in Firebase. A Services ID and key
   (code flow) are only needed for web or Android sign-in, which v1 does not
   have.
@@ -147,49 +149,97 @@ Not enabled yet (the server deploy needs it): `cloudbuild` (server/DEPLOY.md ste
 - Authorized domains: `localhost`, `expense-family-cc6ee.firebaseapp.com`,
   `expense-family-cc6ee.web.app`.
 
-### 3.7 iOS app and config file
+### 3.7 iOS apps, flavors and config files
 
-- Firebase iOS app "Family Xpense", bundle id `com.bitrelia.familyxpense`, app
-  id `1:648682359990:ios:b2b46595d20bceaf172a17` (registered before WP-01).
-- Apple Team ID on the app: `7TMGB6MVP7`, set on 2026-11-22 with the
-  Firebase Management API
-  (`PATCH …/v1beta1/projects/expense-family-cc6ee/iosApps/<app id>?updateMask=teamId`).
-  It was read from the OU field of the owner's Apple Development signing
-  certificate. The code in parentheses in that certificate's name is the
-  personal certificate id, not the team. App Attest and Sign in with Apple
-  need it. A Team ID is not a secret; it is in every app the team signs.
-- The Xcode project's bundle id is `com.bitrelia.familyxpense` (WP-11
-  replaced the placeholder `app.familyxpense.xpenseApp` in every build
-  configuration; RunnerTests is `com.bitrelia.familyxpense.RunnerTests`).
-- The Firebase iOS API key ("iOS key (auto created by Firebase)") is
-  restricted to the bundle id `com.bitrelia.familyxpense` (WP-01) and to the
-  Firebase APIs it was created with.
-- Config file `GoogleService-Info.plist`: kept **out of git** (root
-  `.gitignore`). A copy is at
-  `~/Developer/family-xpense/app/ios/config/dev/GoogleService-Info.plist` in
-  the main checkout. To fetch it again (any checkout):
+Two Firebase iOS apps, one per bundle id (D-44). Both have the Apple Team ID
+`7TMGB6MVP7` and App Attest registered (3.8), and share one API key.
 
-  ```bash
-  cd firebase
-  firebase apps:sdkconfig IOS 1:648682359990:ios:b2b46595d20bceaf172a17 \
-    --project expense-family-cc6ee -o ../app/ios/config/dev/GoogleService-Info.plist
-  ```
+| | Flavor `dev` | Flavor `prod` |
+|---|---|---|
+| Use | development and TestFlight | the App Store, later; **nobody builds or uploads it yet** (D-44) |
+| Bundle id | `com.bitrelia.familyxpense.dev` | `com.bitrelia.familyxpense` |
+| Home screen name | Xpense Dev | Family Xpense |
+| Firebase app | "Family Xpense Dev", `1:648682359990:ios:79390f4ac98029d8172a17` (created 2026-11-22) | none yet in production. "Family Xpense", `1:648682359990:ios:b2b46595d20bceaf172a17` in this project holds the id today (registered before WP-01; no build uses it) |
+| Config file (gitignored) | `app/ios/config/dev/GoogleService-Info.plist` | `app/ios/config/prod/GoogleService-Info.plist`, from the production project (8) |
+| Xcode | scheme `dev`; configurations `Debug-dev`, `Release-dev`, `Profile-dev` | scheme `prod`; `Debug-prod`, `Release-prod`, `Profile-prod` |
+| Entitlements | none yet; Sign in with Apple and App Attest come after enrollment (D-39, D-44) | none yet |
 
-  How the app loads it (WP-11): with `--dart-define=XPENSE_ENV=dev`, the
-  Xcode phase "Copy Firebase config" (`app/ios/scripts/copy_firebase_config.sh`)
-  copies `app/ios/config/dev/GoogleService-Info.plist` into the app bundle,
-  where `Firebase.initializeApp()` reads it; the build fails if the file is
-  missing. A worktree needs its own copy of the file. Google sign-in returns
-  through the URL scheme `app-1-648682359990-ios-b2b46595d20bceaf172a17`
-  (this app id with `-` for `:`), registered in `Info.plist`.
-  Against the Auth emulator add
-  `--dart-define=XPENSE_AUTH_EMULATOR=127.0.0.1:9099` (the IP: the
-  emulator does not listen on IPv6 `localhost`).
+**Where the flavor settings live.** `app/ios/Flutter/Flavors.xcconfig`
+(included by `Debug.xcconfig` and `Release.xcconfig`) picks the bundle id,
+name and Google sign-in URL scheme from `XPENSE_FLAVOR`, which
+each build configuration sets in `Runner.xcodeproj`. RunnerTests is
+`<bundle id>.RunnerTests`. `app/pubspec.yaml` sets `default-flavor: dev`, so
+a plain `flutter run` builds `dev`.
+
+**Flavor and backend are separate.** The flavor is the app's identity.
+`--dart-define=XPENSE_ENV=dev|prod` picks the backend; without it the app
+runs on fakes and needs no config file (CI, a clean checkout). The Xcode
+phase "Copy Firebase config" (`app/ios/scripts/copy_firebase_config.sh`)
+copies `app/ios/config/<flavor>/GoogleService-Info.plist` into the bundle
+when `XPENSE_ENV` is set, and fails the build if the file is missing or if
+`XPENSE_ENV` and the flavor differ (each file names its own bundle id).
+
+Commands, from `app/`:
+
+```bash
+flutter run                                                   # dev flavor, fakes
+flutter run --flavor dev --dart-define=XPENSE_ENV=dev         # dev flavor, project expense-family-cc6ee
+flutter run --flavor dev --dart-define=XPENSE_ENV=dev --dart-define=XPENSE_AUTH_EMULATOR=127.0.0.1:9099
+flutter build ipa --flavor dev --dart-define=XPENSE_ENV=dev   # TestFlight, after enrollment
+flutter build ios --flavor prod --no-codesign                 # compile check only; never upload (D-44)
+```
+
+Against the Auth emulator use the IP `127.0.0.1`: the emulator does not
+listen on IPv6 `localhost`.
+
+**Config files.** Kept **out of git** (root `.gitignore`); every checkout and
+worktree needs its own copy. To fetch the dev file:
+
+```bash
+cd firebase
+firebase apps:sdkconfig IOS 1:648682359990:ios:79390f4ac98029d8172a17 \
+  --project expense-family-cc6ee -o ../app/ios/config/dev/GoogleService-Info.plist
+```
+
+The main checkout's `config/dev/` held the "Family Xpense" app's file before
+D-44; replace it with the command above (delete the old file first;
+`apps:sdkconfig` will not overwrite).
+
+**Google sign-in URL scheme.** Firebase Auth's web flow returns through a
+URL scheme made of the flavor's Firebase app id with `-` for `:`
+(`XPENSE_GOOGLE_AUTH_SCHEME` in `Flavors.xcconfig`, used in `Info.plist`).
+Without it the Firebase SDK stops the app on "Continue with Google". `prod`
+points at the "Family Xpense" app for now; change it to the production
+app's id when that project exists.
+
+**API key.** The Firebase "iOS key (auto created by Firebase)"
+(`39858552-…`) is restricted to the bundle ids `com.bitrelia.familyxpense`
+and `com.bitrelia.familyxpense.dev` and to the Firebase APIs it was created
+with. Both apps use it. `firebase apps:create` made a second, unrestricted
+key for the dev app; the dev app was pointed at the restricted key
+(`PATCH …/v1beta1/projects/expense-family-cc6ee/iosApps/<app id>?updateMask=apiKeyId,teamId`)
+and the extra key deleted (2026-11-22). Check:
+`gcloud services api-keys list --project=expense-family-cc6ee --billing-project=expense-family-cc6ee`.
+
+**Team ID.** `7TMGB6MVP7` on both apps, set with the Firebase Management
+API (`…?updateMask=teamId`). It was read from the OU field of the owner's
+Apple Development signing certificate. The code in parentheses in that
+certificate's name is the personal certificate id, not the team. A Team ID
+is not a secret. Recheck it after enrollment (D-39).
+
+**Entitlements.** None yet: a free Personal Team cannot sign Sign in with
+Apple or App Attest, and Apple sign-in is parked until the developer account
+is sorted out. After enrollment (6, step 3) add an entitlements file for the
+dev flavor (`com.apple.developer.applesignin` and
+`com.apple.developer.devicecheck.appattest-environment = production`) and set
+`CODE_SIGN_ENTITLEMENTS` for `dev` in `Flavors.xcconfig`.
 
 ### 3.8 App Check
 
-- iOS app: **App Attest** provider registered (token lifetime 1 hour), with
-  the Team ID set (3.7). Not yet exercised from a device: that needs the App
+- iOS apps: **App Attest** provider registered on both (token lifetime 1
+  hour), with the Team ID set (3.7). "Family Xpense Dev" was registered on
+  2026-11-22 with
+  `PATCH https://firebaseappcheck.googleapis.com/v1/projects/648682359990/apps/<app id>/appAttestConfig?updateMask=tokenTtl`. Not yet exercised from a device: that needs the App
   Attest capability on the App ID and the entitlement in the app.
 - DeviceCheck: not configured. Both household phones (D-37) support App
   Attest; the app's `AppleAppAttestWithDeviceCheckFallbackProvider` falls back
@@ -197,7 +247,7 @@ Not enabled yet (the server deploy needs it): `cloudbuild` (server/DEPLOY.md ste
 - Debug provider (simulator, CI): allowed **in this project only**. Each
   developer registers their own debug token: run a debug build, copy the
   token the App Check SDK logs, then Firebase console → App Check → Apps →
-  Family Xpense → ⋮ → Manage debug tokens → Add. Debug tokens are secrets:
+  Family Xpense Dev → ⋮ → Manage debug tokens → Add. Debug tokens are secrets:
   never commit or paste them into issues, PRs or chat.
 - Enforcement: **off** for Firestore, Storage and Auth in development, so the
   simulator and early builds are not blocked while the App Check flow is
@@ -339,11 +389,11 @@ Still needed:
    gcloud secrets versions list GEMINI_API_KEY --project=expense-family-cc6ee --billing-project=expense-family-cc6ee
    ```
 
-3. **Apple Developer, App ID `com.bitrelia.familyxpense`:** turn on the
-   capabilities *Sign in with Apple* and *App Attest*. The matching
-   entitlements in `app/ios/Runner` are added by the app packages (WP-11 for
-   sign-in; App Attest's `com.apple.developer.devicecheck.appattest-environment`
-   with the App Check wiring).
+3. **Apple Developer, after enrollment is approved:** register the App ID
+   `com.bitrelia.familyxpense.dev` with the capabilities *Sign in with
+   Apple* and *App Attest*, then add the dev flavor's entitlements (3.7). Do **not** register
+   `com.bitrelia.familyxpense` in the individual account: it waits for the
+   App Store seller decision (D-44).
 4. **App Check debug token** for each simulator or Mac used for development
    (3.8).
 5. ~~Old Gemini keys~~: done. The owner deleted them in AI Studio, and
@@ -373,9 +423,11 @@ Repeat section 3 with these differences:
 
 - New project id (planned `xpense-prod`), same billing account, same region
   check first (Firestore's location is permanent).
-- Register the same bundle id `com.bitrelia.familyxpense` with the same Team
-  ID; download its `GoogleService-Info.plist` to
-  `app/ios/config/prod/` (ignored by git).
+- Register the bundle id `com.bitrelia.familyxpense` (flavor `prod`) with
+  the Team ID of the account that will sell the app (D-44); download its
+  `GoogleService-Info.plist` to `app/ios/config/prod/` (ignored by git); set
+  `XPENSE_GOOGLE_AUTH_SCHEME_prod` in `app/ios/Flutter/Flavors.xcconfig` to
+  its app id; add a prod entitlements file.
 - App Check: App Attest only, **no debug tokens**, enforcement **on** for
   Firestore and Storage from day one.
 - Auth: Apple, Google, email and password, as in development.
