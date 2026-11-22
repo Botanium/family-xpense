@@ -234,6 +234,51 @@ void main() {
     });
   });
 
+  group('RateChangeSheet', () {
+    Widget sheet({String initial = '1,705', ValueChanged<String>? onSave}) =>
+        signalHarness(
+          child: RateChangeSheet(
+            title: 'Rate',
+            initial: initial,
+            unit: 'IQD per USD',
+            saveLabel: 'Save',
+            backspaceLabel: 'Delete',
+            onSave: onSave ?? (_) {},
+          ),
+        );
+
+    Future<void> press(WidgetTester tester, String key, {int times = 1}) async {
+      for (var i = 0; i < times; i++) {
+        await tester.tap(find.bySemanticsLabel(key).last);
+        await tester.pump();
+      }
+    }
+
+    testWidgets('caps whole digits at 6 and decimals at 4', (tester) async {
+      String? saved;
+      await tester.pumpWidget(sheet(onSave: (v) => saved = v));
+      await press(tester, '9', times: 30);
+      expect(tester.takeException(), isNull);
+      expect(find.text('170,599'), findsOneWidget);
+      await press(tester, '.');
+      await press(tester, '5', times: 10);
+      expect(tester.takeException(), isNull);
+      expect(find.text('170,599.5555'), findsOneWidget);
+      await tester.tap(find.text('Save'));
+      expect(saved, '170599.5555');
+    });
+
+    testWidgets('an oversized initial value is bounded, not parsed', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        sheet(initial: '123456789012345678901234567890.123456789'),
+      );
+      expect(tester.takeException(), isNull);
+      expect(find.text('123,456.1234'), findsOneWidget);
+    });
+  });
+
   group('large text', () {
     testWidgets(
       'rows stack the figure under the label at accessibility sizes',

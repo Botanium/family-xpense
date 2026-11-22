@@ -4,7 +4,6 @@ import 'package:xpense_app/core/theme/theme.dart';
 import 'package:xpense_app/core/ui/badges.dart';
 import 'package:xpense_app/core/ui/buttons.dart';
 import 'package:xpense_app/core/ui/inputs.dart';
-import 'package:xpense_app/core/ui/money_text.dart';
 import 'package:xpense_app/core/ui/rows.dart';
 import 'package:xpense_app/core/ui/xp_pressable.dart';
 
@@ -161,12 +160,41 @@ class RateChangeSheet extends StatefulWidget {
   /// Called with the typed rate as text (decimal string, never `double`).
   final ValueChanged<String> onSave;
 
+  /// Most whole digits a rate can have; an IQD per USD rate needs four.
+  static const int maxWholeDigits = 6;
+
+  /// Most decimal digits a rate can have.
+  static const int maxFractionDigits = 4;
+
   @override
   State<RateChangeSheet> createState() => _RateChangeSheetState();
 }
 
 class _RateChangeSheetState extends State<RateChangeSheet> {
-  late String _text = widget.initial.replaceAll(',', '');
+  late String _text = _bounded(widget.initial);
+
+  /// Keeps digits and the first point, within the digit limits.
+  static String _bounded(String raw) {
+    final buffer = StringBuffer();
+    var whole = 0;
+    var fraction = 0;
+    var seenPoint = false;
+    for (final char in raw.split('')) {
+      if (char == '.' && !seenPoint) {
+        seenPoint = true;
+        buffer.write(char);
+      } else if (RegExp(r'^\d$').hasMatch(char)) {
+        if (!seenPoint && whole < RateChangeSheet.maxWholeDigits) {
+          whole++;
+          buffer.write(char);
+        } else if (seenPoint && fraction < RateChangeSheet.maxFractionDigits) {
+          fraction++;
+          buffer.write(char);
+        }
+      }
+    }
+    return buffer.toString();
+  }
 
   void _key(String key) {
     setState(() {
@@ -175,9 +203,21 @@ class _RateChangeSheetState extends State<RateChangeSheet> {
       } else if (key == '.') {
         if (!_text.contains('.')) _text = _text.isEmpty ? '0.' : '$_text.';
       } else {
-        _text = _text == '0' ? key : '$_text$key';
+        final next = _text == '0' ? key : '$_text$key';
+        // Ignore keys past the limit instead of truncating what was typed.
+        if (_bounded(next) == next) _text = next;
       }
     });
+  }
+
+  /// Groups a digit string by thousands without parsing it as a number.
+  static String _groupDigits(String digits) {
+    final buffer = StringBuffer();
+    for (var i = 0; i < digits.length; i++) {
+      if (i > 0 && (digits.length - i) % 3 == 0) buffer.write(',');
+      buffer.write(digits[i]);
+    }
+    return buffer.toString();
   }
 
   String get _display {
@@ -185,8 +225,7 @@ class _RateChangeSheetState extends State<RateChangeSheet> {
     final dot = _text.indexOf('.');
     final whole = dot < 0 ? _text : _text.substring(0, dot);
     final rest = dot < 0 ? '' : _text.substring(dot);
-    final grouped = whole.isEmpty ? '0' : MoneyFormat.group(int.parse(whole));
-    return '$grouped$rest';
+    return '${whole.isEmpty ? '0' : _groupDigits(whole)}$rest';
   }
 
   @override

@@ -4,6 +4,8 @@ import 'dart:async';
 
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:liquid_glass_widgets/liquid_glass_widgets.dart'
+    show GlassContainer, GlassQuality;
 import 'package:material_ui/material_ui.dart';
 import 'package:xpense_app/core/theme/theme.dart';
 import 'package:xpense_app/core/ui/gallery/gallery_entries.dart';
@@ -183,6 +185,53 @@ void main() {
         ),
       );
       expect(find.byType(BackdropFilter), findsWidgets);
+    });
+
+    testWidgets('overMedia controls use the platform-view backdrop', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        signalHarness(
+          tier: GlassTier.premium,
+          child: Row(
+            children: [
+              GlassIconButton(
+                glyph: XpGlyph.close,
+                semanticLabel: 'Close',
+                overMedia: true,
+                onPressed: () {},
+              ),
+              const GlassPill(label: 'Read on device', overMedia: true),
+              const SizedBox(
+                width: 44,
+                height: 44,
+                child: GlassSurface(
+                  variant: GlassVariant.overMedia,
+                  child: SizedBox.expand(),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+      final containers = tester
+          .widgetList<GlassContainer>(find.byType(GlassContainer))
+          .toList();
+      expect(containers, hasLength(3));
+      for (final container in containers) {
+        expect(container.platformViewBackdrop, isTrue);
+        expect(container.quality, GlassQuality.minimal);
+      }
+    });
+
+    testWidgets('controls off media keep the shader backdrop', (tester) async {
+      await tester.pumpWidget(
+        signalHarness(child: const GlassPill(label: 'Smart')),
+      );
+      final container = tester.widget<GlassContainer>(
+        find.byType(GlassContainer),
+      );
+      expect(container.platformViewBackdrop, isFalse);
     });
 
     testWidgets('content colour follows the recipe', (tester) async {
