@@ -8,14 +8,19 @@ Every external fact has a source and a date in section 10. "Undated" means the p
 
 ## Summary (one screen)
 
+> **Revised on 2026-11-22: the enrollment recommendation changed.** The first version said the app could be moved to the company with App Transfer before launch. That is not possible: App Transfer needs a version already released on the App Store. Section 7(f) now lists the paths that do work.
+
 > **URGENT: how to enroll in the Apple Developer Program (owner was about to enroll as an individual today).**
-> **Recommendation: enroll as an individual today, and at the same time request a free D-U-N-S number for the US company.** Decide the seller before the public launch, not now. Details in section 7.
+> **Recommendation: enroll as an individual today for development and TestFlight, and request a free D-U-N-S number for the US company at the same time. Keep the production bundle id `com.bitrelia.familyxpense` out of the individual account until the seller is decided; test under a separate id such as `com.bitrelia.familyxpense.dev`.** Details in section 7.
 > - Enrolling now unblocks Sign in with Apple, App Attest and TestFlight (D-39). Paid-app banking is not needed for that.
 > - The company route cannot finish today: D-U-N-S takes up to about 7 business days, and Apple also needs a website and email on the company's domain. Foreign-owned US LLCs using a registered-agent address are being declined, and many report App Store Connect offers them only a W-9, which blocks the Paid Apps Agreement for months.
 > - The company does not solve payouts yet. Mercury, Relay, Wise and Novo all refuse an owner who lives in Iraq.
-> - As an individual, the owner's **legal name is the seller**, and the EU product page shows an **address (a P.O. box with proof is allowed) and phone number**.
+> - If the individual is the seller, the owner's **legal name is shown**, and the EU product page shows an **address (a P.O. box with proof is allowed) and phone number**.
 > - **The real blocker is payouts.** Nobody has confirmed that Apple can pay an Iraqi bank. Check this in App Store Connect right after enrolling.
-> - If the seller should be the company, move the app with App Transfer **before** the public launch. At that point only two people use it, so the move costs almost nothing.
+> - **Three ways to end with the company as seller** (section 7(f), which also covers waiting for the company and staying individual):
+>   1. Ask Apple to convert the individual membership to an organization before launch. Same account, no App Transfer, but Apple publishes no procedure and conversions have stalled.
+>   2. Release from a separate company account. This is cheap only if the individual account never used the production bundle id; the two partners sign in again in the new production project, which D-38 creates empty anyway.
+>   3. Release under the individual first, then use App Transfer. This needs a Sign in with Apple migration within 60 days, and Apple does not say subscribers carry over.
 
 ### Recommended tiers
 
@@ -25,20 +30,20 @@ All three tiers include both partners and every money feature that makes the led
 |---|---|---|---|
 | Members | 2 (you and your partner) | 2 | up to 6 (needs "more than two members", see risk R-4) |
 | Capture on the phone (typing, on-device voice, rules, parser, on-device model) | unlimited | unlimited | unlimited |
-| Category and account suggestions (Decisions API) | unlimited, fair use | unlimited, fair use | unlimited, fair use |
-| **Cloud AI captures** per month (multi-entry messages, cloud voice, receipt photos, commands) | 50 | 200 | 500 |
-| of which receipt scans | 15, total only | 100, with line-item split | 250, with line-item split |
-| **Questions to the AI** per month | 15 | 60 | 150 |
+| Category and account suggestions (Decisions API) per month, then on-phone suggestions | 1,000 | 1,000 | 2,000 |
+| **Cloud AI captures** per month (multi-entry messages, cloud voice, receipt photos, commands) | 50 | 150 | 300 |
+| of which receipt scans | 15, total only | 75, with line-item split | 150, with line-item split |
+| **Questions to the AI** per month | 15 | 40 | 70 |
 | Privacy modes (On-device only, Smart, Cloud) | all three | all three | all three |
 | Budgets / savings goals | 5 / 2 | unlimited | unlimited |
 | Recurring bills | detect and remind | detect, remind or add automatically | same as Pro |
 | Nudges | essentials (loan due, budget at 100%, daily rate) | all | all |
-| Monthly summary | on-phone summary | + AI-written monthly report | + yearly review, custom-range reports |
+| Monthly summary | on-phone summary | + AI-written monthly report | + yearly review, up to 4 custom-range reports a month |
 | Export | CSV, any time | + PDF and Excel reports | same as Pro |
 | History | kept forever | kept forever | kept forever |
 | Support | in-app help, email | email, faster reply | priority email, early access to new features |
 
-Cloud AI and question limits never stop a money entry. When a limit is reached, capture falls back to the phone-only path and the manual form (the same experience as being offline), and the household sees one quiet note after saving. See section 4.
+Cloud AI, suggestion and question limits never stop a money entry. A typical household (300 entries, about 60 cloud captures, 30 questions and 150 suggestion calls a month) stays well inside Standard's suggestions and Pro's other limits. When a limit is reached, capture falls back to the phone-only path and the manual form (the same experience as being offline), and the household sees one quiet note after saving. See section 4.
 
 ### Recommended prices
 
@@ -52,7 +57,7 @@ Cloud AI and question limits never stop a money entry. When a limit is reached, 
 - **No weekly plan.** Budgeting is a habit measured in months. Weekly plans keep only 3.4% of subscribers after a year, and no budgeting leader sells one (section 6).
 - **Free trial: 1 month on yearly plans, 2 weeks on monthly plans,** one trial per household. Longer trials convert and renew better, and a budgeting app shows its value at the end of the first month.
 - **No free tier.** After a trial or a lapse the household keeps read-only access and export. Data is never held hostage.
-- **Margins:** at the full allowance (worst case), Pro keeps 51% of US yearly proceeds and VIP keeps 40%. At typical use, every plan keeps 61% to 87% (section 3).
+- **Margins:** even if a household uses every allowance in full, every plan keeps at least 50% of proceeds in the US, the UK and every EU country at Apple's 15% rate. The floor is computed at 27% VAT (Hungary, the highest standard rate in the EU); the lowest cases are Pro and VIP yearly at 50.5% and 50.7%. At the 30% rate the lowest is 39.9%. At typical use, every plan keeps 58% to 87% (section 3).
 - **Positioning:** below the bank-sync apps (YNAB $109, Monarch $99.99 a year), at the top of the AI-capture trackers ($30 to $70 a year). Family Xpense has no bank sync but includes partners, AI capture, loans and multi-currency.
 
 ### Decisions for the owner
@@ -77,9 +82,9 @@ From [AI_PIPELINE.md](../AI_PIPELINE.md) section 12, updated with the measured v
 
 What this means for tiers:
 
-- **Decisions calls are almost free** (USD 0.06 for 300 entries). They are not worth metering. The existing 600-a-day household cap (ARCHITECTURE 4.5) covers abuse.
+- **Decisions calls are cheap but not free at the limit.** A typical household makes about 150 a month (USD 0.03). ARCHITECTURE 4.5 allows 600 a day, which over 30 days would cost USD 3.60, more than Standard yearly earns a month. So each tier gets a **monthly cap** (Standard and Pro 1,000, VIP 2,000), counted on the server in a monthly usage document next to the daily one (`households/{hid}/usage/{month}`). Past the cap, `/decide` answers `{unavailable: true}` and the phone uses on-device classification or local pickers, the existing fallback step 3 in AI_PIPELINE 7, so the entry still saves.
 - **Audio seconds are almost free too.** The cost of cloud voice is the agent turn it triggers, not the audio. So voice is metered as a cloud AI capture, not in seconds.
-- **The real drivers are agent turns, receipts and questions.** These are the three metered allowances.
+- **The real drivers are agent turns, receipts and questions.** These, plus the Decisions cap, are the metered allowances. Reports are capped too (VIP: monthly, yearly and up to 4 custom-range reports a month).
 - **The On-device only mode costs nothing to run.** Charging extra for it would make privacy a luxury and contradict principle 4 in the PRD. It is in every tier.
 - **History length costs almost nothing.** Firestore storage for a household is tiny. Hiding old data from a lapsed user would be holding it hostage. History is never gated.
 - **Infrastructure** (Firestore, Cloud Run, Storage) per household is not measured. The model below assumes **USD 0.10 a month** per household (0.20 for VIP's bigger households). This is an assumption, to be replaced by WP-83 counters.
@@ -119,9 +124,9 @@ S = Standard, P = Pro, V = VIP. "All" means every tier, including during the tri
 | MO-8 | partner settle-up (Later) | P, V when built | a couples feature, so not VIP-only |
 | RE-1 | Home | all | |
 | RE-2 | Activity, search, filters | all | |
-| RE-3 | questions to the AI | S 15, P 60, V 150 a month; on-device basics unlimited | metered: USD 0.008 each |
+| RE-3 | questions to the AI | S 15, P 40, V 70 a month; on-device basics unlimited | metered: USD 0.008 each |
 | RE-4 | edit, undo, change history | all | |
-| RE-5 | monthly summary and export | S on-phone summary + CSV; P, V AI-written report + PDF and Excel; V yearly review and custom ranges | CSV export is a data right, so every tier has it |
+| RE-5 | monthly summary and export | S on-phone summary + CSV; P, V AI-written report + PDF and Excel; V yearly review and up to 4 custom-range reports a month | CSV export is a data right, so every tier has it |
 | RE-6 | notification centre and nudges | S essentials; P, V all | |
 | PR-1 | private personal accounts | all | partner privacy is a principle |
 | PR-2 | On-device only, Smart, Cloud | all | costs nothing; privacy is not a luxury |
@@ -134,31 +139,35 @@ S = Standard, P = Pro, V = VIP. "All" means every tier, including during the tri
 
 ## 3. Cost per tier and margin after Apple's cut
 
-**Worst case** = every allowance used in full: cloud captures × 0.0068 + questions × 0.008 + 600 Decisions calls (1,000 for VIP) + reports + infrastructure. **Typical** = the measured Smart household (USD 0.75) for Pro; Standard is near its cap; VIP is a 4-person household with 600 entries in Cloud mode (2.15 per 1,000), 60 questions and reports.
+**Worst case** = every allowance used in full: cloud captures × 0.0068 + questions × 0.008 + the monthly Decisions cap × 0.0002 + reports + infrastructure. Receipts are inside the capture allowance and cost less than an agent capture. **Typical** = the measured Smart household (USD 0.75) for Pro; Standard is near its capture cap; VIP is a 4-person household with 600 entries in Cloud mode (2.15 per 1,000), 60 questions and reports.
 
-| Tier | Worst-case cost a month | Typical cost a month |
-|---|---|---|
-| Standard | USD 0.68 | about USD 0.70 (near the cap) |
-| Pro | USD 2.08 | about USD 0.85 |
-| VIP | USD 5.10 | about USD 2.07 |
+| Tier | Captures | Questions | Decisions | Reports | Infra | **Worst case a month** | Typical a month |
+|---|---|---|---|---|---|---|---|
+| Standard | 50 × 0.0068 = 0.34 | 15 × 0.008 = 0.12 | 1,000 = 0.20 | 0 | 0.10 | **USD 0.76** | about USD 0.70 |
+| Pro | 150 = 1.02 | 40 = 0.32 | 1,000 = 0.20 | 0.016 | 0.10 | **USD 1.66** | about USD 0.85 |
+| VIP | 300 = 2.04 | 70 = 0.56 | 2,000 = 0.40 | 0.10 | 0.20 | **USD 3.30** | about USD 2.07 |
 
-What the developer keeps a month, and the margin at worst case. Small Business Program (15%), and in brackets at the standard 30% for the first year. Germany is taken as the EU case (19% VAT, which Apple removes before its commission); at the proposed GBP prices UK proceeds in USD are the same as or above Germany's. EUR is treated as worth 1 USD, which understates EU proceeds by about 9% (ECB rate of 2026-11-20).
+Without the monthly Decisions cap, the daily limit alone (600 × 30 days) would add up to USD 3.60 to every tier and make Standard yearly lose money at worst case. The monthly cap is part of the recommendation, not an option. A typical household makes about 150 Decisions calls a month, so 1,000 is still far above normal use.
 
-| Plan | US net / month | US worst-case margin | DE net / month | DE worst-case margin | US typical margin |
-|---|---|---|---|---|---|
-| Standard monthly $3.99 | 3.39 | 80% (76%) | 2.85 | 76% (71%) | 79% |
-| Standard yearly $29.99 | 2.12 | 68% (61%) | 1.79 | 62% (54%) | 67% |
-| Pro monthly $7.99 | 6.79 | 69% (63%) | 5.71 | 64% (56%) | 87% |
-| **Pro yearly $59.99** | 4.25 | **51%** (41%) | 3.57 | 42% (29%) | **80%** |
-| VIP monthly $14.99 | 12.74 | 60% (51%) | 10.71 | 52% (42%) | 84% |
-| VIP yearly $119.99 | 8.50 | 40% (27%) | 7.14 | 29% (13%) | 76% |
+What the developer keeps a month, and the margin at worst case. Small Business Program (15%), and in brackets at the standard 30% for the first year. Apple removes VAT before its commission, so the lowest-net market is the one with the highest VAT. **The EU column uses 27%, Hungary's standard rate, the highest in the EU** (Your Europe VAT table, last checked 2026-07-13); Finland's 25.5% (vero.fi, page updated 2026-01-01) is the highest among euro-zone countries, and Croatia, Denmark and Sweden are at 25%. The 27% column therefore covers every EU storefront, provided storefronts outside the euro are priced at no less than the euro numbers' value (equalized prices from the US base meet this, since Apple adds local tax). EUR is treated as worth 1 USD, which understates EU proceeds by about 9% (ECB rate of 2026-11-20). The UK uses its proposed GBP prices with GBP taken at a conservative 1.20 USD.
+
+| Plan | US net / month | US worst-case margin | EU at 27% VAT net / month | EU at 27% VAT worst-case margin | UK worst-case margin | US typical margin |
+|---|---|---|---|---|---|---|
+| Standard monthly $3.99 | 3.39 | 78% (73%) | 2.67 | 72% (65%) | 74% (69%) | 79% |
+| Standard yearly $29.99 | 2.12 | 64% (57%) | 1.67 | 55% (45%) | 60% (52%) | 67% |
+| Pro monthly $7.99 | 6.79 | 76% (70%) | 5.35 | 69% (62%) | 72% (66%) | 87% |
+| **Pro yearly $59.99** | 4.25 | **61%** (53%) | 3.35 | **50.5%** (39.9%) | 58% (48%) | **80%** |
+| VIP monthly $14.99 | 12.74 | 74% (69%) | 10.03 | 67% (60%) | 70% (64%) | 84% |
+| VIP yearly $119.99 | 8.50 | 61% (53%) | 6.69 | **50.7%** (40.1%) | 58% (49%) | 76% |
 
 Reading the table:
 
-- Every price stays profitable even if every household uses every allowance in full, which will not happen.
-- The thinnest case is VIP yearly in the EU at the 30% rate. The Small Business Program removes that problem, and a new developer qualifies.
-- If the owner wants a 50% worst-case floor everywhere, lower VIP to 400 captures and 120 questions, or raise VIP yearly to $139.99.
-- Not counted: payment fees beyond Apple's cut (none, Apple pays out in full), support time, the Apple Developer fee (USD 99 a year), an EU/UK GDPR representative (about EUR 420 a year and up, section 8), and income tax.
+- **At Apple's 15% rate, the 50% worst-case floor holds for every plan in every launch market**, including the highest-VAT EU country. A new developer gets 15% through the Small Business Program. The lowest-net cases are Pro yearly (50.5%) and VIP yearly (50.7%) at 27% VAT; in Finland they are 51.1% and 51.3%.
+- **At the 30% rate the floor is 39.9%** (Pro yearly at 27% VAT), so the claim at that rate is "about 40%", not 50%. Apple's EU terms since 2026-10-01 put the standard EU rate at 26% (R-12), between the two columns.
+- To reach the floor, Pro went from the first draft's 200 captures and 60 questions to 150 and 40 with a 1,000 suggestion cap, and VIP from 500 and 150 to 300 and 70 with a 2,000 cap. Both still exceed a typical household (about 60 captures, 30 questions and 150 suggestion calls; a 4-person VIP household about 120 captures and 60 questions). The prices did not change.
+- At typical use, every plan keeps 58% to 87%; the lowest is Standard yearly at 27% VAT.
+- If real use shows the limits are too tight, raise them once WP-83 measures actual cost; the planned trim of the catalog instructions (section 1) lowers the capture cost by roughly a third, which would allow about 50% more captures at the same margin.
+- Not counted: support time, the Apple Developer fee (USD 99 a year), an EU/UK GDPR representative (about EUR 420 a year and up, section 8), income tax, and possible 30% US withholding for an individual seller (R-2).
 
 ## 4. Plans, trials, and the paywall
 
@@ -201,15 +210,15 @@ Cancellation: a "Manage subscription" button on the plan page that opens Apple's
 
 ### Why Pro is worth it
 
-1. **More AI, where it saves real time:** 200 cloud captures covers a busy household (the typical one uses about 60), plus receipt line-item splits.
+1. **More AI, where it saves real time:** 150 cloud captures covers a busy household (the typical one uses about 60), plus receipt line-item splits.
 2. **The monthly report written for you**, with PDF and Excel to keep or share.
 3. **Automation:** recurring bills added automatically, all nudges (80% budget warnings, goal pace, unusual spending).
-4. **No counting:** unlimited budgets and goals, 60 questions a month.
+4. **No counting:** unlimited budgets and goals, 40 questions a month.
 
 ### Why VIP is worth it
 
 1. **The whole family:** up to 6 members (parents, adult children, relatives at home). This is the one thing a two-person household cannot get elsewhere in the plan list.
-2. **Heavy use without limits in practice:** 500 cloud captures, 250 receipts, 150 questions.
+2. **Room for a big household:** 300 cloud captures, 150 receipts, 70 questions.
 3. **The yearly review** and reports for any date range.
 4. **Priority support and early access** to new features.
 
@@ -223,7 +232,7 @@ None of them sits between the user and Save. The capture card never shows a payw
 |---|---|
 | End of onboarding, right after the first capture (ON-6) | The main paywall: three plans, Pro yearly pre-selected, trial timeline ("today: full access · day 27: reminder · day 30: first charge"). Adapty: onboarding paywalls start 53% of revenue, and RevenueCat: 50.6% of conversions happen on day 0. |
 | Cloud allowance at 80% | A quiet card on Home: "You've used 40 of 50 AI captures this month. Resets on 1 December." Dismissible. |
-| Cloud allowance used up, mid-capture | The capture continues on the phone path; anything the phone cannot settle opens the manual form, as when offline. After saving, one note: "AI captures reset on 1 December. Pro includes 200 a month." Shown once per month. |
+| Cloud allowance used up, mid-capture | The capture continues on the phone path; anything the phone cannot settle opens the manual form, as when offline. After saving, one note: "AI captures reset on 1 December. Pro includes 150 a month." Shown once per month. |
 | Receipt saved on Standard | In the entry's detail (not the capture card): "Split by category" chip with a small Pro badge. |
 | Recurring bill detected on Standard | The offer card shows "Remind me" and "Not now"; "Add automatically" carries a Pro badge. |
 | 1st of the month | Standard sees its summary, with "See the written report" as a Pro preview. During the trial everyone gets the full report once. |
@@ -349,28 +358,42 @@ No first-hand report was found of Apple paying into Mercury or Wise.
   - **Individual:** an address or a P.O. box (with a bill or receipt proving the link). The owner's name is already public as the seller.
   - **Organization:** the address comes from the D-U-N-S record, so a registered-agent address would appear if that is the D-U-N-S address. Apple says nothing about registered agents.
 
-### (f) Switching later
+### (f) Ending with the company as seller
 
-- **Converting an individual account to an organization** goes through Apple Support with a D-U-N-S number. Apple publishes no procedure. Forum reports: after conversion the seller name on existing apps stayed personal (thread open January to October 2026), and some conversions were cancelled partway.
-- **App Transfer to a company account** keeps ratings, reviews and the bundle ID; auto-renewing subscriptions are allowed if the app uses an app-specific shared secret. **Sign in with Apple needs a transfer identifier for every user**, App Groups must be re-registered, TestFlight data cleared. Apple does not say explicitly that existing subscribers keep renewing without interruption (not verified).
-- Cost: another USD 99 a year, plus D-U-N-S and verification time.
-- **Cheapest moment to switch: before the public launch.** With two users there are two Sign in with Apple identifiers to migrate and no subscribers to lose.
+Two Apple mechanisms exist, and they are different:
+
+- **Account conversion** changes the membership itself from individual to organization. Apple: "If you'd like to update your membership from an individual to an organization, please submit a request." You must be the founder or cofounder and give the organization's D-U-N-S number; business documents may be requested (Apple, "Updating your account information", undated). Apple does not say whether apps stay on the account or whether the seller name changes. It does say that changing an *organization* name "will update your vendor name across all your apps", and that it resets the identifier-for-vendor (IDFV) for existing users, which "cannot be undone".
+- **App Transfer** moves one app between two accounts. **The app must have at least one version already released to the App Store** (App transfer criteria, undated, re-read 2026-11-22; paraphrased, the page was read through a summarising fetch). Ratings and reviews stay with the app and users keep receiving updates; apps with auto-renewable subscriptions must use an app-specific shared secret (Overview of app transfer, undated; paraphrased the same way). Neither page says whether existing subscribers keep renewing or whose name appears as seller afterwards.
+- **Sign in with Apple across teams:** each user's identifier is scoped to the developer team, so it changes when the app moves to another team. The sending team generates a *transfer identifier* for each user through Apple's `userMigrationInfo` endpoint, and the receiving team "needs to exchange the transfer identifiers for new team-scoped identifiers within 60 days of accepting the app transfer" (Apple documentation, "Transferring your apps and users to another team", undated). This needs server code on both sides. Private relay email addresses are team-scoped too.
+
+So **App Transfer cannot be used before the first release**. The first version of this document said it could; that was wrong.
+
+Paths that end with the company as seller:
+
+| Path | How | When it works | Sign in with Apple users | Subscribers | Trade-offs |
+|---|---|---|---|---|---|
+| **1. Convert the account before launch** | Enroll as an individual today; when the company has a D-U-N-S number, a website and email on its domain, and a bank account Apple pays, ask Apple Support to convert the membership | any time, no release needed | unchanged if the team stays the same (inference: conversion updates the existing membership; Apple does not state that the Team ID is kept) | none yet | one account, no migration. But Apple publishes no procedure or timeline; forum reports of conversions cancelled partway (threads 844503, 840067) and of the seller name on already released apps staying personal (thread 813734, January to October 2026). Converting before any release avoids the last problem only if Apple's reported behaviour is limited to released apps, which is not verified. |
+| **2. Release from a separate company account** | Individual account for development and TestFlight only, under a separate bundle id (for example `com.bitrelia.familyxpense.dev`). The company enrolls as an organization and creates the production app record with `com.bitrelia.familyxpense` | as soon as the company account is approved, before launch | the two partners sign in again; their accounts start fresh in the production Firebase project, which D-38 creates empty anyway (or they bring data over with CSV export and import) | none yet | no Apple-side migration at all; costs a second USD 99 membership and a small build change (a second bundle id and its Firebase app). Depends on the company passing Apple's organization checks, the same blockers as enrolling the company today. Not verified: whether `com.bitrelia.familyxpense`, already used with the free Personal Team (ENVIRONMENTS 3.7), can be registered by a different team; keep it unused in the paid individual account and check in the developer portal. |
+| **3. Release under the individual, transfer later** | Launch with the owner as seller; when the company account exists, use App Transfer | only after a version is released | every user must be migrated with transfer identifiers within 60 days of the transfer; needs code on the server and in the app before the transfer | not stated by Apple; the shared-secret requirement suggests subscriptions continue, but this is not verified | the most expensive path, and it grows with every user. Users see the seller name change. Financial reports split at the transfer date. |
+| **4. Wait and enroll only the company** | Skip the individual account | when the company is approved (D-U-N-S up to about 7 business days, plus website, domain email, possible documents) | n/a | n/a | delays D-39 (Sign in with Apple, App Attest, TestFlight) by weeks or more, and the company still has no bank account that accepts an owner living in Iraq. |
+| **5. Stay individual** | The owner is the seller for good | now | n/a | n/a | simplest. Personal name, EU address and phone are public; payouts to Iraq unverified; possible 30% US withholding (R-2). |
 
 ### Recommendation
 
 1. **Today:** enroll as an individual. This unblocks D-39 (Sign in with Apple, App Attest, TestFlight).
-2. **Today, in parallel:** request a free D-U-N-S number for the US company through Apple's lookup tool. It costs nothing and keeps the company route open.
-3. **Right after enrollment:** open App Store Connect → Agreements, Tax and Banking; start the Paid Apps Agreement and check whether Iraq and the owner's bank can be selected, and what the tax questionnaire offers. Record the result in DECISIONS. This is the single most important unknown.
-4. **If no Iraqi bank is accepted:** try a Payoneer USD receiving account (unverified for Iraq), or a bank account in a country where the owner can legally open one.
-5. **Before the public launch:** decide the seller. If the company should be the seller and it has a bank account Apple pays to, move the app with App Transfer then.
-6. **This week:** ask a US tax adviser about Form 5472 for the existing LLC and about withholding as an individual.
+2. **Today:** register a development bundle id (for example `com.bitrelia.familyxpense.dev`) in the individual account and use it for TestFlight. Do not create an App Store Connect record or upload a build with `com.bitrelia.familyxpense` from the individual account until the seller is decided. This keeps paths 1, 2 and 5 open at no cost. The build change (a second bundle id and Firebase iOS app) is a small follow-up task, not part of this document.
+3. **Today, in parallel:** request a free D-U-N-S number for the US company through Apple's lookup tool.
+4. **Right after enrollment:** open App Store Connect → Agreements, Tax and Banking; start the Paid Apps Agreement and check whether Iraq and the owner's bank can be selected, and what the tax questionnaire offers. Record the result in DECISIONS. This is the single most important unknown.
+5. **If no Iraqi bank is accepted:** try a Payoneer USD receiving account (unverified for Iraq), or a bank account in a country where the owner can legally open one.
+6. **Before the public launch, choose the seller.** If it should be the company and the company has a bank account Apple pays: try path 1 (conversion) first, because it keeps one account; if Apple refuses or it stalls, use path 2. Use path 3 only if the app is already released. If the owner is content to be the seller, path 5.
+7. **This week:** ask a US tax adviser about Form 5472 for the existing LLC and about withholding as an individual.
 
 ## 8. Risks and open questions
 
 | ID | Risk or question | Effect | What to do |
 |---|---|---|---|
-| R-1 | **No way to receive Apple's payouts** from Iraq (bank not selectable, fintechs refuse Iraq residents) | no revenue at all | step 3 of section 7 right after enrolling; Payoneer; a company bank account |
-| R-2 | **30% US withholding** on an individual with no treaty | US net drops by 30% of proceeds; Pro yearly worst-case margin falls from 51% to about 30%, VIP yearly to about 14% | confirm with Apple Finance and a tax adviser; if it applies, sell through an entity that can claim a lower rate, or price up |
+| R-1 | **No way to receive Apple's payouts** from Iraq (bank not selectable, fintechs refuse Iraq residents) | no revenue at all | step 4 of the section 7 recommendation right after enrolling; Payoneer; a company bank account |
+| R-2 | **30% US withholding** on an individual with no treaty | US net drops by 30% of proceeds; Pro and VIP yearly worst-case margins in the US fall from 61% to 44% and 45% | confirm with Apple Finance and a tax adviser; if it applies, sell through an entity that can claim a lower rate, or price up |
 | R-3 | **Publishing a personal address and phone** on the EU App Store | privacy, harassment | P.O. box with proof; or use the company with its own address |
 | R-4 | **VIP's headline feature is not built** (more than two members is "Later") | VIP looks like a decoy | pull member expansion into the public release, or launch with two tiers |
 | R-5 | **US/EU users need USD, EUR and GBP** (today IQD and USD); "more currencies" is Later | EU users cannot use their own currency | add EUR and GBP before the public launch |
@@ -420,7 +443,9 @@ All read on 2026-11-22. Full research notes, with more detail, are in the shared
 - Banking information, undated: https://developer.apple.com/help/app-store-connect/reference/banking-information ; minimum payment threshold: https://developer.apple.com/help/app-store-connect/reference/minimum-payment-threshold ; enter banking information: https://developer.apple.com/help/app-store-connect/manage-banking-information/enter-banking-information
 - US tax information, undated: https://developer.apple.com/help/app-store-connect/provide-tax-information/provide-us-tax-information
 - DSA trader requirements, undated: https://developer.apple.com/help/app-store-connect/manage-compliance-information/manage-european-union-digital-services-act-trader-requirements ; removal date, news 2025-02-17: https://developer.apple.com/news/upcoming-requirements/?id=02172025a
-- App Transfer, undated: https://developer.apple.com/help/app-store-connect/transfer-an-app/overview-of-app-transfer ; criteria: https://developer.apple.com/help/app-store-connect/transfer-an-app/app-transfer-criteria
+- App Transfer, undated, re-read 2026-11-22 for the released-version rule: https://developer.apple.com/help/app-store-connect/transfer-an-app/overview-of-app-transfer ; criteria: https://developer.apple.com/help/app-store-connect/transfer-an-app/app-transfer-criteria
+- Sign in with Apple, transferring apps and users to another team (transfer identifiers, 60-day window), undated: https://developer.apple.com/documentation/signinwithapple/transferring-your-apps-and-users-to-another-team
+- Updating your account information (individual to organization), undated: https://developer.apple.com/support/account/
 - Developer forum threads (anecdotes, [3P] in effect): 817574 (Iraq enrollment, 2026-03), 822904 (Iraq banking, 2026-04), 844256 (foreign-owned LLC declined, 2026-08/09), 840067, 813734 (seller name after conversion, 2026-01 to 10), 844503, 826739, 852138, 845983, 847336 (W-9 only for foreign-owned LLCs, 2026)
 - Apple payment methods by country (Iraq: cards only), 2026-11-20: https://support.apple.com/en-us/111741 ; App Store availability, 2026-10-30: https://support.apple.com/en-us/118205
 
@@ -429,6 +454,8 @@ All read on 2026-11-22. Full research notes, with more detail, are in the shared
 - IRS tax treaties A to Z (no Iraq), reviewed 2026-01-03: https://www.irs.gov/businesses/international-businesses/united-states-income-tax-treaties-a-to-z
 - IRS NRA withholding (30%), reviewed 2026-03-14: https://www.irs.gov/individuals/international-taxpayers/nra-withholding
 - IRS W-9 instructions, rev. 03/2024: https://www.irs.gov/instructions/iw9
+- Your Europe, VAT rules and rates (standard rates; Hungary 27%, Finland 25.5%), last checked 2026-07-13: https://europa.eu/youreurope/business/taxation/vat/vat-rules-rates/index_en.htm
+- Finnish Tax Administration, rates of VAT (25.5%), page updated 2026-01-01: https://www.vero.fi/en/businesses-and-corporations/taxes-and-charges/vat/rates-of-vat/
 - EU adequacy decisions (no Qatar), newest item 2026-11-16: https://commission.europa.eu/law/law-topic/data-protection/international-dimension-data-protection/adequacy-decisions_en
 - EDPB Guidelines 05/2021 on Article 3 and transfers: https://www.edpb.europa.eu/our-work-tools/our-documents/guidelines/guidelines-052021-interplay-between-application-article-3_en
 - [3P] UK subscription regime brought forward to January 2027: Stephenson Harwood, 2026-08-24; DWF, 2026-10-22; Reed Smith, 2026-04-09
@@ -465,7 +492,9 @@ All read on 2026-11-22. Full research notes, with more detail, are in the shared
 - Whether Iraq is supported for Apple Developer enrollment, and whether any Iraqi bank can receive Apple payouts.
 - Whether Apple withholds 30% on US sales for an Iraq-resident individual.
 - Whether Payoneer, Airwallex or Brex accept an owner living in Iraq; whether Apple pays reliably into any fintech account.
-- Whether existing subscribers keep renewing through an App Transfer.
+- Whether existing subscribers keep renewing through an App Transfer, and whose name is the seller afterwards.
+- Whether an individual-to-organization conversion keeps the Team ID, the apps and the seller name, and how long it takes.
+- Whether the bundle id `com.bitrelia.familyxpense`, used with the free Personal Team, can be registered by another team.
 - Apple's current default EUR, GBP and CHF prices for a US base price (the table is only in App Store Connect); the EU and UK prices above are set by hand, which Apple allows.
 - Whether the UK regime, the EU withdrawal button and Germany's §312k bind the developer when Apple sells the subscription.
 - Infrastructure cost per household (assumed USD 0.10 a month).
