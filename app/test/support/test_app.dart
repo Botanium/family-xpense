@@ -8,6 +8,8 @@ import 'package:xpense_app/core/ui/ui.dart';
 import 'package:xpense_app/data/auth_repository_fake.dart';
 import 'package:xpense_app/services/biometric_lock.dart';
 import 'package:xpense_app/services/biometric_lock_fake.dart';
+import 'package:xpense_app/services/feature_flags.dart';
+import 'package:xpense_app/services/feature_flags_fake.dart';
 import 'package:xpense_app/services/on_device_llm/on_device_llm_fake.dart';
 import 'package:xpense_app/services/settings_store.dart';
 import 'package:xpense_app/services/settings_store_fake.dart';
@@ -30,13 +32,16 @@ final class TestClock {
 
 /// The fakes behind one test app, for arranging and asserting.
 final class TestServices {
-  /// Creates fakes; [settings], [unlock] and [signedIn] set the starting
-  /// state. Signed in by default, so the app opens on Home.
+  /// Creates fakes; [settings], [unlock], [signedIn] and [flags] set the
+  /// starting state. Signed in by default, so the app opens on Home; flags
+  /// at their shipped defaults (Apple sign-in off, D-39).
   new({
     AppSettings settings = AppSettings.defaults,
     UnlockOutcome unlock = const Unlocked(),
     bool signedIn = true,
+    FeatureFlags flags = FeatureFlags.defaults,
   }) : settingsStore = MemorySettingsStore(settings),
+       flags = FakeFeatureFlags(flags),
        biometricLock = FakeBiometricLock(outcome: unlock),
        auth = FakeAuthRepository(
          signedIn: signedIn ? FakeAuthRepository.providerUser : null,
@@ -44,6 +49,9 @@ final class TestServices {
 
   /// Sign-in.
   final FakeAuthRepository auth;
+
+  /// Remote Config flags; `flags.set` flips one while the app runs.
+  final FakeFeatureFlags flags;
 
   /// Settings, in memory.
   final MemorySettingsStore settingsStore;
@@ -70,6 +78,7 @@ final class TestServices {
     biometricLock: biometricLock,
     glass: glass,
     authRepository: auth,
+    featureFlags: flags,
     onDeviceLlm: onDeviceLlm,
     speechCapture: speech,
   );
