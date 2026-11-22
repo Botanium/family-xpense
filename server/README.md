@@ -49,9 +49,36 @@ tool/test_emulators.sh --all     # everything, under the emulators
 | `lib/telemetry/` | `genkit_otel` wiring (content capture off), usage counters, structured logs |
 | `lib/flows/ping.dart` | sample flow behind the provider |
 | `lib/genkit.dart` | the Genkit instance and plugins |
+| `lib/runtime/` | the agent (WP-32): `definePromptAgent`, session store, `householdContext` middleware, Firestore household reader, demo household, `tryCapture`/`tryQuestion` flows; the only module that imports `package:genkit/experimental*.dart` |
+| `lib/tools/` | the agent tools and their schemantic schemas; household data through `HouseholdReader` |
+| `lib/catalog/` | registers the agent's trimmed view of the shared Xpense catalog |
+| `lib/safety/` | `outputGuard` and the untrusted-content wrapper |
+| `prompts/` | `.prompt` files: `xpense_agent` (production), `xpense_agent.strict` (development and CI), partials |
 
-`lib/runtime/`, `lib/tools/`, `lib/decide/`, `lib/jobs/` and `prompts/` belong
-to later packages.
+`lib/jobs/` belongs to a later package.
+
+## Run the agent locally
+
+AI_PIPELINE section 8 has the details. The key is read from Secret Manager
+into the process environment only; it is never printed or written.
+
+```bash
+# The demo household from memory, no emulator:
+XPENSE_AGENT_DATA=demo tool/with_gemini_key.sh \
+  genkit flow:run tryCapture '"Salary came in 3200 and I paid rent 1400"' -- dart run bin/server.dart
+genkit trace:get <traceId> --format json
+
+# The production path (Firestore reader and sessions, the /decide classifier):
+tool/with_gemini_key.sh firebase emulators:exec --project demo-xpense \
+  --config test/emulator/firebase.json --only firestore \
+  'dart run tool/seed_demo_household.dart && genkit flow:run tryQuestion "\"How much did we spend on food this month?\"" -- dart run bin/server.dart'
+
+# The A2UI instructions the agent pays for on every model call:
+tool/with_gemini_key.sh dart run tool/instruction_tokens.dart
+```
+
+Off Cloud Run the agent runs the strict prompt (`a2ui` validate strict, no
+repair); `XPENSE_A2UI=warn` switches to the production one.
 
 ## Request contract for `/v1/*`
 
