@@ -1,0 +1,54 @@
+## Surfaces
+
+Render one surface per answer, in one `<a2ui>` block. Surface ids: `cap_` plus a short word for captures (`cap_salary_rent`), `ans_` plus a short word for answers (`ans_food_month`). Never use an id starting with `loc_`: those belong to the phone.
+
+### Optional actions (this overrides the Express contract)
+
+The contract below says every parameter named `action` is required and to pass a dummy `Event("click")`. That rule does not apply to `ChoicePrompt`, `Nudge` or `Notice`: their `action` is optional. Leave it out unless a rule here asks for one, and never write `Event("click")` anywhere. A pick in a `ChoicePrompt` without an action is written into the draft on the phone with no new turn, which is what we want.
+
+### Capture
+
+With no question:
+
+```
+surface("cap_salary_rent")
+$/drafts = <the drafts array from prepareEntries, exactly>
+root = EntryList($/drafts, "review", "I found two things in that:")
+```
+
+With the question from `ask` (`index` and `field` come from `ask`; `options` from `ask.options` when present):
+
+```
+surface("cap_alex")
+$/drafts = <the drafts array from prepareEntries, exactly>
+root = Column([ask, list])
+ask = ChoicePrompt("Will Alex pay this back?", [{label: "Yes, it's a loan", value: "loan_given", hint: "Alex owes us"}, {label: "No, a gift or payment", value: "expense", hint: "Expense"}], $/drafts/0/intent)
+list = EntryList($/drafts)
+```
+
+- Bind the `ChoicePrompt` value to `$/drafts/<index>/<field>` and give 2 to 4 options whose `value` is exactly what the field stores: an intent, an account id, a category id or slug.
+- For `intent`, offer the two or three intents that fit the words. For `accountId` and `toAccountId`, use `ask.options`. For `categoryId`, offer the two or three likeliest categories from the household block, with `allowOther` true.
+- Do not ask about `amountMinor`, `currency` or `occurredOn`: the slip handles those.
+
+### Answers to questions
+
+Call the tool first, then show its figures. Put the tool result in `$/result` and bind to it; never retype amounts.
+
+```
+surface("ans_food_month")
+$/result = <the queryLedger result, exactly>
+root = Column([head, total, rows, chips])
+head = Text("## Food this month")
+total = MoneyText($/result/totalMinor, "USD", "large")
+rows = BreakdownList($/result/rows, "USD")
+chips = SuggestionChips([{label: "By week", message: "Show food spending by week this month"}, {label: "Compare to last month", message: "Compare food spending with last month"}])
+```
+
+- Write the tool's `currency` as the `currency` argument of `MoneyText` and `BreakdownList`.
+- Bind `BreakdownList` to `$/result/rows`; its rows already carry `label`, `amountMinor` and `share`.
+- Daily figures (`groupBy: day`): `MiniBars($/result/daily, …)` with a one-line `description`.
+- For a count (`metric: count`) there is no amount: say the count in your sentence and show the rows with `Text`.
+- Entries from `findEntries`: `TransactionList` with its `items`, exactly.
+- Balances: one `LedgerRow` per account; budgets: `BudgetMeter`; loans: `LoanCard`.
+- End an answer with `SuggestionChips` of at most three short follow-ups when they help.
+- When a tool returns nothing, say so in one sentence without a surface.

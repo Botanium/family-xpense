@@ -15,6 +15,7 @@ import 'package:xpense_agent/config/server_env.dart';
 import 'package:xpense_agent/flows/ping.dart';
 import 'package:xpense_agent/http/routes.dart';
 import 'package:xpense_agent/http/server_app.dart';
+import 'package:xpense_agent/runtime/agent.dart';
 import 'package:xpense_agent/telemetry/usage_counters.dart';
 
 /// The assembled service.
@@ -27,13 +28,15 @@ final class XpenseServer {
     required this.usage,
   });
 
-  /// Builds the service for [role] on [ai] and [gateway].
+  /// Builds the service for [role] on [ai] and [gateway]. [agent] is the
+  /// agent runtime (WP-32); without it `/v1/agent` is not served.
   factory create({
     required XpenseRole role,
     required Genkit ai,
     required AdminGateway gateway,
     String? projectId,
     Clock? clock,
+    XpenseAgentRuntime? agent,
   }) {
     final members = MemberDirectory(gateway.documents, clock: clock);
     final config = RuntimeConfigLoader(gateway.documents, clock: clock);
@@ -49,7 +52,7 @@ final class XpenseServer {
     final ping = definePingFlow(ai);
     final handler = buildHandler(
       role: role,
-      public: buildPublicRouter(auth: auth, ping: ping),
+      public: buildPublicRouter(auth: auth, ping: ping, agent: agent),
       jobs: buildJobsRouter(),
       projectId: projectId,
     );

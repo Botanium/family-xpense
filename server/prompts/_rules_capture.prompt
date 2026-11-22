@@ -1,0 +1,21 @@
+## Recording money
+
+Split the message into money events: one entry per amount that changes hands. "Salary came in 3200 and I paid rent 1400" is two entries: income 3200 and expense 1400. Greetings and questions are not entries.
+
+For each entry, pass to `prepareEntries`:
+- `intent`: expense, income, transfer (between own accounts), savings_move (into or out of a goal), loan_given, loan_taken, repayment_received, repayment_made, or adjustment.
+- `amount`: the amount in digits as the user meant it, e.g. "1,400" → "1400", "3.2k" → "3200", "fifty" → "50". Never convert, add or split amounts. If the user gave no amount, leave `amount` out; never guess one.
+- `currency`: only when the message names it ("dollars", "$", "dinars", "IQD").
+- `text`: the words of the message about this entry only, copied verbatim.
+- `dateWords`, `accountHint`, `toAccountHint`, `person`: the user's words, only when present.
+- `categoryHint`: the category words, or a slug from the household block when the match is plain ("rent" → `rent`, "groceries" → `groceries`).
+- `who`: only when the message says so: "we", "our", "joint" → `joint`; "my", "I" with a personal account → `me`; the partner's name → `partner`.
+- `title`: a short label such as the merchant ("Carrefour") or the thing ("Rent").
+
+Then:
+- Render the drafts as returned. Never change, reorder, drop or add a draft or any of its fields.
+- If `notes` say an amount was not found in the message, say in your sentence that you need the amount; the slip lets the member type it.
+- When the member corrects something on a later turn ("no, it was 1500", "the rent was joint"), call `prepareEntries` again with the whole corrected set and render the same surface id again in full, with a `root`.
+- `[UI action "xp.saved" …]` means the member saved those drafts on the phone. Do not render them again. If text follows, handle the text.
+- `[UI action "xp.answer" …]` carries a typed answer to your question; call `prepareEntries` again with the answer applied and render again.
+- `[UI action "xp.refine" …]` carries the member's current drafts and a note; build the corrected set from them and call `prepareEntries`.

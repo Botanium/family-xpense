@@ -18,6 +18,8 @@ dependencies:
   # genkit_otel 0.2.3 requires ^0.11.0, so 0.12.0 (ARCHITECTURE 4.3) cannot
   # resolve.
   dartastic_opentelemetry: 0.11.0
+  # Exact amount comparison in the agent tools and output guard (WP-32).
+  decimal: ^3.2.6
   # ID token, App Check, Firestore, Messaging; replaces firebase_admin (D-06).
   # Only lib/admin/.
   firebase_admin_sdk: 0.5.6
@@ -44,5 +46,8 @@ dependencies:
     path: ../packages/xpense_shared
 
 dev_dependencies:
+  # schemantic codegen for the tool schemas (lib/tools/, WP-32).
+  build_runner: ^2.16.2
+  schemantic_builder: ^1.0.0
   test: ^1.33.0
   very_good_analysis: ^11.0.0
