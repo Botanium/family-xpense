@@ -217,6 +217,8 @@ Not verified, and settled by spikes: items marked Verify above; how a real Gemin
 
 **D-42. The app is planned to go public as a paid subscription** after the owner and partner use it themselves. Status: Stated by the owner on 2026-11-22; not yet planned in detail. Consequences to plan before M8: in-app subscriptions and a paywall, a separate production Firebase project (already planned), per-user cost limits that fit the price, App Store review for a subscription finance app, and probably Kurdish and Arabic for the local market (D-36 deferred them). A planning pass is added as WP-P1 in DELEGATION.
 
+**D-43. Launch markets are the United States and Europe (EU and UK), not Iraq.** Status: Stated by the owner on 2026-11-22. Prices, comparable apps and conversion data are taken from those markets ([research/SUBSCRIPTIONS.md](research/SUBSCRIPTIONS.md)). Consequences: English at launch fits D-36; Kurdish and Arabic are no longer a launch need for D-42; EUR and GBP currencies are needed before the public launch; EU and UK users' data in `me-central1` (Doha, D-18) is a GDPR third-country transfer, so an EU region for those households needs a decision; an EU and UK GDPR representative and EU Digital Services Act trader details are needed; how the owner, living in Iraq, gets paid by Apple is open (section 4, item 3).
+
 ## 4. Open questions for the owner
 
 Answered on 2026-11-22: region is Doha (D-18); English only for now (D-36); the app asks for the exchange rate every day (D-16); phones are iPhone 17 Pro and iPhone 15 Pro Max, and the base currency is USD (D-37); orange means "act or live" as proposed (D-26, now Locked); the daily rate is labelled `market` (D-16); the catalog domain is bitrelia.com (D-40); categories (D-41, partly); email and password sign-in stays (D-24, Locked); Apple Intelligence is on for the iPhone 15 Pro Max.
@@ -225,3 +227,17 @@ Still open:
 
 1. **Apple Intelligence on the iPhone 17 Pro.** Not yet checked.
 2. **Apple Developer Program.** Enrollment in progress; recheck the Team ID after approval (D-39).
+
+Subscriptions and getting paid (from [research/SUBSCRIPTIONS.md](research/SUBSCRIPTIONS.md), 2026-11-22; recommendation in brackets):
+
+3. **URGENT: enroll as an individual or through the US company?** [Individual today, to unblock D-39; request the company's free D-U-N-S number in parallel; choose the App Store seller before the public launch, when moving the app costs almost nothing.] Right after enrolling, check in App Store Connect whether Iraq and your bank can receive payouts, and what tax form it offers; nobody has confirmed either. Ask a US tax adviser about Form 5472 for the existing LLC and about 30% withholding (no US treaty with Iraq).
+4. **Tiers.** Standard, Pro and VIP as in the matrix? Launch VIP on day one only if "more than two members" is built by then, or start with Standard and Pro? [Three tiers if members are built; otherwise two, VIP later.]
+5. **Prices.** [US $3.99/$29.99, $7.99/$59.99, $14.99/$119.99 monthly/yearly; EU same numbers in EUR; UK £3.49/£26.99, £6.99/£54.99, £12.99/£109.99.]
+6. **Weekly plan.** [None.]
+7. **Trial.** [1 month on yearly plans, 2 weeks on monthly plans; reminder 3 days before the first charge.]
+8. **Free tier and lapse.** [No free tier; after a lapse, read-only access, export and deletion stay. Open: should manual entry stay free?]
+9. **Privacy modes in every tier,** including On-device only, which costs nothing to run? [Yes.]
+10. **One subscription covers the household** through the server, with Family Sharing left off (it cannot be turned off once on)? [Yes.]
+11. **Billing back end.** [StoreKit 2 and the App Store Server API with own code, free. Options: RevenueCat, free to USD 2,500 a month then 1%; Adapty, free under USD 5,000 a month then 1%.]
+12. **EUR and GBP before launch, and an EU data region** for EU and UK households (D-43)? [Yes to both; region choice needs an architecture pass.]
+13. **GDPR representative** for EU and UK users. [Needed if the seller has no EU or UK establishment; Prighter from EUR 420 a year, VeraSafe USD 2,700 a year; choose before launch.]
