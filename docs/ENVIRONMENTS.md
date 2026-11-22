@@ -209,14 +209,19 @@ Not enabled yet (the server deploy needs it): `cloudbuild` (server/DEPLOY.md ste
 
 - Secret `GEMINI_API_KEY`: user-managed replication in `me-central1` only;
   labels `app=xpense`, `owner=wp-01`.
-- Version 1: added by the owner from their own terminal; **enabled**, created
-  2026-11-22 18:26 UTC, stored in `me-central1`. Checked with
-  `gcloud secrets versions list` only; the value was never printed or read.
-- Open question (section 6, step 5): when version 1 was checked, this
-  project's API key list still showed only the old "Family Expense API Key"
-  for the Gemini API, plus both old `ais-gemini-key-*` service accounts. No
-  new key was visible here. Either the new key was created in another
-  project, or the old key was stored.
+- Versions (as of 2026-11-22; values never printed):
+
+  | Version | State | Created (UTC) | Holds |
+  |---|---|---|---|
+  | 2 | **enabled** | 2026-11-22 18:40 | the new paid-tier key "Family Expense API Key", created in AI Studio at 18:39 and bound to the service account `ais-gemini-key-54028d0765c14ad@648682359990.iam.gserviceaccount.com` |
+  | 1 | **disabled** | 2026-11-22 18:26 | the old key from 30 October 2026, since deleted |
+
+  Both versions were added by the owner from their own terminal. Which key
+  each holds was checked by comparing fingerprints, without printing either
+  value. Version 1 was disabled (not destroyed) by the planning session.
+  Cloud Run's `GEMINI_API_KEY:latest` resolves to version 2.
+- The old Gemini keys and all of their `ais-gemini-key-*` service accounts
+  are deleted. The only one left is the new key's account, named above.
 - Accessors (`roles/secretmanager.secretAccessor` on this secret only):
   `xpense-agent-run` and `xpense-jobs-run`.
 - The key must be **paid tier** (D-34): create it in a project with billing
@@ -312,10 +317,17 @@ Still needed:
 1. ~~Apple Team ID~~: done, `7TMGB6MVP7` (3.7). Sign in with Apple and App
    Attest need a paid Apple Developer Program membership on that team;
    confirm it is not a free "Personal Team".
-2. ~~Gemini key~~: version 1 stored on 2026-11-22 (3.9). To rotate later
-   (paid tier, D-34): in Google AI Studio → API keys → Create API key →
-   project "Expense Family", check the key shows a paid tier, then store it
-   from your own terminal (zsh) without it being echoed or written to a file:
+2. ~~Gemini key~~: done; version 2 holds the new paid-tier key (3.9). To
+   rotate later (paid tier, D-34):
+   1. In Google AI Studio → API keys → Create API key → project "Expense
+      Family", and check the key shows a paid tier.
+   2. Store it from your own terminal (zsh); it is never echoed or written to
+      a file.
+   3. Disable the previous version
+      (`gcloud secrets versions disable <n> --secret=GEMINI_API_KEY …`).
+   4. Only then delete the old key in AI Studio.
+
+   Store command (step 2):
 
    ```bash
    read -rs "KEY?Gemini key: " && printf %s "$KEY" | gcloud secrets versions add GEMINI_API_KEY --project=expense-family-cc6ee --billing-project=expense-family-cc6ee --data-file=- ; unset KEY
@@ -334,17 +346,9 @@ Still needed:
    with the App Check wiring).
 4. **App Check debug token** for each simulator or Mac used for development
    (3.8).
-5. **Old Gemini keys (open):** the owner confirmed they were used only by
-   the old test app and planned to delete them in Google AI Studio (project
-   "Expense Family"). At the last check (2026-11-22, after version 1 was
-   stored) the old "Family Expense API Key" and both `ais-gemini-key-*`
-   service accounts still existed, and no new key showed in this project.
-   - Confirm the stored key is a **new paid-tier key** made in "Expense
-     Family". If it was made in another project, that project must have
-     billing on.
-   - Then delete the old key. If its service account remains, remove that in
-     IAM → Service accounts.
-   - Keep the Firebase "iOS key" and "Browser key": the app needs the iOS key.
+5. ~~Old Gemini keys~~: done. The owner deleted them in AI Studio, and
+   their service accounts are gone (3.9). Keep the Firebase "iOS key" and
+   "Browser key": the app needs the iOS key.
 6. **Compute account:** decide whether to remove its `roles/editor` (3.10).
 7. **Budget alert (recommended):** Billing → Budgets & alerts, a monthly
    budget on this project with email alerts.
