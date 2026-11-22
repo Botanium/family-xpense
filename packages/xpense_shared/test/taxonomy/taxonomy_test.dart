@@ -67,9 +67,9 @@ void main() {
     const expenseTree = <String, List<String>>{
       'food': ['groceries', 'dining', 'bakery_tea'],
       'home': [
-        'rent',
         'electricity_generator',
         'water',
+        'apartment_gas',
         'internet_phone',
         'household_goods',
         'repairs',

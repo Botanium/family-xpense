@@ -9,7 +9,7 @@ library;
 /// The catalog's stable URI. It is the `catalogId` of every Xpense surface;
 /// it does not need to resolve.
 const String xpenseCatalogId =
-    'https://familyxpense.app/a2ui/catalogs/xpense/v1/catalog.json';
+    'https://bitrelia.com/xpense/a2ui/catalogs/xpense/v1/catalog.json';
 
 /// The id the server registers the catalog under (`a2ui(catalog: 'xpense')`).
 const String xpenseCatalogLookupId = 'xpense';
