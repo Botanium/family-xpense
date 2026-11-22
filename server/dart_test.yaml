@@ -1,0 +1,6 @@
+# Tests tagged `emulator` need the Auth and Firestore emulators; they skip
+# themselves when FIREBASE_AUTH_EMULATOR_HOST / FIRESTORE_EMULATOR_HOST are
+# unset. Run them with tool/test_emulators.sh.
+tags:
+  emulator:
+    timeout: 2x

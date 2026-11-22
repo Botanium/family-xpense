@@ -106,7 +106,7 @@ packages:
     source: hosted
     version: "0.6.1"
   clock:
-    dependency: transitive
+    dependency: "direct main"
     description:
       name: clock
       sha256: e51d50bca3217c9a9fa2b41a30e4a38971133f5f9ec7a3d57bae095007f1d28e
@@ -154,7 +154,7 @@ packages:
     source: hosted
     version: "3.4.1"
   dartastic_opentelemetry:
-    dependency: transitive
+    dependency: "direct main"
     description:
       name: dartastic_opentelemetry
       sha256: e8bf3c1cff40199f5e9c679aeff7922b40c6f0ccd5d7a6c3567cd35be869c9b8
@@ -298,7 +298,7 @@ packages:
     source: hosted
     version: "0.5.0"
   google_cloud_firestore:
-    dependency: transitive
+    dependency: "direct main"
     description:
       name: google_cloud_firestore
       sha256: fd4a35853a255c9596700e53cafe3b457eeb45bd682812951e5b0ecc3f7d32e5
@@ -450,7 +450,7 @@ packages:
     source: hosted
     version: "0.1.7"
   logging:
-    dependency: transitive
+    dependency: "direct main"
     description:
       name: logging
       sha256: c8245ada5f1717ed44271ed1c26b8ce85ca3228fd2ffdb75468ab01979309d61
@@ -466,7 +466,7 @@ packages:
     source: hosted
     version: "0.12.20"
   meta:
-    dependency: transitive
+    dependency: "direct main"
     description:
       name: meta
       sha256: "307249ce4ff29d58a18e97f6345f539382eb9c9c29ecda628900f31de0443dd9"
@@ -586,7 +586,7 @@ packages:
     source: hosted
     version: "1.0.0"
   shelf:
-    dependency: transitive
+    dependency: "direct main"
     description:
       name: shelf
       sha256: e75e9cf311d7fd712048038cc17c25199c38536c20330d53e7db058b543d5a48

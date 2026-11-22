@@ -1,0 +1,19 @@
+# Build context for server/Dockerfile (context = repository root). Only the
+# server and the shared package are sent; nothing else in the repo is.
+**
+!server
+!packages/xpense_shared
+
+# Never in the image: local state, tests, tooling, logs, secrets.
+**/.dart_tool
+**/build
+**/.genkit
+**/*.log
+**/.env
+**/.env.*
+**/*.pem
+**/service-account*.json
+server/test
+server/tool
+server/Dockerfile*
+packages/xpense_shared/test
