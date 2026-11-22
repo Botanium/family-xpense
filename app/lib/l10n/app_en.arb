@@ -1,0 +1,236 @@
+{
+  "@@locale": "en",
+  "@@x-note": "Keys start with the feature that owns them (DELEGATION rule 6). Add new keys in your feature's block; keep sentences whole and amounts as placeholders (DESIGN_SYSTEM 10).",
+
+  "appTitle": "Xpense",
+  "@appTitle": {
+    "description": "App name, shown by iOS in the app switcher and by VoiceOver."
+  },
+
+  "shellTabHome": "Home",
+  "@shellTabHome": {
+    "description": "Tab bar item that opens Home."
+  },
+  "shellTabActivity": "Activity",
+  "@shellTabActivity": {
+    "description": "Tab bar item that opens Activity, the list of all entries."
+  },
+  "shellTabGoals": "Goals",
+  "@shellTabGoals": {
+    "description": "Tab bar item that opens savings goals."
+  },
+  "shellTabAccounts": "Accounts",
+  "@shellTabAccounts": {
+    "description": "Tab bar item that opens the household's accounts."
+  },
+  "shellAskButton": "Ask: talk, type or scan",
+  "@shellAskButton": {
+    "description": "VoiceOver label of the round orange button beside the tab bar that opens Ask."
+  },
+  "shellBack": "Back",
+  "@shellBack": {
+    "description": "VoiceOver label of the round glass back button at the top of a pushed screen."
+  },
+
+  "routingNotFoundTitle": "Not found",
+  "@routingNotFoundTitle": {
+    "description": "Title of the screen shown when a link or deep link matches no screen."
+  },
+  "routingNotFoundMessage": "This link doesn't open anything in Xpense.",
+  "@routingNotFoundMessage": {
+    "description": "One-line explanation on the not-found screen."
+  },
+  "routingNotFoundAction": "Go to Home",
+  "@routingNotFoundAction": {
+    "description": "Action on the not-found screen that returns to Home."
+  },
+
+  "homeTitle": "Home",
+  "@homeTitle": {
+    "description": "Top bar title of Home."
+  },
+  "homePlaceholder": "Your balance, this month's spending and recent entries will appear here.",
+  "@homePlaceholder": {
+    "description": "Placeholder line on Home until the Home screen is built."
+  },
+  "homeSettingsButton": "Settings",
+  "@homeSettingsButton": {
+    "description": "VoiceOver label of the glass button on Home that opens Settings."
+  },
+
+  "activityTitle": "Activity",
+  "@activityTitle": {
+    "description": "Top bar title of Activity."
+  },
+  "activityPlaceholder": "Every entry, grouped by day, will appear here.",
+  "@activityPlaceholder": {
+    "description": "Placeholder line on Activity until the Activity screen is built."
+  },
+  "activityEntryTitle": "Entry",
+  "@activityEntryTitle": {
+    "description": "Top bar title of an entry's detail screen."
+  },
+  "activityEntryPlaceholder": "The entry's details and history will appear here.",
+  "@activityEntryPlaceholder": {
+    "description": "Placeholder line on the entry detail screen until it is built."
+  },
+
+  "goalsTitle": "Goals",
+  "@goalsTitle": {
+    "description": "Top bar title of Goals."
+  },
+  "goalsPlaceholder": "Savings goals and how they are pacing will appear here.",
+  "@goalsPlaceholder": {
+    "description": "Placeholder line on Goals until the Goals screen is built."
+  },
+
+  "accountsTitle": "Accounts",
+  "@accountsTitle": {
+    "description": "Top bar title of Accounts."
+  },
+  "accountsPlaceholder": "Your accounts and the household total will appear here.",
+  "@accountsPlaceholder": {
+    "description": "Placeholder line on Accounts until the Accounts screen is built."
+  },
+
+  "loansTitle": "Loan",
+  "@loansTitle": {
+    "description": "Top bar title of a loan or debt's detail screen."
+  },
+  "loansPlaceholder": "The loan's balance, due date and repayments will appear here.",
+  "@loansPlaceholder": {
+    "description": "Placeholder line on the loan detail screen until it is built."
+  },
+
+  "householdJoinTitle": "Join",
+  "@householdJoinTitle": {
+    "description": "Top bar title of the screen that joins a partner's household from an invite link."
+  },
+  "householdJoinPlaceholder": "Joining a household from an invite arrives in a later version.",
+  "@householdJoinPlaceholder": {
+    "description": "Placeholder line on the join screen until it is built."
+  },
+
+  "askTitle": "Ask",
+  "@askTitle": {
+    "description": "Top bar title of Ask, the screen where the user talks, types or scans a receipt."
+  },
+  "askPlaceholder": "Tell Xpense what you spent, earned or lent. Talking, typing and scanning arrive in a later version.",
+  "@askPlaceholder": {
+    "description": "Placeholder line on Ask until capture is built."
+  },
+  "askModeOnDevice": "On-device",
+  "@askModeOnDevice": {
+    "description": "Privacy mode name on the Ask mode chip: nothing leaves the phone for AI processing."
+  },
+  "askModeSmart": "Smart",
+  "@askModeSmart": {
+    "description": "Privacy mode name on the Ask mode chip: the default mix of phone and cloud."
+  },
+  "askModeCloud": "Cloud",
+  "@askModeCloud": {
+    "description": "Privacy mode name on the Ask mode chip: cloud first."
+  },
+  "askDockTypeInstead": "Type instead",
+  "@askDockTypeInstead": {
+    "description": "Capture dock button that switches from voice to the text field."
+  },
+  "askDockTalk": "Talk",
+  "@askDockTalk": {
+    "description": "Capture dock button that starts listening, or switches back to voice."
+  },
+  "askDockStop": "Stop listening",
+  "@askDockStop": {
+    "description": "Capture dock button that stops listening."
+  },
+  "askDockScan": "Scan a receipt",
+  "@askDockScan": {
+    "description": "Capture dock button that opens the camera to scan a receipt."
+  },
+  "askDockMessage": "Message",
+  "@askDockMessage": {
+    "description": "VoiceOver label of the capture dock's text field."
+  },
+  "askDockHint": "Spent, earned, lent…",
+  "@askDockHint": {
+    "description": "Placeholder in the capture dock's empty text field."
+  },
+
+  "settingsTitle": "Settings",
+  "@settingsTitle": {
+    "description": "Top bar title of Settings."
+  },
+  "settingsAppearanceSection": "Appearance",
+  "@settingsAppearanceSection": {
+    "description": "Settings section that picks light, dark or the system appearance."
+  },
+  "settingsAppearanceSystem": "System",
+  "@settingsAppearanceSystem": {
+    "description": "Appearance option that follows the iPhone's light or dark setting."
+  },
+  "settingsAppearanceLight": "Light",
+  "@settingsAppearanceLight": {
+    "description": "Appearance option that always uses the light theme."
+  },
+  "settingsAppearanceDark": "Dark",
+  "@settingsAppearanceDark": {
+    "description": "Appearance option that always uses the dark theme."
+  },
+  "settingsSecuritySection": "Security",
+  "@settingsSecuritySection": {
+    "description": "Settings section with the Face ID lock."
+  },
+  "settingsFaceIdLock": "Face ID lock",
+  "@settingsFaceIdLock": {
+    "description": "Switch row that turns the app lock on or off."
+  },
+  "settingsFaceIdLockHint": "Ask for Face ID or the passcode when Xpense opens and after a minute in the background.",
+  "@settingsFaceIdLockHint": {
+    "description": "Explains when the app lock asks for Face ID."
+  },
+  "settingsFaceIdReason": "Turn on the lock for Xpense",
+  "@settingsFaceIdReason": {
+    "description": "Reason iOS shows in the Face ID or passcode prompt when the user turns the lock on."
+  },
+  "settingsFaceIdUnavailable": "Set a passcode on this iPhone to use the lock.",
+  "@settingsFaceIdUnavailable": {
+    "description": "Shown under the Face ID lock switch when the iPhone has no passcode or Face ID."
+  },
+  "settingsFaceIdLockedOut": "Too many attempts. Try again later.",
+  "@settingsFaceIdLockedOut": {
+    "description": "Shown under the Face ID lock switch when iOS has locked authentication for a while."
+  },
+  "settingsFaceIdFailed": "That didn't work. Try again.",
+  "@settingsFaceIdFailed": {
+    "description": "Shown under the Face ID lock switch when authentication failed for another reason."
+  },
+  "settingsDeveloperSection": "Developer",
+  "@settingsDeveloperSection": {
+    "description": "Settings section shown only in debug builds."
+  },
+  "settingsGallery": "Component gallery",
+  "@settingsGallery": {
+    "description": "Debug-only row that opens the design system gallery."
+  },
+
+  "lockUnlockButton": "Unlock with Face ID",
+  "@lockUnlockButton": {
+    "description": "Button on the lock screen that asks for Face ID, or the passcode as a fallback."
+  },
+  "lockReason": "Unlock Xpense",
+  "@lockReason": {
+    "description": "Reason iOS shows in the Face ID or passcode prompt on the lock screen."
+  },
+  "lockLockedLabel": "Xpense is locked",
+  "@lockLockedLabel": {
+    "description": "VoiceOver announcement of the lock screen."
+  },
+  "lockLockedOut": "Too many attempts. Try again later.",
+  "@lockLockedOut": {
+    "description": "Shown on the lock screen when iOS has locked authentication for a while."
+  },
+  "lockFailed": "Couldn't unlock. Try again.",
+  "@lockFailed": {
+    "description": "Shown on the lock screen when authentication failed for another reason."
+  }
+}

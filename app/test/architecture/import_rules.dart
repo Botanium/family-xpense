@@ -116,8 +116,32 @@ const Map<String, Set<Layer>> adapterOnlyPackages = {
   'local_auth': {Layer.services},
   'flutter_secure_storage': {Layer.services},
   'genkit': {Layer.services},
+  'shared_preferences': {Layer.services},
   'cloud_firestore': {Layer.data, Layer.root},
 };
+
+/// Suffix of a fake service implementation. Fakes are wired by the
+/// composition root and by tests, never imported by a feature.
+const String fakeSuffix = '_fake.dart';
+
+/// Whether the `services/` file at [libPath] with [source] is an
+/// implementation rather than an interface: a fake, or an adapter that
+/// imports a package only `services/` may import (ARCHITECTURE 3.1:
+/// features import service interfaces only).
+bool isServiceImplementation(String libPath, String source) {
+  if (layerOf(libPath) != Layer.services) return false;
+  if (libPath.endsWith(fakeSuffix)) return true;
+  return directiveUris(source)
+      .map(packageOf)
+      .nonNulls
+      .any(
+        (package) => adapterOnlyPackages.entries.any(
+          (rule) =>
+              rule.value.contains(Layer.services) &&
+              _matchesPackage(package, rule.key),
+        ),
+      );
+}
 
 /// One broken import rule.
 class Violation {
@@ -172,7 +196,15 @@ bool _matchesPackage(String package, String rule) =>
     package == rule || package.startsWith('${rule}_');
 
 /// Checks one file, given its path relative to `lib/` and its source text.
-List<Violation> checkFile(String libPath, String source) {
+///
+/// [serviceImplementations] lists the `services/` files that are
+/// implementations (see [isServiceImplementation]); features must not
+/// import them.
+List<Violation> checkFile(
+  String libPath,
+  String source, {
+  Set<String> serviceImplementations = const {},
+}) {
   final layer = layerOf(libPath);
   final violations = <Violation>[];
   for (final uri in directiveUris(source)) {
@@ -197,6 +229,18 @@ List<Violation> checkFile(String libPath, String source) {
               libPath,
               uri,
               'a feature must not import another feature',
+            ),
+          );
+        }
+        if (target == Layer.services &&
+            (internal.endsWith(fakeSuffix) ||
+                serviceImplementations.contains(internal))) {
+          violations.add(
+            Violation(
+              libPath,
+              uri,
+              'features may import service interfaces only, not '
+              'implementations or fakes',
             ),
           );
         }
@@ -245,17 +289,22 @@ List<Violation> checkFile(String libPath, String source) {
 
 /// Checks every Dart file under [libDir], skipping generated files.
 List<Violation> checkLibrary(Directory libDir) {
-  final violations = <Violation>[];
-  final files = libDir
-      .listSync(recursive: true)
-      .whereType<File>()
-      .where((f) => f.path.endsWith('.dart'))
-      .where((f) => !f.path.endsWith('.g.dart'));
-  for (final file in files) {
-    final libPath = file.path
-        .substring(libDir.path.length + 1)
-        .replaceAll(r'\', '/');
-    violations.addAll(checkFile(libPath, file.readAsStringSync()));
-  }
-  return violations;
+  final sources = {
+    for (final file
+        in libDir
+            .listSync(recursive: true)
+            .whereType<File>()
+            .where((f) => f.path.endsWith('.dart'))
+            .where((f) => !f.path.endsWith('.g.dart')))
+      file.path.substring(libDir.path.length + 1).replaceAll(r'\', '/'): file
+          .readAsStringSync(),
+  };
+  final implementations = {
+    for (final MapEntry(key: path, value: source) in sources.entries)
+      if (isServiceImplementation(path, source)) path,
+  };
+  return [
+    for (final MapEntry(key: path, value: source) in sources.entries)
+      ...checkFile(path, source, serviceImplementations: implementations),
+  ];
 }
