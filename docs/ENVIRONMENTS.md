@@ -207,11 +207,13 @@ Not enabled yet (the server deploy needs it): `cloudbuild` (server/DEPLOY.md ste
 - Version 1: added by the owner from their own terminal; **enabled**, created
   2026-11-22 18:26 UTC, stored in `me-central1`. Checked with
   `gcloud secrets versions list` only; the value was never printed or read.
-- Open question (section 6, step 5): when version 1 was checked, this
-  project's API key list still showed only the old "Family Expense API Key"
-  for the Gemini API, plus both old `ais-gemini-key-*` service accounts. No
-  new key was visible here. Either the new key was created in another
-  project, or the old key was stored.
+- **Version 1 does not hold the current key** (section 6, step 5). The old
+  Gemini keys were deleted, and their `ais-gemini-key-*` service accounts
+  are gone. The project's only Gemini key now is a new paid-tier key, also
+  named "Family Expense API Key" and confirmed new by the owner. It was
+  created 2026-11-22 18:39 UTC, 13 minutes *after* version 1 was added, so
+  version 1 most likely holds a deleted key. Store the current key as
+  version 2, then disable version 1.
 - Accessors (`roles/secretmanager.secretAccessor` on this secret only):
   `xpense-agent-run` and `xpense-jobs-run`.
 - The key must be **paid tier** (D-34): create it in a project with billing
@@ -329,17 +331,18 @@ Still needed:
    with the App Check wiring).
 4. **App Check debug token** for each simulator or Mac used for development
    (3.8).
-5. **Old Gemini keys (open):** the owner confirmed they were used only by
-   the old test app and planned to delete them in Google AI Studio (project
-   "Expense Family"). At the last check (2026-11-22, after version 1 was
-   stored) the old "Family Expense API Key" and both `ais-gemini-key-*`
-   service accounts still existed, and no new key showed in this project.
-   - Confirm the stored key is a **new paid-tier key** made in "Expense
-     Family". If it was made in another project, that project must have
-     billing on.
-   - Then delete the old key. If its service account remains, remove that in
-     IAM → Service accounts.
-   - Keep the Firebase "iOS key" and "Browser key": the app needs the iOS key.
+5. **Gemini key in the secret (open):** the old keys are deleted (their
+   service accounts are gone too). The new paid-tier key (created 18:39 UTC,
+   bound to its own `ais-gemini-key-*` service account) was made *after*
+   secret version 1 (18:26 UTC).
+   - Store the new key as version 2 with the command in step 2.
+   - Then disable version 1. Disabling can be undone; destroying cannot:
+
+   ```bash
+   gcloud secrets versions disable 1 --secret=GEMINI_API_KEY --project=expense-family-cc6ee --billing-project=expense-family-cc6ee
+   ```
+
+   Keep the Firebase "iOS key" and "Browser key": the app needs the iOS key.
 6. **Compute account:** decide whether to remove its `roles/editor` (3.10).
 7. **Budget alert (recommended):** Billing → Budgets & alerts, a monthly
    budget on this project with email alerts.
