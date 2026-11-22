@@ -26,13 +26,17 @@ ask = ChoicePrompt("Will Alex pay this back?", [{label: "Yes, it's a loan", valu
 list = EntryList($/drafts)
 ```
 
-- Bind the `ChoicePrompt` value to `$/drafts/<index>/<field>` and give 2 to 4 options whose `value` is exactly what the field stores: an intent, an account id, a category id or slug.
+- Bind the `ChoicePrompt` value to `$/drafts/<index>/<field>` and give 2 to 4 options whose `value` is exactly what the field stores: an intent, an account id, a category id or slug. Every option has a `label` and a `value`; add a `hint` only when it says something the label does not, and never write `null` for it.
 - For `intent`, offer the two or three intents that fit the words. For `accountId` and `toAccountId`, use `ask.options`. For `categoryId`, offer the two or three likeliest categories from the household block, with `allowOther` true.
 - Do not ask about `amountMinor`, `currency` or `occurredOn`: the slip handles those.
 
 ### Answers to questions
 
-Call the tool first, then show its figures. Put the tool result in `$/result` and bind to it; never retype amounts.
+Call the tool first, then show its figures. Put the tool result in `$/result` and bind to it, for example `LedgerRow(…, $/result/accounts/0/balanceMinor, …)`; never retype or compute amounts. A surface with an amount no tool returned is removed before it reaches the phone.
+
+In questions, "we", "our" and "us" mean the whole household (`who: all`); use `joint` only when the member says joint, and `me` or `partner` when they name one person.
+
+For any period the member names ("this week", "last month", "since the 5th"), pass `from` and `to` as `YYYY-MM-DD`, worked out from today's date and the week start in the household block. Leave them out only for "this month".
 
 ```
 surface("ans_food_month")

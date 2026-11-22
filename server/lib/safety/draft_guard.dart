@@ -173,6 +173,16 @@ guardParts(List<Map<String, dynamic>> parts, GuardFacts facts) {
       out.add(part);
       continue;
     }
+    // A figure in an answer surface that no tool returned: the whole
+    // surface is dropped (its prose stays), because a component cannot be
+    // removed without breaking the tree.
+    final unbacked = _unbackedFigures(data['messages'] as List, facts);
+    if (unbacked != null) {
+      violations.add(
+        GuardViolation(surfaceId: unbacked, reason: 'unbacked_figure'),
+      );
+      continue;
+    }
     var express = metadata[a2uiExpressKey] as String?;
     final messages = <Object?>[];
     for (final message in data['messages'] as List) {
@@ -207,6 +217,53 @@ guardParts(List<Map<String, dynamic>> parts, GuardFacts facts) {
     });
   }
   return (parts: out, violations: violations);
+}
+
+/// Data-model keys whose contents are checked as drafts, not as figures.
+const _draftKeys = {'drafts', 'receipt'};
+
+/// The surface id of the first message holding a literal money figure (an
+/// integer under a key ending in `Minor`) that is not in a tool result, or
+/// null. Bound values (`{"@path": …}`) are not literals and pass.
+String? _unbackedFigures(List<Object?> messages, GuardFacts facts) {
+  for (final m in messages) {
+    if (m is! Map) continue;
+    final body = m['createSurface'] ?? m['updateComponents'];
+    if (body is! Map) continue;
+    final figures = <int>[];
+    _figures(body['components'], figures);
+    final model = body['dataModel'];
+    if (model is Map) {
+      for (final MapEntry(:key, :value) in model.entries) {
+        if (!_draftKeys.contains(key)) _figures(value, figures);
+      }
+    }
+    final allowed = {
+      0,
+      ...facts.toolMinorAmounts,
+      for (final d in facts.preparedDrafts.values)
+        if (d['amountMinor'] case final int a) a,
+    };
+    if (figures.any((f) => !allowed.contains(f))) {
+      return '${body['surfaceId']}';
+    }
+  }
+  return null;
+}
+
+void _figures(Object? value, List<int> out, [String? key]) {
+  switch (value) {
+    case final int n when key != null && key.endsWith('Minor'):
+      out.add(n);
+    case final Map<Object?, Object?> map:
+      for (final MapEntry(:key, :value) in map.entries) {
+        _figures(value, out, key is String ? key : null);
+      }
+    case final List<Object?> list:
+      for (final v in list) {
+        _figures(v, out, key);
+      }
+  }
 }
 
 final _elementPath = RegExp(r'^/drafts/(\d+)(/.*)?$');

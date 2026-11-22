@@ -78,6 +78,8 @@ void main() {
       expect(draft.amountMinor, isNull);
       expect(draft.missing, containsAllInOrder(['amountMinor', 'currency']));
       expect(out.notes?.single, contains('not in the message'));
+      // The slip asks for the amount itself; the question is the account.
+      expect(out.ask?.field, 'accountId');
     });
 
     test(
@@ -121,6 +123,48 @@ void main() {
       expect(draft.fx?.pairRate, '1520');
       // 25000 / 1520 = 16.447… USD → 1645 cents, half-even.
       expect(draft.fx?.baseAmountMinor, 1645);
+    });
+
+    test('two currencies and two accounts in one message', () async {
+      // Regression from a live trace: with "cash wallet" named first, the
+      // parser read "12.50" as 12,500 IQD and the lunch lost its amount.
+      const text =
+          'taxi 25,000 dinars from my cash wallet and lunch 12.50 on the '
+          'joint visa';
+      final out = await prepareEntries(
+        PrepareEntriesInput(
+          entries: [
+            ProposedEntry(
+              intent: 'expense',
+              amount: '25000',
+              currency: 'IQD',
+              text: 'taxi 25,000 dinars from my cash wallet',
+              accountHint: 'cash wallet',
+            ),
+            ProposedEntry(
+              intent: 'expense',
+              amount: '12.50',
+              currency: 'USD',
+              text: 'lunch 12.50 on the joint visa',
+              accountHint: 'joint visa',
+            ),
+          ],
+        ),
+        dara,
+        demoDeps(texts: [text]),
+      );
+      final [taxi, lunch] = out.drafts;
+      expect(
+        (taxi.amountMinor, taxi.currency, taxi.accountId),
+        (25000, 'IQD', 'acc_cash_iqd'),
+      );
+      expect(
+        (lunch.amountMinor, lunch.currency, lunch.accountId),
+        (1250, 'USD', 'acc_visa'),
+      );
+      // Both currencies are settled by words or the named account.
+      expect(taxi.guessed, isNull);
+      expect(lunch.guessed, isNull);
     });
 
     test("the partner's private account is never matched", () async {
@@ -269,6 +313,35 @@ void main() {
         expect(d.duplicate?.probability, 0.9);
         expect(classifier.calls.single.ask, contains(DecideQuestion.duplicate));
         expect(classifier.calls.single.candidates.single.amountMinor, 9600);
+      },
+    );
+
+    test(
+      'missing fields from the model become questions, not errors',
+      () async {
+        // Regression from a live trace: an entry without `text` failed the
+        // tool and so the whole turn.
+        final out = await prepareEntries(
+          PrepareEntriesInput.fromJson({
+            'entries': [
+              {'amount': '300', 'person': 'Alex'},
+            ],
+          }),
+          dara,
+          demoDeps(texts: ['Gave Alex 300 dollars']),
+        );
+        final d = out.drafts.single;
+        expect(d.intent, 'expense');
+        expect(d.amountMinor, 30000);
+        expect(d.currency, 'USD');
+        expect(
+          (await prepareEntries(
+            PrepareEntriesInput.fromJson({}),
+            dara,
+            demoDeps(),
+          )).drafts,
+          isEmpty,
+        );
       },
     );
 

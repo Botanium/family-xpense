@@ -19,9 +19,10 @@ part 'schemas.g.dart';
 /// One money event the model found in the user's message.
 @Schema(description: 'One money event found in the message.')
 abstract class $ProposedEntry {
-  /// The money intent.
+  /// The money intent. Nullable like every field here: a model that leaves
+  /// one out must get drafts that ask, not a failed tool.
   @StringField(enumValues: entryIntentWireValues)
-  String get intent;
+  String? get intent;
 
   /// The amount exactly as written, in major units.
   @StringField(
@@ -43,7 +44,7 @@ abstract class $ProposedEntry {
         'e.g. "paid rent 1400".',
     maxLength: 300,
   )
-  String get text;
+  String? get text;
 
   /// Date words as written.
   @StringField(
@@ -84,7 +85,7 @@ abstract class $PrepareEntriesInput {
     description:
         'All entries of the message. Calling again replaces the whole set.',
   )
-  List<$ProposedEntry> get entries;
+  List<$ProposedEntry>? get entries;
 }
 
 /// `prepareEntries` output.

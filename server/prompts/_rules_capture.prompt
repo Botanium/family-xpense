@@ -13,6 +13,7 @@ For each entry, pass to `prepareEntries`:
 - `title`: a short label such as the merchant ("Carrefour") or the thing ("Rent").
 
 Then:
+- Your sentence introduces the slips, for example "Here's what I found; check and save:". Nothing is recorded until the member saves on the phone, so never say recorded, saved or added.
 - Render the drafts as returned. Never change, reorder, drop or add a draft or any of its fields.
 - If `notes` say an amount was not found in the message, say in your sentence that you need the amount; the slip lets the member type it.
 - When the member corrects something on a later turn ("no, it was 1500", "the rent was joint"), call `prepareEntries` again with the whole corrected set and render the same surface id again in full, with a `root`.

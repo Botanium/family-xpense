@@ -53,7 +53,7 @@ Future<PrepareEntriesOutput> prepareEntries(
   }
   final thresholds = await deps.thresholds();
   final notes = <String>[];
-  var entries = input.entries;
+  var entries = input.entries ?? const <ProposedEntry>[];
   if (entries.length > maxDraftsPerSurface) {
     notes.add('only the first $maxDraftsPerSurface entries were kept');
     entries = entries.sublist(0, maxDraftsPerSurface);
@@ -69,9 +69,13 @@ Future<PrepareEntriesOutput> prepareEntries(
   );
   // Every amount the user actually wrote, across the conversation's user
   // messages (a follow-up may correct an amount from an earlier turn).
+  // Parsed without the household: a named account makes the parser read
+  // the message's other bare amounts in its currency ("12.50" after "cash
+  // wallet" becomes 12,500 IQD), and here only the figures matter.
+  final plain = ParseContext(clock: clock);
+  final texts = deps.turnText();
   final pool = _AmountPool([
-    for (final text in deps.turnText())
-      ...parseText(text, parseContext).amounts,
+    for (final text in texts) ...parseText(text, plain).amounts,
   ]);
 
   final builders = [
@@ -79,6 +83,7 @@ Future<PrepareEntriesOutput> prepareEntries(
       _DraftBuilder(
         id: 'd${i + 1}',
         entry: e,
+        text: e.text ?? (texts.isEmpty ? '' : texts.last),
         snap: snap,
         today: today.iso,
         parseContext: parseContext,
@@ -150,13 +155,18 @@ final class _DraftBuilder {
   new({
     required this.id,
     required this.entry,
+    required this.text,
     required this.snap,
     required this.today,
     required this.parseContext,
-  }) : intent = CaptureIntent.tryParse(entry.intent) ?? CaptureIntent.expense;
+  }) : intent =
+           CaptureIntent.tryParse(entry.intent ?? '') ?? CaptureIntent.expense;
 
   final String id;
   final ProposedEntry entry;
+
+  /// The entry's words, or the message when the model gave none.
+  final String text;
   final HouseholdSnapshot snap;
   final String today;
   final ParseContext parseContext;
@@ -207,10 +217,19 @@ final class _DraftBuilder {
       _log.info('dropped an amount not found in the message');
       return;
     }
-    currency = found.currency?.code ?? entry.currency;
-    // A currency the parser did not read from the words is a guess.
-    if (found.guessed || found.currency == null) guessed.add('currency');
-    final code = currency ?? _defaultCurrency();
+    // Currency, most reliable first: a currency word next to or about the
+    // amount; the account the entry names; the model's reading; the
+    // household base currency. Only the first two are not guesses.
+    final hinted = _matchAccounts(entry.accountHint, null);
+    final String code;
+    if (found.source == CurrencySource.word && found.currency != null) {
+      code = found.currency!.code;
+    } else if (hinted.length == 1) {
+      code = hinted.single.currency;
+    } else {
+      code = entry.currency ?? snap.baseCurrency;
+      guessed.add('currency');
+    }
     currency = code;
     final money = Money.parseMajor(
       found.value.toString(),
@@ -219,17 +238,8 @@ final class _DraftBuilder {
     if (money case Ok(:final value)) {
       amountMinor = value.minorUnits;
     } else {
-      notes.add('$id: amount ${entry.amount} has too many decimals');
+      notes.add('$id: $code cannot hold the amount ${entry.amount}');
     }
-  }
-
-  /// The currency when the message names none: the hinted account's, or the
-  /// household base currency (shown as guessed).
-  String _defaultCurrency() {
-    guessed.add('currency');
-    final hinted = _matchAccounts(entry.accountHint, null);
-    if (hinted.length == 1) return hinted.single.currency;
-    return snap.baseCurrency;
   }
 
   void resolveWords() {
@@ -268,7 +278,7 @@ final class _DraftBuilder {
   }
 
   String _resolveDate() {
-    for (final words in [entry.dateWords, entry.text]) {
+    for (final words in [entry.dateWords, text]) {
       if (words == null) continue;
       final mention = parseText(words, parseContext).dateMention;
       if (mention != null) return mention.date.iso;
@@ -379,7 +389,7 @@ final class _DraftBuilder {
     try {
       answer = await deps.classifier.classify(
         context: context,
-        text: entry.text,
+        text: text,
         ask: ask,
         parsed: DecideParsed(
           amountMinor: amountMinor,
@@ -575,16 +585,30 @@ String _norm(String s) => s
 
 Iterable<String> _words(String s) => s.split(' ');
 
-/// The single follow-up of this turn: the first draft with a missing field,
-/// its first field in [followUpOrder], with up to three options.
+/// Fields a follow-up question may ask. Amount, currency and date are
+/// edited on the slip itself (A2UI_CATALOG 3.2).
+const askableFields = {
+  'intent',
+  'accountId',
+  'toAccountId',
+  'categoryId',
+  'personName',
+};
+
+/// The single follow-up of this turn: the first draft with a missing
+/// askable field, its first such field in [followUpOrder], with up to
+/// three options.
 FollowUp? _firstFollowUp(
   List<EntryDraft> drafts,
   List<_DraftBuilder> builders,
 ) {
   for (final (i, d) in drafts.indexed) {
-    final missing = d.missing;
-    if (missing == null || missing.isEmpty) continue;
-    final field = missing.first;
+    final askable = [
+      for (final f in d.missing ?? const <String>[])
+        if (askableFields.contains(f)) f,
+    ];
+    if (askable.isEmpty) continue;
+    final field = askable.first;
     final snap = builders[i].snap;
     final options = switch (field) {
       'accountId' || 'toAccountId' => [

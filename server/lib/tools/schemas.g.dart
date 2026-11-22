@@ -15,10 +15,10 @@ base class ProposedEntry {
   ProposedEntry._(this._json);
 
   ProposedEntry({
-    required String intent,
+    String? intent,
     String? amount,
     String? currency,
-    required String text,
+    String? text,
     String? dateWords,
     String? accountHint,
     String? toAccountHint,
@@ -28,10 +28,10 @@ base class ProposedEntry {
     String? title,
   }) {
     _json = {
-      'intent': intent,
+      'intent': ?intent,
       'amount': ?amount,
       'currency': ?currency,
-      'text': text,
+      'text': ?text,
       'dateWords': ?dateWords,
       'accountHint': ?accountHint,
       'toAccountHint': ?toAccountHint,
@@ -48,14 +48,20 @@ base class ProposedEntry {
   static const SchemanticType<ProposedEntry> $schema =
       _ProposedEntryTypeFactory();
 
-  /// The money intent.
-  String get intent {
-    return _json['intent'] as String;
+  /// The money intent. Nullable like every field here: a model that leaves
+  /// one out must get drafts that ask, not a failed tool.
+  String? get intent {
+    return _json['intent'] as String?;
   }
 
-  /// The money intent.
-  set intent(String value) {
-    _json['intent'] = value;
+  /// The money intent. Nullable like every field here: a model that leaves
+  /// one out must get drafts that ask, not a failed tool.
+  set intent(String? value) {
+    if (value == null) {
+      _json.remove('intent');
+    } else {
+      _json['intent'] = value;
+    }
   }
 
   /// The amount exactly as written, in major units.
@@ -87,13 +93,17 @@ base class ProposedEntry {
   }
 
   /// The words of the message about this entry.
-  String get text {
-    return _json['text'] as String;
+  String? get text {
+    return _json['text'] as String?;
   }
 
   /// The words of the message about this entry.
-  set text(String value) {
-    _json['text'] = value;
+  set text(String? value) {
+    if (value == null) {
+      _json.remove('text');
+    } else {
+      _json['text'] = value;
+    }
   }
 
   /// Date words as written.
@@ -277,7 +287,6 @@ base class _ProposedEntryTypeFactory extends SchemanticType<ProposedEntry> {
           'description': 'Merchant or short label, e.g. "Rent".',
         },
       },
-      'required': ['intent', 'text'],
     },
     dependencies: [],
   );
@@ -291,8 +300,8 @@ base class PrepareEntriesInput {
 
   PrepareEntriesInput._(this._json);
 
-  PrepareEntriesInput({required List<ProposedEntry> entries}) {
-    _json = {'entries': entries.map((e) => e.toJson()).toList()};
+  PrepareEntriesInput({List<ProposedEntry>? entries}) {
+    _json = {'entries': ?entries?.map((e) => e.toJson()).toList()};
   }
 
   late final Map<String, dynamic> _json;
@@ -302,15 +311,19 @@ base class PrepareEntriesInput {
       _PrepareEntriesInputTypeFactory();
 
   /// The entries; the whole set replaces any earlier drafts of this turn.
-  List<ProposedEntry> get entries {
-    return (_json['entries'] as List)
-        .map((e) => ProposedEntry.fromJson(e as Map<String, dynamic>))
+  List<ProposedEntry>? get entries {
+    return (_json['entries'] as List?)
+        ?.map((e) => ProposedEntry.fromJson(e as Map<String, dynamic>))
         .toList();
   }
 
   /// The entries; the whole set replaces any earlier drafts of this turn.
-  set entries(List<ProposedEntry> value) {
-    _json['entries'] = value.map((e) => e.toJson()).toList();
+  set entries(List<ProposedEntry>? value) {
+    if (value == null) {
+      _json.remove('entries');
+    } else {
+      _json['entries'] = value.map((e) => e.toJson()).toList();
+    }
   }
 
   @override
@@ -346,7 +359,6 @@ base class _PrepareEntriesInputTypeFactory
           'items': <String, Object?>{r'$ref': r'#/$defs/ProposedEntry'},
         },
       },
-      'required': ['entries'],
     },
     dependencies: [ProposedEntry.$schema],
   );

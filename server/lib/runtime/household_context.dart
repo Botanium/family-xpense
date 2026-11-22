@@ -198,7 +198,10 @@ String householdBlock(
   final me = snap.me?.displayName ?? 'the member';
   final partner = snap.partner?.displayName;
   b
-    ..writeln('base currency: ${snap.baseCurrency}')
+    ..writeln(
+      'weeks start on ${_weekStartName(snap.profile.weekStart)}; '
+      'base currency: ${snap.baseCurrency}',
+    )
     ..writeln(
       'speaking: $me ("me")'
       '${partner == null ? '' : '; partner: $partner ("partner")'}',
@@ -236,6 +239,12 @@ String householdBlock(
     ..write('household>>>');
   return b.toString();
 }
+
+String _weekStartName(String code) => switch (code) {
+  'sun' => 'Sunday',
+  'mon' => 'Monday',
+  _ => 'Saturday',
+};
 
 String _weekday(int d) => const [
   'Monday',

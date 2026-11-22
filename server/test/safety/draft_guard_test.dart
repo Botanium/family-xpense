@@ -212,6 +212,80 @@ void main() {
     });
   });
 
+  group('answer surfaces', () {
+    final facts = GuardFacts.fromMessages([
+      {
+        'role': 'tool',
+        'content': [
+          {
+            'toolResponse': {
+              'name': 'getBalances',
+              'output': {
+                'accounts': [
+                  {'accountId': 'a', 'balanceMinor': 412050},
+                  {'accountId': 'b', 'balanceMinor': -38640},
+                ],
+                'totalBaseMinor': 373410,
+              },
+            },
+          },
+        ],
+      },
+    ]);
+    Map<String, dynamic> answer(
+      List<Object?> components, [
+      Map<String, Object?>? model,
+    ]) => _part([
+      {
+        'version': '1.0',
+        'createSurface': {
+          'surfaceId': 'ans_bal',
+          'components': components,
+          'dataModel': ?model,
+        },
+      },
+    ], 'x');
+
+    test('figures copied from a tool pass, bound or literal', () {
+      final result = guardParts([
+        answer(
+          [
+            {
+              'id': 'a',
+              'component': 'LedgerRow',
+              'label': 'Checking',
+              'amountMinor': 412050,
+            },
+            {
+              'id': 'b',
+              'component': 'MoneyText',
+              'amountMinor': {'@path': '/result/totalBaseMinor'},
+            },
+          ],
+          {
+            'result': {'totalBaseMinor': 373410},
+          },
+        ),
+      ], facts);
+      expect(result.violations, isEmpty);
+      expect(result.parts, hasLength(1));
+    });
+
+    test('a figure no tool returned drops the surface', () {
+      final result = guardParts([
+        {'text': 'Your total:'},
+        answer([
+          {'id': 'root', 'component': 'MoneyText', 'amountMinor': 999999},
+        ]),
+      ], facts);
+      expect(result.violations.single.reason, 'unbacked_figure');
+      expect(result.violations.single.surfaceId, 'ans_bal');
+      expect(result.parts, [
+        {'text': 'Your total:'},
+      ]);
+    });
+  });
+
   group('rewriteAssignment', () {
     test('handles multi-line values and brackets in strings', () {
       const src =
