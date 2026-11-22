@@ -5,11 +5,13 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:xpense_app/app.dart';
 import 'package:xpense_app/bootstrap.dart';
 import 'package:xpense_app/core/ui/ui.dart';
+import 'package:xpense_app/data/auth_repository_fake.dart';
 import 'package:xpense_app/services/biometric_lock.dart';
 import 'package:xpense_app/services/biometric_lock_fake.dart';
 import 'package:xpense_app/services/on_device_llm/on_device_llm_fake.dart';
 import 'package:xpense_app/services/settings_store.dart';
 import 'package:xpense_app/services/settings_store_fake.dart';
+import 'package:xpense_app/services/speech_capture_fake.dart';
 
 /// A clock tests move by hand.
 final class TestClock {
@@ -28,12 +30,20 @@ final class TestClock {
 
 /// The fakes behind one test app, for arranging and asserting.
 final class TestServices {
-  /// Creates fakes; [settings] and [unlock] set the starting state.
+  /// Creates fakes; [settings], [unlock] and [signedIn] set the starting
+  /// state. Signed in by default, so the app opens on Home.
   new({
     AppSettings settings = AppSettings.defaults,
     UnlockOutcome unlock = const Unlocked(),
+    bool signedIn = true,
   }) : settingsStore = MemorySettingsStore(settings),
-       biometricLock = FakeBiometricLock(outcome: unlock);
+       biometricLock = FakeBiometricLock(outcome: unlock),
+       auth = FakeAuthRepository(
+         signedIn: signedIn ? FakeAuthRepository.providerUser : null,
+       );
+
+  /// Sign-in.
+  final FakeAuthRepository auth;
 
   /// Settings, in memory.
   final MemorySettingsStore settingsStore;
@@ -43,6 +53,9 @@ final class TestServices {
 
   /// The on-device model.
   final FakeOnDeviceLlm onDeviceLlm = FakeOnDeviceLlm();
+
+  /// Speech to text; with no script, listening fails as unavailable.
+  final FakeSpeechCapture speech = FakeSpeechCapture();
 
   /// Time.
   final TestClock clock = TestClock();
@@ -56,7 +69,9 @@ final class TestServices {
     settings: settingsStore,
     biometricLock: biometricLock,
     glass: glass,
+    authRepository: auth,
     onDeviceLlm: onDeviceLlm,
+    speechCapture: speech,
   );
 
   /// A container wired like the app, disposed with the test.

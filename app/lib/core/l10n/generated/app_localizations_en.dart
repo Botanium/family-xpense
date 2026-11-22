@@ -557,4 +557,308 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get a2uiDateTimeEmpty => 'Not set';
+
+  @override
+  String get onboardingAppName => 'Family Xpense';
+
+  @override
+  String onboardingStep(int current, int count) {
+    return 'Step $current of $count';
+  }
+
+  @override
+  String get onboardingWelcomeQuote => 'Paid 60 for gas on the way home';
+
+  @override
+  String get onboardingWelcomeQuoteDuration => '0:03';
+
+  @override
+  String get onboardingWelcomeSlipHeader => 'Expense · Fuel';
+
+  @override
+  String get onboardingWelcomeSlipConfidence => '96%';
+
+  @override
+  String onboardingWelcomeConverted(String amount) {
+    return '≈ $amount';
+  }
+
+  @override
+  String get onboardingWelcomeSlipWho => 'Who';
+
+  @override
+  String get onboardingWelcomeSlipWhoValue => 'You';
+
+  @override
+  String get onboardingWelcomeSlipWhen => 'When';
+
+  @override
+  String get onboardingWelcomeSlipWhenValue => 'Today 18:40';
+
+  @override
+  String get onboardingWelcomeSlipFrom => 'From';
+
+  @override
+  String get onboardingWelcomeSlipFromValue => 'Joint Visa';
+
+  @override
+  String get onboardingWelcomeSlipSpoken =>
+      'Sample entry: expense, fuel, 60 US dollars, about 102,300 Iraqi dinars, you, today, from the joint Visa.';
+
+  @override
+  String get onboardingWelcomeHeadline => 'Say it. We\'ll sort it.';
+
+  @override
+  String get onboardingWelcomeBody =>
+      'Tell it what you spent, earned, lent or saved, in your own words. It works out the category, the account and who it was, for both of you.';
+
+  @override
+  String get onboardingWelcomeStart => 'Get started';
+
+  @override
+  String get onboardingWelcomeInvite => 'I have an invite from my partner';
+
+  @override
+  String get onboardingCreateAccountTitle => 'Create account';
+
+  @override
+  String get onboardingCreateAccountHeadline => 'Create your account';
+
+  @override
+  String get onboardingCreateAccountBody =>
+      'Each of you signs in on your own phone. Your partner joins the same household later with an invite.';
+
+  @override
+  String get onboardingCreateAccountInviteBody =>
+      'Each of you signs in on your own phone. Sign in first, then enter the invite code your partner shared.';
+
+  @override
+  String get onboardingContinueApple => 'Continue with Apple';
+
+  @override
+  String get onboardingContinueGoogle => 'Continue with Google';
+
+  @override
+  String get onboardingContinueEmail => 'Continue with email';
+
+  @override
+  String get onboardingSigningIn => 'Signing in…';
+
+  @override
+  String get onboardingPrivacyNoteLead => 'Private by default.';
+
+  @override
+  String get onboardingPrivacyNoteBody =>
+      'Only people you invite see your household\'s money. Personal accounts stay yours unless you share them.';
+
+  @override
+  String onboardingLegal(String terms, String privacy) {
+    return 'By continuing you agree to the $terms and the $privacy.';
+  }
+
+  @override
+  String get onboardingTermsLink => 'Terms';
+
+  @override
+  String get onboardingPrivacyLink => 'Privacy Policy';
+
+  @override
+  String get onboardingTermsTitle => 'Terms';
+
+  @override
+  String get onboardingTermsPlaceholder =>
+      'The Terms of Service will be published here before the app is released.';
+
+  @override
+  String get onboardingPrivacyTitle => 'Privacy Policy';
+
+  @override
+  String get onboardingPrivacyPlaceholder =>
+      'The Privacy Policy will be published here before the app is released.';
+
+  @override
+  String get onboardingOffline =>
+      'You\'re offline. Signing in needs a connection.';
+
+  @override
+  String get onboardingRetry => 'Try again';
+
+  @override
+  String get onboardingErrorTooMany =>
+      'Too many attempts. Wait a few minutes, then try again.';
+
+  @override
+  String get onboardingErrorDisabled => 'This account has been turned off.';
+
+  @override
+  String get onboardingErrorOtherMethod =>
+      'This email already has an account that uses another sign-in method. Use that one.';
+
+  @override
+  String get onboardingErrorUnavailable =>
+      'This sign-in method isn\'t available yet. Use another one.';
+
+  @override
+  String get onboardingErrorUnknown => 'Couldn\'t sign in. Try again.';
+
+  @override
+  String get onboardingEmailCreateTitle => 'Create account';
+
+  @override
+  String get onboardingEmailSignInTitle => 'Sign in';
+
+  @override
+  String get onboardingEmailCreateHeadline => 'Your email and a password';
+
+  @override
+  String get onboardingEmailSignInHeadline => 'Welcome back';
+
+  @override
+  String get onboardingEmailCreateBody =>
+      'You\'ll use them to sign in on this phone. Your partner makes their own account.';
+
+  @override
+  String get onboardingEmailSignInBody =>
+      'Sign in with the email and password you used before.';
+
+  @override
+  String get onboardingEmailLabel => 'Email';
+
+  @override
+  String get onboardingEmailHint => 'name@example.com';
+
+  @override
+  String get onboardingPasswordLabel => 'Password';
+
+  @override
+  String onboardingPasswordHintNew(int count) {
+    return 'At least $count characters';
+  }
+
+  @override
+  String get onboardingEmailCreateAction => 'Create account';
+
+  @override
+  String get onboardingEmailSignInAction => 'Sign in';
+
+  @override
+  String get onboardingEmailSwitchToSignIn => 'I already have an account';
+
+  @override
+  String get onboardingEmailSwitchToCreate => 'Create a new account instead';
+
+  @override
+  String get onboardingEmailForgot => 'Forgot password?';
+
+  @override
+  String onboardingEmailResetSent(String email) {
+    return 'If there\'s an account for $email, a link to reset the password is on its way.';
+  }
+
+  @override
+  String get onboardingEmailErrorEmpty => 'Enter your email.';
+
+  @override
+  String get onboardingEmailErrorInvalid =>
+      'Enter an email like name@example.com.';
+
+  @override
+  String get onboardingEmailErrorInUse =>
+      'There\'s already an account with this email. Sign in instead.';
+
+  @override
+  String get onboardingPasswordErrorEmpty => 'Enter your password.';
+
+  @override
+  String onboardingPasswordErrorShort(int count) {
+    return 'Use at least $count characters.';
+  }
+
+  @override
+  String get onboardingPasswordErrorWeak => 'Choose a stronger password.';
+
+  @override
+  String get onboardingPasswordErrorWrong =>
+      'That email and password don\'t match.';
+
+  @override
+  String get onboardingTryItTitle => 'Try it';
+
+  @override
+  String get onboardingTryItHeadline => 'Tell me your last purchase';
+
+  @override
+  String get onboardingTryItBody =>
+      'Talk or type the way you\'d text a friend. Nothing is saved until you confirm it.';
+
+  @override
+  String get onboardingTryItMicNote =>
+      'The microphone and speech recognition are used only while the orange button is on. iOS asks for your permission the first time.';
+
+  @override
+  String get onboardingTryItExamples => 'Things you can say';
+
+  @override
+  String get onboardingTryItTagExpense => 'Expense';
+
+  @override
+  String get onboardingTryItExampleExpense => '42.80 at Costco for groceries';
+
+  @override
+  String get onboardingTryItTagTwo => 'Two at once';
+
+  @override
+  String get onboardingTryItExampleTwo => 'Salary came in, and I paid rent';
+
+  @override
+  String get onboardingTryItTagLoan => 'Loan';
+
+  @override
+  String get onboardingTryItExampleLoan => 'Gave Alex 300';
+
+  @override
+  String get onboardingTryItTagQuestion => 'Question';
+
+  @override
+  String get onboardingTryItExampleQuestion => 'How much did we spend on food?';
+
+  @override
+  String get onboardingTryItTypeInstead => 'Type instead';
+
+  @override
+  String get onboardingTryItSkip => 'Skip for now';
+
+  @override
+  String get onboardingTryItTalk => 'Talk';
+
+  @override
+  String get onboardingTryItStop => 'Stop listening';
+
+  @override
+  String get onboardingTryItScan => 'Scan a receipt';
+
+  @override
+  String get onboardingTryItMessage => 'Message';
+
+  @override
+  String get onboardingTryItHint => 'Spent, earned, lent…';
+
+  @override
+  String get onboardingTryItVoiceUnavailable =>
+      'Voice isn\'t available on this phone yet. Type instead.';
+
+  @override
+  String get onboardingTryItMicDenied =>
+      'Microphone access is off. Turn it on in Settings, or type instead.';
+
+  @override
+  String get onboardingTryItVoiceFailed =>
+      'Couldn\'t hear that. Try again or type instead.';
+
+  @override
+  String get onboardingTryItReply =>
+      'Got it. In this preview nothing is sorted or saved yet.';
+
+  @override
+  String get onboardingTryItDone => 'Go to Home';
 }

@@ -1037,6 +1037,546 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Not set'**
   String get a2uiDateTimeEmpty;
+
+  /// Product name beside the app mark at the top of Welcome.
+  ///
+  /// In en, this message translates to:
+  /// **'Family Xpense'**
+  String get onboardingAppName;
+
+  /// VoiceOver label of the onboarding progress bar.
+  ///
+  /// In en, this message translates to:
+  /// **'Step {current} of {count}'**
+  String onboardingStep(int current, int count);
+
+  /// Sample spoken message on Welcome, shown in quotation marks above the sample entry. Keep it short and natural.
+  ///
+  /// In en, this message translates to:
+  /// **'Paid 60 for gas on the way home'**
+  String get onboardingWelcomeQuote;
+
+  /// Length of the sample voice clip on Welcome, in minutes and seconds.
+  ///
+  /// In en, this message translates to:
+  /// **'0:03'**
+  String get onboardingWelcomeQuoteDuration;
+
+  /// Header of the sample entry on Welcome: intent, a middle dot, then category. Shown upper-case.
+  ///
+  /// In en, this message translates to:
+  /// **'Expense · Fuel'**
+  String get onboardingWelcomeSlipHeader;
+
+  /// How sure the app is about the sample entry on Welcome.
+  ///
+  /// In en, this message translates to:
+  /// **'96%'**
+  String get onboardingWelcomeSlipConfidence;
+
+  /// Converted amount under the sample figure on Welcome, such as ≈ IQD 102,300.
+  ///
+  /// In en, this message translates to:
+  /// **'≈ {amount}'**
+  String onboardingWelcomeConverted(String amount);
+
+  /// Field label on the sample entry: who spent the money.
+  ///
+  /// In en, this message translates to:
+  /// **'Who'**
+  String get onboardingWelcomeSlipWho;
+
+  /// Field value on the sample entry: the person themself. Shown upper-case.
+  ///
+  /// In en, this message translates to:
+  /// **'You'**
+  String get onboardingWelcomeSlipWhoValue;
+
+  /// Field label on the sample entry: date and time.
+  ///
+  /// In en, this message translates to:
+  /// **'When'**
+  String get onboardingWelcomeSlipWhen;
+
+  /// Field value on the sample entry: today at 18:40. Shown upper-case.
+  ///
+  /// In en, this message translates to:
+  /// **'Today 18:40'**
+  String get onboardingWelcomeSlipWhenValue;
+
+  /// Field label on the sample entry: the account the money came from.
+  ///
+  /// In en, this message translates to:
+  /// **'From'**
+  String get onboardingWelcomeSlipFrom;
+
+  /// Field value on the sample entry: a shared card. Shown upper-case.
+  ///
+  /// In en, this message translates to:
+  /// **'Joint Visa'**
+  String get onboardingWelcomeSlipFromValue;
+
+  /// VoiceOver reading of the whole sample entry on Welcome.
+  ///
+  /// In en, this message translates to:
+  /// **'Sample entry: expense, fuel, 60 US dollars, about 102,300 Iraqi dinars, you, today, from the joint Visa.'**
+  String get onboardingWelcomeSlipSpoken;
+
+  /// Headline on Welcome.
+  ///
+  /// In en, this message translates to:
+  /// **'Say it. We\'ll sort it.'**
+  String get onboardingWelcomeHeadline;
+
+  /// Paragraph under the Welcome headline.
+  ///
+  /// In en, this message translates to:
+  /// **'Tell it what you spent, earned, lent or saved, in your own words. It works out the category, the account and who it was, for both of you.'**
+  String get onboardingWelcomeBody;
+
+  /// Primary button on Welcome that starts creating an account.
+  ///
+  /// In en, this message translates to:
+  /// **'Get started'**
+  String get onboardingWelcomeStart;
+
+  /// Text button on Welcome for someone whose partner already set up the household.
+  ///
+  /// In en, this message translates to:
+  /// **'I have an invite from my partner'**
+  String get onboardingWelcomeInvite;
+
+  /// Top bar title of the sign-in screen. Shown upper-case.
+  ///
+  /// In en, this message translates to:
+  /// **'Create account'**
+  String get onboardingCreateAccountTitle;
+
+  /// Headline of the sign-in screen.
+  ///
+  /// In en, this message translates to:
+  /// **'Create your account'**
+  String get onboardingCreateAccountHeadline;
+
+  /// Paragraph under the sign-in headline.
+  ///
+  /// In en, this message translates to:
+  /// **'Each of you signs in on your own phone. Your partner joins the same household later with an invite.'**
+  String get onboardingCreateAccountBody;
+
+  /// Paragraph under the sign-in headline when the person came to join a partner's household.
+  ///
+  /// In en, this message translates to:
+  /// **'Each of you signs in on your own phone. Sign in first, then enter the invite code your partner shared.'**
+  String get onboardingCreateAccountInviteBody;
+
+  /// Button that signs in with Apple.
+  ///
+  /// In en, this message translates to:
+  /// **'Continue with Apple'**
+  String get onboardingContinueApple;
+
+  /// Button that signs in with Google.
+  ///
+  /// In en, this message translates to:
+  /// **'Continue with Google'**
+  String get onboardingContinueGoogle;
+
+  /// Button that opens the email and password form.
+  ///
+  /// In en, this message translates to:
+  /// **'Continue with email'**
+  String get onboardingContinueEmail;
+
+  /// Label of the primary button and VoiceOver label of the spinner while signing in or creating an account.
+  ///
+  /// In en, this message translates to:
+  /// **'Signing in…'**
+  String get onboardingSigningIn;
+
+  /// Bold first sentence of the privacy note on the sign-in screen.
+  ///
+  /// In en, this message translates to:
+  /// **'Private by default.'**
+  String get onboardingPrivacyNoteLead;
+
+  /// Rest of the privacy note on the sign-in screen, after the bold first sentence.
+  ///
+  /// In en, this message translates to:
+  /// **'Only people you invite see your household\'s money. Personal accounts stay yours unless you share them.'**
+  String get onboardingPrivacyNoteBody;
+
+  /// Legal line on the sign-in screen. {terms} and {privacy} are links whose text comes from onboardingTermsLink and onboardingPrivacyLink.
+  ///
+  /// In en, this message translates to:
+  /// **'By continuing you agree to the {terms} and the {privacy}.'**
+  String onboardingLegal(String terms, String privacy);
+
+  /// Link text in the legal line that opens the Terms of Service.
+  ///
+  /// In en, this message translates to:
+  /// **'Terms'**
+  String get onboardingTermsLink;
+
+  /// Link text in the legal line that opens the Privacy Policy.
+  ///
+  /// In en, this message translates to:
+  /// **'Privacy Policy'**
+  String get onboardingPrivacyLink;
+
+  /// Top bar title of the Terms of Service screen. Shown upper-case.
+  ///
+  /// In en, this message translates to:
+  /// **'Terms'**
+  String get onboardingTermsTitle;
+
+  /// Placeholder line on the Terms screen until the document exists.
+  ///
+  /// In en, this message translates to:
+  /// **'The Terms of Service will be published here before the app is released.'**
+  String get onboardingTermsPlaceholder;
+
+  /// Top bar title of the Privacy Policy screen. Shown upper-case.
+  ///
+  /// In en, this message translates to:
+  /// **'Privacy Policy'**
+  String get onboardingPrivacyTitle;
+
+  /// Placeholder line on the Privacy Policy screen until the document exists.
+  ///
+  /// In en, this message translates to:
+  /// **'The Privacy Policy will be published here before the app is released.'**
+  String get onboardingPrivacyPlaceholder;
+
+  /// Banner under the top bar when signing in failed for lack of a connection.
+  ///
+  /// In en, this message translates to:
+  /// **'You\'re offline. Signing in needs a connection.'**
+  String get onboardingOffline;
+
+  /// Action on the offline banner that repeats the last sign-in attempt.
+  ///
+  /// In en, this message translates to:
+  /// **'Try again'**
+  String get onboardingRetry;
+
+  /// Inline error when Firebase blocks sign-in for a while.
+  ///
+  /// In en, this message translates to:
+  /// **'Too many attempts. Wait a few minutes, then try again.'**
+  String get onboardingErrorTooMany;
+
+  /// Inline error when the account was disabled.
+  ///
+  /// In en, this message translates to:
+  /// **'This account has been turned off.'**
+  String get onboardingErrorDisabled;
+
+  /// Inline error when the email belongs to an account made with Apple, Google or a password.
+  ///
+  /// In en, this message translates to:
+  /// **'This email already has an account that uses another sign-in method. Use that one.'**
+  String get onboardingErrorOtherMethod;
+
+  /// Inline error when Apple, Google or email sign-in is not set up for the app.
+  ///
+  /// In en, this message translates to:
+  /// **'This sign-in method isn\'t available yet. Use another one.'**
+  String get onboardingErrorUnavailable;
+
+  /// Inline error for any other sign-in failure.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t sign in. Try again.'**
+  String get onboardingErrorUnknown;
+
+  /// Top bar title of the email form when creating an account. Shown upper-case.
+  ///
+  /// In en, this message translates to:
+  /// **'Create account'**
+  String get onboardingEmailCreateTitle;
+
+  /// Top bar title of the email form when signing in. Shown upper-case.
+  ///
+  /// In en, this message translates to:
+  /// **'Sign in'**
+  String get onboardingEmailSignInTitle;
+
+  /// Headline of the email form when creating an account.
+  ///
+  /// In en, this message translates to:
+  /// **'Your email and a password'**
+  String get onboardingEmailCreateHeadline;
+
+  /// Headline of the email form when signing in to an existing account.
+  ///
+  /// In en, this message translates to:
+  /// **'Welcome back'**
+  String get onboardingEmailSignInHeadline;
+
+  /// Paragraph under the headline of the email form when creating an account.
+  ///
+  /// In en, this message translates to:
+  /// **'You\'ll use them to sign in on this phone. Your partner makes their own account.'**
+  String get onboardingEmailCreateBody;
+
+  /// Paragraph under the headline of the email form when signing in.
+  ///
+  /// In en, this message translates to:
+  /// **'Sign in with the email and password you used before.'**
+  String get onboardingEmailSignInBody;
+
+  /// Label of the email field.
+  ///
+  /// In en, this message translates to:
+  /// **'Email'**
+  String get onboardingEmailLabel;
+
+  /// Placeholder in the email field.
+  ///
+  /// In en, this message translates to:
+  /// **'name@example.com'**
+  String get onboardingEmailHint;
+
+  /// Label of the password field.
+  ///
+  /// In en, this message translates to:
+  /// **'Password'**
+  String get onboardingPasswordLabel;
+
+  /// Placeholder in the password field when creating an account.
+  ///
+  /// In en, this message translates to:
+  /// **'At least {count} characters'**
+  String onboardingPasswordHintNew(int count);
+
+  /// Primary button of the email form when creating an account.
+  ///
+  /// In en, this message translates to:
+  /// **'Create account'**
+  String get onboardingEmailCreateAction;
+
+  /// Primary button of the email form when signing in.
+  ///
+  /// In en, this message translates to:
+  /// **'Sign in'**
+  String get onboardingEmailSignInAction;
+
+  /// Text button that switches the email form to signing in.
+  ///
+  /// In en, this message translates to:
+  /// **'I already have an account'**
+  String get onboardingEmailSwitchToSignIn;
+
+  /// Text button that switches the email form to creating an account.
+  ///
+  /// In en, this message translates to:
+  /// **'Create a new account instead'**
+  String get onboardingEmailSwitchToCreate;
+
+  /// Text button that sends a password reset email.
+  ///
+  /// In en, this message translates to:
+  /// **'Forgot password?'**
+  String get onboardingEmailForgot;
+
+  /// Confirmation after asking for a password reset.
+  ///
+  /// In en, this message translates to:
+  /// **'If there\'s an account for {email}, a link to reset the password is on its way.'**
+  String onboardingEmailResetSent(String email);
+
+  /// Inline error under the email field when it is empty.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter your email.'**
+  String get onboardingEmailErrorEmpty;
+
+  /// Inline error under the email field when the address is not valid.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter an email like name@example.com.'**
+  String get onboardingEmailErrorInvalid;
+
+  /// Inline error under the email field when creating an account with an email that has one.
+  ///
+  /// In en, this message translates to:
+  /// **'There\'s already an account with this email. Sign in instead.'**
+  String get onboardingEmailErrorInUse;
+
+  /// Inline error under the password field when it is empty.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter your password.'**
+  String get onboardingPasswordErrorEmpty;
+
+  /// Inline error under the password field when a new password is too short.
+  ///
+  /// In en, this message translates to:
+  /// **'Use at least {count} characters.'**
+  String onboardingPasswordErrorShort(int count);
+
+  /// Inline error under the password field when Firebase rejects a new password as weak.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose a stronger password.'**
+  String get onboardingPasswordErrorWeak;
+
+  /// Inline error under the password field when signing in failed.
+  ///
+  /// In en, this message translates to:
+  /// **'That email and password don\'t match.'**
+  String get onboardingPasswordErrorWrong;
+
+  /// Top bar title of the first-capture screen. Shown upper-case.
+  ///
+  /// In en, this message translates to:
+  /// **'Try it'**
+  String get onboardingTryItTitle;
+
+  /// Headline of the first-capture screen.
+  ///
+  /// In en, this message translates to:
+  /// **'Tell me your last purchase'**
+  String get onboardingTryItHeadline;
+
+  /// Paragraph under the first-capture headline.
+  ///
+  /// In en, this message translates to:
+  /// **'Talk or type the way you\'d text a friend. Nothing is saved until you confirm it.'**
+  String get onboardingTryItBody;
+
+  /// Microphone pre-prompt on the first-capture screen, shown before iOS asks for microphone and speech permission.
+  ///
+  /// In en, this message translates to:
+  /// **'The microphone and speech recognition are used only while the orange button is on. iOS asks for your permission the first time.'**
+  String get onboardingTryItMicNote;
+
+  /// Section label above example messages on the first-capture screen.
+  ///
+  /// In en, this message translates to:
+  /// **'Things you can say'**
+  String get onboardingTryItExamples;
+
+  /// Tag beside an example expense message. Shown upper-case.
+  ///
+  /// In en, this message translates to:
+  /// **'Expense'**
+  String get onboardingTryItTagExpense;
+
+  /// Example message: one expense.
+  ///
+  /// In en, this message translates to:
+  /// **'42.80 at Costco for groceries'**
+  String get onboardingTryItExampleExpense;
+
+  /// Tag beside an example message with two entries. Shown upper-case.
+  ///
+  /// In en, this message translates to:
+  /// **'Two at once'**
+  String get onboardingTryItTagTwo;
+
+  /// Example message: income and an expense in one message.
+  ///
+  /// In en, this message translates to:
+  /// **'Salary came in, and I paid rent'**
+  String get onboardingTryItExampleTwo;
+
+  /// Tag beside an example loan message. Shown upper-case.
+  ///
+  /// In en, this message translates to:
+  /// **'Loan'**
+  String get onboardingTryItTagLoan;
+
+  /// Example message: money lent to someone.
+  ///
+  /// In en, this message translates to:
+  /// **'Gave Alex 300'**
+  String get onboardingTryItExampleLoan;
+
+  /// Tag beside an example question. Shown upper-case.
+  ///
+  /// In en, this message translates to:
+  /// **'Question'**
+  String get onboardingTryItTagQuestion;
+
+  /// Example message: a question about spending.
+  ///
+  /// In en, this message translates to:
+  /// **'How much did we spend on food?'**
+  String get onboardingTryItExampleQuestion;
+
+  /// Text button and dock button that switch from talking to typing.
+  ///
+  /// In en, this message translates to:
+  /// **'Type instead'**
+  String get onboardingTryItTypeInstead;
+
+  /// Text button that leaves the first-capture screen for Home.
+  ///
+  /// In en, this message translates to:
+  /// **'Skip for now'**
+  String get onboardingTryItSkip;
+
+  /// VoiceOver label of the orange microphone button.
+  ///
+  /// In en, this message translates to:
+  /// **'Talk'**
+  String get onboardingTryItTalk;
+
+  /// VoiceOver label of the orange button while listening.
+  ///
+  /// In en, this message translates to:
+  /// **'Stop listening'**
+  String get onboardingTryItStop;
+
+  /// VoiceOver label of the camera button in the dock.
+  ///
+  /// In en, this message translates to:
+  /// **'Scan a receipt'**
+  String get onboardingTryItScan;
+
+  /// VoiceOver label of the text field in the dock.
+  ///
+  /// In en, this message translates to:
+  /// **'Message'**
+  String get onboardingTryItMessage;
+
+  /// Placeholder in the dock's text field.
+  ///
+  /// In en, this message translates to:
+  /// **'Spent, earned, lent…'**
+  String get onboardingTryItHint;
+
+  /// Shown when speech recognition cannot start.
+  ///
+  /// In en, this message translates to:
+  /// **'Voice isn\'t available on this phone yet. Type instead.'**
+  String get onboardingTryItVoiceUnavailable;
+
+  /// Shown when the person declined microphone or speech permission.
+  ///
+  /// In en, this message translates to:
+  /// **'Microphone access is off. Turn it on in Settings, or type instead.'**
+  String get onboardingTryItMicDenied;
+
+  /// Shown when listening stopped for another reason.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t hear that. Try again or type instead.'**
+  String get onboardingTryItVoiceFailed;
+
+  /// Reply after the first message on the first-capture screen, while capture is not connected.
+  ///
+  /// In en, this message translates to:
+  /// **'Got it. In this preview nothing is sorted or saved yet.'**
+  String get onboardingTryItReply;
+
+  /// Primary button after the first message on the first-capture screen.
+  ///
+  /// In en, this message translates to:
+  /// **'Go to Home'**
+  String get onboardingTryItDone;
 }
 
 class _AppLocalizationsDelegate

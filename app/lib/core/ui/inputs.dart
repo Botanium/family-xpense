@@ -80,6 +80,11 @@ class XpTextField extends StatefulWidget {
     this.error,
     this.onChanged,
     this.keyboardType,
+    this.obscureText = false,
+    this.autofillHints,
+    this.textInputAction,
+    this.onSubmitted,
+    this.enabled = true,
     super.key,
   });
 
@@ -100,6 +105,21 @@ class XpTextField extends StatefulWidget {
 
   /// Keyboard.
   final TextInputType? keyboardType;
+
+  /// Whether to hide the text, for passwords.
+  final bool obscureText;
+
+  /// What iOS may autofill, such as `AutofillHints.email`.
+  final Iterable<String>? autofillHints;
+
+  /// The keyboard's return key.
+  final TextInputAction? textInputAction;
+
+  /// Called when the return key is pressed.
+  final ValueChanged<String>? onSubmitted;
+
+  /// Whether the field accepts input.
+  final bool enabled;
 
   @override
   State<XpTextField> createState() => _XpTextFieldState();
@@ -147,11 +167,22 @@ class _XpTextFieldState extends State<XpTextField> {
         Semantics(
           label: widget.label,
           textField: true,
-          child: CupertinoTextField.borderless(
+          // Not `.borderless`: with no decoration, a disabled Cupertino field
+          // paints its own grey-white fill. An empty decoration keeps the
+          // underline look when [enabled] is false.
+          child: CupertinoTextField(
+            decoration: const BoxDecoration(),
             controller: widget.controller,
             focusNode: _focus,
             onChanged: widget.onChanged,
             keyboardType: widget.keyboardType,
+            obscureText: widget.obscureText,
+            autocorrect: !widget.obscureText,
+            enableSuggestions: !widget.obscureText,
+            autofillHints: widget.autofillHints,
+            textInputAction: widget.textInputAction,
+            onSubmitted: widget.onSubmitted,
+            enabled: widget.enabled,
             placeholder: widget.hint,
             placeholderStyle: type.body.copyWith(color: colors.inkSecondary),
             style: type.body,

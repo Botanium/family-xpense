@@ -758,5 +758,406 @@
   "a2uiDateTimeEmpty": "Not set",
   "@a2uiDateTimeEmpty": {
     "description": "Value of a date field that is empty."
+  },
+
+  "onboardingAppName": "Family Xpense",
+  "@onboardingAppName": {
+    "description": "Product name beside the app mark at the top of Welcome."
+  },
+  "onboardingStep": "Step {current} of {count}",
+  "@onboardingStep": {
+    "description": "VoiceOver label of the onboarding progress bar.",
+    "placeholders": {
+      "current": {
+        "type": "int"
+      },
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "onboardingWelcomeQuote": "Paid 60 for gas on the way home",
+  "@onboardingWelcomeQuote": {
+    "description": "Sample spoken message on Welcome, shown in quotation marks above the sample entry. Keep it short and natural."
+  },
+  "onboardingWelcomeQuoteDuration": "0:03",
+  "@onboardingWelcomeQuoteDuration": {
+    "description": "Length of the sample voice clip on Welcome, in minutes and seconds."
+  },
+  "onboardingWelcomeSlipHeader": "Expense · Fuel",
+  "@onboardingWelcomeSlipHeader": {
+    "description": "Header of the sample entry on Welcome: intent, a middle dot, then category. Shown upper-case."
+  },
+  "onboardingWelcomeSlipConfidence": "96%",
+  "@onboardingWelcomeSlipConfidence": {
+    "description": "How sure the app is about the sample entry on Welcome."
+  },
+  "onboardingWelcomeConverted": "≈ {amount}",
+  "@onboardingWelcomeConverted": {
+    "description": "Converted amount under the sample figure on Welcome, such as ≈ IQD 102,300.",
+    "placeholders": {
+      "amount": {
+        "type": "String",
+        "example": "IQD 102,300"
+      }
+    }
+  },
+  "onboardingWelcomeSlipWho": "Who",
+  "@onboardingWelcomeSlipWho": {
+    "description": "Field label on the sample entry: who spent the money."
+  },
+  "onboardingWelcomeSlipWhoValue": "You",
+  "@onboardingWelcomeSlipWhoValue": {
+    "description": "Field value on the sample entry: the person themself. Shown upper-case."
+  },
+  "onboardingWelcomeSlipWhen": "When",
+  "@onboardingWelcomeSlipWhen": {
+    "description": "Field label on the sample entry: date and time."
+  },
+  "onboardingWelcomeSlipWhenValue": "Today 18:40",
+  "@onboardingWelcomeSlipWhenValue": {
+    "description": "Field value on the sample entry: today at 18:40. Shown upper-case."
+  },
+  "onboardingWelcomeSlipFrom": "From",
+  "@onboardingWelcomeSlipFrom": {
+    "description": "Field label on the sample entry: the account the money came from."
+  },
+  "onboardingWelcomeSlipFromValue": "Joint Visa",
+  "@onboardingWelcomeSlipFromValue": {
+    "description": "Field value on the sample entry: a shared card. Shown upper-case."
+  },
+  "onboardingWelcomeSlipSpoken": "Sample entry: expense, fuel, 60 US dollars, about 102,300 Iraqi dinars, you, today, from the joint Visa.",
+  "@onboardingWelcomeSlipSpoken": {
+    "description": "VoiceOver reading of the whole sample entry on Welcome."
+  },
+  "onboardingWelcomeHeadline": "Say it. We'll sort it.",
+  "@onboardingWelcomeHeadline": {
+    "description": "Headline on Welcome."
+  },
+  "onboardingWelcomeBody": "Tell it what you spent, earned, lent or saved, in your own words. It works out the category, the account and who it was, for both of you.",
+  "@onboardingWelcomeBody": {
+    "description": "Paragraph under the Welcome headline."
+  },
+  "onboardingWelcomeStart": "Get started",
+  "@onboardingWelcomeStart": {
+    "description": "Primary button on Welcome that starts creating an account."
+  },
+  "onboardingWelcomeInvite": "I have an invite from my partner",
+  "@onboardingWelcomeInvite": {
+    "description": "Text button on Welcome for someone whose partner already set up the household."
+  },
+  "onboardingCreateAccountTitle": "Create account",
+  "@onboardingCreateAccountTitle": {
+    "description": "Top bar title of the sign-in screen. Shown upper-case."
+  },
+  "onboardingCreateAccountHeadline": "Create your account",
+  "@onboardingCreateAccountHeadline": {
+    "description": "Headline of the sign-in screen."
+  },
+  "onboardingCreateAccountBody": "Each of you signs in on your own phone. Your partner joins the same household later with an invite.",
+  "@onboardingCreateAccountBody": {
+    "description": "Paragraph under the sign-in headline."
+  },
+  "onboardingCreateAccountInviteBody": "Each of you signs in on your own phone. Sign in first, then enter the invite code your partner shared.",
+  "@onboardingCreateAccountInviteBody": {
+    "description": "Paragraph under the sign-in headline when the person came to join a partner's household."
+  },
+  "onboardingContinueApple": "Continue with Apple",
+  "@onboardingContinueApple": {
+    "description": "Button that signs in with Apple."
+  },
+  "onboardingContinueGoogle": "Continue with Google",
+  "@onboardingContinueGoogle": {
+    "description": "Button that signs in with Google."
+  },
+  "onboardingContinueEmail": "Continue with email",
+  "@onboardingContinueEmail": {
+    "description": "Button that opens the email and password form."
+  },
+  "onboardingSigningIn": "Signing in…",
+  "@onboardingSigningIn": {
+    "description": "Label of the primary button and VoiceOver label of the spinner while signing in or creating an account."
+  },
+  "onboardingPrivacyNoteLead": "Private by default.",
+  "@onboardingPrivacyNoteLead": {
+    "description": "Bold first sentence of the privacy note on the sign-in screen."
+  },
+  "onboardingPrivacyNoteBody": "Only people you invite see your household's money. Personal accounts stay yours unless you share them.",
+  "@onboardingPrivacyNoteBody": {
+    "description": "Rest of the privacy note on the sign-in screen, after the bold first sentence."
+  },
+  "onboardingLegal": "By continuing you agree to the {terms} and the {privacy}.",
+  "@onboardingLegal": {
+    "description": "Legal line on the sign-in screen. {terms} and {privacy} are links whose text comes from onboardingTermsLink and onboardingPrivacyLink.",
+    "placeholders": {
+      "terms": {
+        "type": "String",
+        "example": "Terms"
+      },
+      "privacy": {
+        "type": "String",
+        "example": "Privacy Policy"
+      }
+    }
+  },
+  "onboardingTermsLink": "Terms",
+  "@onboardingTermsLink": {
+    "description": "Link text in the legal line that opens the Terms of Service."
+  },
+  "onboardingPrivacyLink": "Privacy Policy",
+  "@onboardingPrivacyLink": {
+    "description": "Link text in the legal line that opens the Privacy Policy."
+  },
+  "onboardingTermsTitle": "Terms",
+  "@onboardingTermsTitle": {
+    "description": "Top bar title of the Terms of Service screen. Shown upper-case."
+  },
+  "onboardingTermsPlaceholder": "The Terms of Service will be published here before the app is released.",
+  "@onboardingTermsPlaceholder": {
+    "description": "Placeholder line on the Terms screen until the document exists."
+  },
+  "onboardingPrivacyTitle": "Privacy Policy",
+  "@onboardingPrivacyTitle": {
+    "description": "Top bar title of the Privacy Policy screen. Shown upper-case."
+  },
+  "onboardingPrivacyPlaceholder": "The Privacy Policy will be published here before the app is released.",
+  "@onboardingPrivacyPlaceholder": {
+    "description": "Placeholder line on the Privacy Policy screen until the document exists."
+  },
+  "onboardingOffline": "You're offline. Signing in needs a connection.",
+  "@onboardingOffline": {
+    "description": "Banner under the top bar when signing in failed for lack of a connection."
+  },
+  "onboardingRetry": "Try again",
+  "@onboardingRetry": {
+    "description": "Action on the offline banner that repeats the last sign-in attempt."
+  },
+  "onboardingErrorTooMany": "Too many attempts. Wait a few minutes, then try again.",
+  "@onboardingErrorTooMany": {
+    "description": "Inline error when Firebase blocks sign-in for a while."
+  },
+  "onboardingErrorDisabled": "This account has been turned off.",
+  "@onboardingErrorDisabled": {
+    "description": "Inline error when the account was disabled."
+  },
+  "onboardingErrorOtherMethod": "This email already has an account that uses another sign-in method. Use that one.",
+  "@onboardingErrorOtherMethod": {
+    "description": "Inline error when the email belongs to an account made with Apple, Google or a password."
+  },
+  "onboardingErrorUnavailable": "This sign-in method isn't available yet. Use another one.",
+  "@onboardingErrorUnavailable": {
+    "description": "Inline error when Apple, Google or email sign-in is not set up for the app."
+  },
+  "onboardingErrorUnknown": "Couldn't sign in. Try again.",
+  "@onboardingErrorUnknown": {
+    "description": "Inline error for any other sign-in failure."
+  },
+  "onboardingEmailCreateTitle": "Create account",
+  "@onboardingEmailCreateTitle": {
+    "description": "Top bar title of the email form when creating an account. Shown upper-case."
+  },
+  "onboardingEmailSignInTitle": "Sign in",
+  "@onboardingEmailSignInTitle": {
+    "description": "Top bar title of the email form when signing in. Shown upper-case."
+  },
+  "onboardingEmailCreateHeadline": "Your email and a password",
+  "@onboardingEmailCreateHeadline": {
+    "description": "Headline of the email form when creating an account."
+  },
+  "onboardingEmailSignInHeadline": "Welcome back",
+  "@onboardingEmailSignInHeadline": {
+    "description": "Headline of the email form when signing in to an existing account."
+  },
+  "onboardingEmailCreateBody": "You'll use them to sign in on this phone. Your partner makes their own account.",
+  "@onboardingEmailCreateBody": {
+    "description": "Paragraph under the headline of the email form when creating an account."
+  },
+  "onboardingEmailSignInBody": "Sign in with the email and password you used before.",
+  "@onboardingEmailSignInBody": {
+    "description": "Paragraph under the headline of the email form when signing in."
+  },
+  "onboardingEmailLabel": "Email",
+  "@onboardingEmailLabel": {
+    "description": "Label of the email field."
+  },
+  "onboardingEmailHint": "name@example.com",
+  "@onboardingEmailHint": {
+    "description": "Placeholder in the email field."
+  },
+  "onboardingPasswordLabel": "Password",
+  "@onboardingPasswordLabel": {
+    "description": "Label of the password field."
+  },
+  "onboardingPasswordHintNew": "At least {count} characters",
+  "@onboardingPasswordHintNew": {
+    "description": "Placeholder in the password field when creating an account.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "onboardingEmailCreateAction": "Create account",
+  "@onboardingEmailCreateAction": {
+    "description": "Primary button of the email form when creating an account."
+  },
+  "onboardingEmailSignInAction": "Sign in",
+  "@onboardingEmailSignInAction": {
+    "description": "Primary button of the email form when signing in."
+  },
+  "onboardingEmailSwitchToSignIn": "I already have an account",
+  "@onboardingEmailSwitchToSignIn": {
+    "description": "Text button that switches the email form to signing in."
+  },
+  "onboardingEmailSwitchToCreate": "Create a new account instead",
+  "@onboardingEmailSwitchToCreate": {
+    "description": "Text button that switches the email form to creating an account."
+  },
+  "onboardingEmailForgot": "Forgot password?",
+  "@onboardingEmailForgot": {
+    "description": "Text button that sends a password reset email."
+  },
+  "onboardingEmailResetSent": "If there's an account for {email}, a link to reset the password is on its way.",
+  "@onboardingEmailResetSent": {
+    "description": "Confirmation after asking for a password reset.",
+    "placeholders": {
+      "email": {
+        "type": "String",
+        "example": "name@example.com"
+      }
+    }
+  },
+  "onboardingEmailErrorEmpty": "Enter your email.",
+  "@onboardingEmailErrorEmpty": {
+    "description": "Inline error under the email field when it is empty."
+  },
+  "onboardingEmailErrorInvalid": "Enter an email like name@example.com.",
+  "@onboardingEmailErrorInvalid": {
+    "description": "Inline error under the email field when the address is not valid."
+  },
+  "onboardingEmailErrorInUse": "There's already an account with this email. Sign in instead.",
+  "@onboardingEmailErrorInUse": {
+    "description": "Inline error under the email field when creating an account with an email that has one."
+  },
+  "onboardingPasswordErrorEmpty": "Enter your password.",
+  "@onboardingPasswordErrorEmpty": {
+    "description": "Inline error under the password field when it is empty."
+  },
+  "onboardingPasswordErrorShort": "Use at least {count} characters.",
+  "@onboardingPasswordErrorShort": {
+    "description": "Inline error under the password field when a new password is too short.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "onboardingPasswordErrorWeak": "Choose a stronger password.",
+  "@onboardingPasswordErrorWeak": {
+    "description": "Inline error under the password field when Firebase rejects a new password as weak."
+  },
+  "onboardingPasswordErrorWrong": "That email and password don't match.",
+  "@onboardingPasswordErrorWrong": {
+    "description": "Inline error under the password field when signing in failed."
+  },
+  "onboardingTryItTitle": "Try it",
+  "@onboardingTryItTitle": {
+    "description": "Top bar title of the first-capture screen. Shown upper-case."
+  },
+  "onboardingTryItHeadline": "Tell me your last purchase",
+  "@onboardingTryItHeadline": {
+    "description": "Headline of the first-capture screen."
+  },
+  "onboardingTryItBody": "Talk or type the way you'd text a friend. Nothing is saved until you confirm it.",
+  "@onboardingTryItBody": {
+    "description": "Paragraph under the first-capture headline."
+  },
+  "onboardingTryItMicNote": "The microphone and speech recognition are used only while the orange button is on. iOS asks for your permission the first time.",
+  "@onboardingTryItMicNote": {
+    "description": "Microphone pre-prompt on the first-capture screen, shown before iOS asks for microphone and speech permission."
+  },
+  "onboardingTryItExamples": "Things you can say",
+  "@onboardingTryItExamples": {
+    "description": "Section label above example messages on the first-capture screen."
+  },
+  "onboardingTryItTagExpense": "Expense",
+  "@onboardingTryItTagExpense": {
+    "description": "Tag beside an example expense message. Shown upper-case."
+  },
+  "onboardingTryItExampleExpense": "42.80 at Costco for groceries",
+  "@onboardingTryItExampleExpense": {
+    "description": "Example message: one expense."
+  },
+  "onboardingTryItTagTwo": "Two at once",
+  "@onboardingTryItTagTwo": {
+    "description": "Tag beside an example message with two entries. Shown upper-case."
+  },
+  "onboardingTryItExampleTwo": "Salary came in, and I paid rent",
+  "@onboardingTryItExampleTwo": {
+    "description": "Example message: income and an expense in one message."
+  },
+  "onboardingTryItTagLoan": "Loan",
+  "@onboardingTryItTagLoan": {
+    "description": "Tag beside an example loan message. Shown upper-case."
+  },
+  "onboardingTryItExampleLoan": "Gave Alex 300",
+  "@onboardingTryItExampleLoan": {
+    "description": "Example message: money lent to someone."
+  },
+  "onboardingTryItTagQuestion": "Question",
+  "@onboardingTryItTagQuestion": {
+    "description": "Tag beside an example question. Shown upper-case."
+  },
+  "onboardingTryItExampleQuestion": "How much did we spend on food?",
+  "@onboardingTryItExampleQuestion": {
+    "description": "Example message: a question about spending."
+  },
+  "onboardingTryItTypeInstead": "Type instead",
+  "@onboardingTryItTypeInstead": {
+    "description": "Text button and dock button that switch from talking to typing."
+  },
+  "onboardingTryItSkip": "Skip for now",
+  "@onboardingTryItSkip": {
+    "description": "Text button that leaves the first-capture screen for Home."
+  },
+  "onboardingTryItTalk": "Talk",
+  "@onboardingTryItTalk": {
+    "description": "VoiceOver label of the orange microphone button."
+  },
+  "onboardingTryItStop": "Stop listening",
+  "@onboardingTryItStop": {
+    "description": "VoiceOver label of the orange button while listening."
+  },
+  "onboardingTryItScan": "Scan a receipt",
+  "@onboardingTryItScan": {
+    "description": "VoiceOver label of the camera button in the dock."
+  },
+  "onboardingTryItMessage": "Message",
+  "@onboardingTryItMessage": {
+    "description": "VoiceOver label of the text field in the dock."
+  },
+  "onboardingTryItHint": "Spent, earned, lent…",
+  "@onboardingTryItHint": {
+    "description": "Placeholder in the dock's text field."
+  },
+  "onboardingTryItVoiceUnavailable": "Voice isn't available on this phone yet. Type instead.",
+  "@onboardingTryItVoiceUnavailable": {
+    "description": "Shown when speech recognition cannot start."
+  },
+  "onboardingTryItMicDenied": "Microphone access is off. Turn it on in Settings, or type instead.",
+  "@onboardingTryItMicDenied": {
+    "description": "Shown when the person declined microphone or speech permission."
+  },
+  "onboardingTryItVoiceFailed": "Couldn't hear that. Try again or type instead.",
+  "@onboardingTryItVoiceFailed": {
+    "description": "Shown when listening stopped for another reason."
+  },
+  "onboardingTryItReply": "Got it. In this preview nothing is sorted or saved yet.",
+  "@onboardingTryItReply": {
+    "description": "Reply after the first message on the first-capture screen, while capture is not connected."
+  },
+  "onboardingTryItDone": "Go to Home",
+  "@onboardingTryItDone": {
+    "description": "Primary button after the first message on the first-capture screen."
   }
 }
