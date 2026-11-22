@@ -66,6 +66,8 @@ class _AskPlaceholderState extends State<_AskPlaceholder> {
                 label: l10n.askModeSmart,
               ),
             ),
+            // TODO(WP-31): the thread renders surfaces through
+            // XpenseSurfaceHost from lib/a2ui/ (WP-31); WP-34 puts it here.
             Expanded(
               child: Padding(
                 padding: const EdgeInsetsDirectional.symmetric(
