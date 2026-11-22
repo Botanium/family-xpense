@@ -480,7 +480,9 @@ Rules for the adapter (details in [A2UI_CATALOG.md](A2UI_CATALOG.md)):
 4. **Action routing by name.** `xp.local.*` actions are handled on the phone (save, undo, open). Anything else is forwarded to the agent as the next turn, and ignored while a turn is running.
 5. **One bad message never stops a turn.** Each message is processed in its own try block; failures are logged and counted.
 6. **Version pinning.** `a2ui_core` and `a2ui_flutter` are pinned exactly. An upgrade is its own work package, using the `a2ui-migration` skill, with the golden suite as the gate.
-7. **Server and renderer versions differ today.** The server emits v1.0 with bare envelope keys (`a2ui_agent 0.3`); the renderer (`a2ui_core 0.8`) accepts them through a temporary dual-read. Custom components therefore never declare props named `checks`, `metadata`, `accessibility` or `catalogId`. When `genkit_a2ui` moves to `a2ui_core 0.8`, upgrade both sides together.
+7. **Server and renderer versions differ today.** The server emits v1.0 with bare envelope keys (`a2ui_agent 0.3`); the renderer (`a2ui_core 0.8`) reads them, including bare `checks` (verified in WP-S1 with the server's real output). The copy-in `_normalizeEnvelopeKeys` helper is not needed in this direction; do not copy it into `XpenseSurfaceHost`. The dual-read is marked temporary upstream. Custom components therefore never declare props named `checks`, `metadata`, `accessibility` or `catalogId`. When `genkit_a2ui` moves to `a2ui_core 0.8`, upgrade both sides together.
+8. **Local surfaces are owned by the phone.** The server validates agent blocks against the surfaces the agent created, so it rejects partial updates to a local surface, even if the phone attaches the `createSurface` to the turn. A full re-render with a root replaces it.
+9. **Action plus text is one message.** An action that must reach the agent with typed text is sent as one user message: the A2UI data part first, the text part second (`a2uiActionToMessage(action, text:)`).
 
 ## 8. Environments and delivery
 

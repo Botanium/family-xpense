@@ -108,7 +108,7 @@ Bank connections, investment tracking, bill payment, shared households beyond on
 | Offline | Reading, manual entry and simple capture work offline. Writes sync when back online. |
 | Accessibility | Dynamic Type to the largest accessibility size, VoiceOver labels, 4.5:1 contrast, 44 pt targets, Reduce Transparency, Reduce Motion, Increase Contrast. |
 | Performance | Measured on the household's two phones, iPhone 15 Pro Max (the reference device) and iPhone 17 Pro. Cold start under 2.5 s. Card after a typed message: under 600 ms on-device path, under 2.5 s cloud path (first surface). 60 fps scrolling with glass controls. Older iPhones are untested until someone has one to test on. |
-| Cost | Smart mode stays under USD 1.00 per household per month at 300 entries (estimate: about USD 0.52). See the cost model in [AI_PIPELINE.md](AI_PIPELINE.md). |
+| Cost | Smart mode stays under USD 1.00 per household per month at 300 entries (estimate: about USD 0.81). See the cost model in [AI_PIPELINE.md](AI_PIPELINE.md). |
 
 ## 7. Success metrics
 
@@ -123,7 +123,7 @@ Bank connections, investment tracking, bill payment, shared households beyond on
 | Both partners active weekly | yes, 4 weeks running | per-member weekly active flag |
 | Share of captures that never leave the phone (Smart mode) | at least 40% | router path counter |
 | Crash-free sessions | at least 99.5% | Crashlytics |
-| AI cost per 1,000 entries, Smart mode | under USD 1.50 | server usage counters |
+| AI cost per 1,000 entries, Smart mode | under USD 2.00 (estimate USD 1.74, lower once the catalog instructions are trimmed) | server usage counters |
 
 Analytics never include amounts, merchant names, notes or transcripts. Events carry path, counts and durations only.
 
