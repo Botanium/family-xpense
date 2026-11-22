@@ -1,0 +1,14 @@
+# Builds server/Dockerfile with the repository root as context and pushes the
+# image. Run from the repository root (see server/DEPLOY.md):
+#
+#   gcloud builds submit . --project=xpense-dev --region=me-central1 \
+#     --config=server/cloudbuild.yaml --substitutions=_IMAGE=<image>
+#
+# BuildKit is on so server/Dockerfile.dockerignore limits the build context.
+steps:
+  - name: gcr.io/cloud-builders/docker
+    env: ['DOCKER_BUILDKIT=1']
+    args: ['build', '-f', 'server/Dockerfile', '-t', '${_IMAGE}', '.']
+images: ['${_IMAGE}']
+options:
+  logging: CLOUD_LOGGING_ONLY

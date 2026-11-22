@@ -15,6 +15,7 @@ const adapterOnly = <String, Set<String>>{
   'package:google_cloud_firestore/': {'admin', 'runtime'},
   // Telemetry setup (D-29).
   'package:genkit_otel/': {'telemetry'},
+  'package:dartastic_opentelemetry/': {'telemetry'},
 };
 
 final _directive = RegExp(r'^\s*(?:import|export)\s+([^;]+);', multiLine: true);
