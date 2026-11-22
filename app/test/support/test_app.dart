@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:xpense_app/app.dart';
 import 'package:xpense_app/bootstrap.dart';
 import 'package:xpense_app/core/ui/ui.dart';
+import 'package:xpense_app/data/accounts_repository_fake.dart';
 import 'package:xpense_app/data/auth_repository_fake.dart';
 import 'package:xpense_app/data/household_repository.dart';
 import 'package:xpense_app/data/household_repository_fake.dart';
@@ -46,6 +47,7 @@ final class TestServices {
     Membership? membership,
     Membership onSignIn = const NoHousehold(),
     FeatureFlags flags = FeatureFlags.defaults,
+    FakeAccountsRepository? accounts,
   }) {
     final auth = FakeAuthRepository(
       signedIn: signedIn ? FakeAuthRepository.providerUser : null,
@@ -64,6 +66,7 @@ final class TestServices {
         auth: auth,
         onSignIn: onSignIn,
       ),
+      accounts: accounts ?? FakeAccountsRepository(),
     );
   }
 
@@ -73,6 +76,7 @@ final class TestServices {
     required this.biometricLock,
     required this.auth,
     required this.households,
+    required this.accounts,
   });
 
   /// Sign-in.
@@ -80,6 +84,9 @@ final class TestServices {
 
   /// Households: membership, creating, inviting, joining.
   final FakeHouseholdRepository households;
+
+  /// Accounts: what the viewer sees, adding, sharing.
+  final FakeAccountsRepository accounts;
 
   /// Remote Config flags; `flags.set` flips one while the app runs.
   final FakeFeatureFlags flags;
@@ -110,6 +117,7 @@ final class TestServices {
     glass: glass,
     authRepository: auth,
     householdRepository: households,
+    accountsRepository: accounts,
     featureFlags: flags,
     onDeviceLlm: onDeviceLlm,
     speechCapture: speech,

@@ -123,6 +123,23 @@ final class MemoryStore implements DocumentStore {
   @override
   Future<T> transaction<T>(Future<T> Function(DocumentTransaction tx) body) =>
       throw UnsupportedError('MemoryStore has no transactions');
+
+  @override
+  Future<List<StoredDocument>> pageWhereEquals(
+    String collection,
+    String field,
+    Object value, {
+    int limit = 400,
+    String? startAfterId,
+  }) => throw UnsupportedError('not used here');
+
+  @override
+  Future<int> countWhereEquals(String collection, String field, Object value) =>
+      throw UnsupportedError('not used here');
+
+  @override
+  Future<void> writeAll(List<DocumentWrite> writes) =>
+      throw UnsupportedError('not used here');
 }
 
 final class FixtureSource implements HouseholdSource {

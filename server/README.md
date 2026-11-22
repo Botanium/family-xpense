@@ -107,6 +107,37 @@ server-only `rateLimits/{uid}` before the work, so failed guesses count.
 | 429 | `rate_limited` | over 10 calls in the hour |
 | 503 | `household_unavailable` | Firestore unreachable; retry |
 
+## Account visibility (WP-13)
+
+`POST /events/account-visibility` on `xpense-jobs` (`lib/jobs/account_visibility.dart`)
+rewrites `visibleTo` on an account's transactions after its sharing changed
+(DATA_MODEL 4). Eventarc posts a CloudEvent for every update under
+`households/*/accounts/*`; the handler takes the account path from the
+`ce-document` (or `ce-subject`) attribute, or a JSON body's `value.name` or
+`document`, and reads the account itself, so the payload encoding does not
+matter. Locally, post the event by hand:
+
+```bash
+curl -X POST localhost:8081/events/account-visibility \
+  -H 'ce-document: households/<hid>/accounts/<accountId>'
+# 200 {"outcome":"synced","rewritten":12,"passes":1}
+```
+
+Account fields it uses: the phone bumps `visibilityRev` with every change of
+`visibleTo`; the job pages through the account's transactions (400 per page
+and batch, both `accountId` and `toAccountId`), writes progress to
+`visibilitySync {runId, rev, leaseUntil, done, total}`, and finishes, in a
+transaction, by setting `visibilitySyncedRev` and clearing `visibilitySync`.
+The app shows "Sharing past entries… done of total" until then. A run holds
+a 90-second lease, so the events its own progress writes cause return
+`busy` at once; a flip during a run gets another pass. Answers: 200 with
+`outcome` (`synced`, `upToDate`, `busy`, `missing`), 204 for an event that
+names no account, 503 when Firestore is unreachable (Eventarc retries).
+
+After a join, `/v1/household/join` also widens every joint and shared
+account (and its history) to the new member, so the partner's first look is
+complete.
+
 ## Adding a route
 
 Add the action in `lib/http/routes.dart` with

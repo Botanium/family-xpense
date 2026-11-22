@@ -12,6 +12,9 @@ import 'package:flutter_riverpod/misc.dart';
 import 'package:xpense_app/app.dart';
 import 'package:xpense_app/core/theme/theme.dart';
 import 'package:xpense_app/core/ui/ui.dart';
+import 'package:xpense_app/data/accounts_repository.dart';
+import 'package:xpense_app/data/accounts_repository_fake.dart';
+import 'package:xpense_app/data/accounts_repository_firebase.dart';
 import 'package:xpense_app/data/auth_repository.dart';
 import 'package:xpense_app/data/auth_repository_fake.dart';
 import 'package:xpense_app/data/auth_repository_firebase.dart';
@@ -217,6 +220,18 @@ HouseholdRepository connectHouseholds(
   ),
 };
 
+/// The accounts repository for [environment], following [households]. In
+/// `fakes` it holds the artboards' household (WP-13).
+AccountsRepository connectAccounts(
+  AppEnvironment environment, {
+  required HouseholdRepository households,
+}) => switch (environment) {
+  AppEnvironment.fakes => FakeAccountsRepository.sample(),
+  // Firestore is already pointed at the emulator by connectHouseholds.
+  AppEnvironment.dev || AppEnvironment.prod || AppEnvironment.emulators =>
+    FirebaseAccountsRepository.connect(households: households),
+};
+
 /// The crash sink the two error handlers write to.
 ///
 /// It keeps the last [capacity] errors in memory and prints them in debug
@@ -320,6 +335,7 @@ Future<Bootstrapped> bootstrap({required AppEnvironment environment}) async {
 
   final auth = await connectAuth(environment);
   final households = connectHouseholds(environment, auth: auth);
+  final accounts = connectAccounts(environment, households: households);
   final flags = await connectFeatureFlags(environment);
   registerFontLicenses();
   final settings = await PrefsSettingsStore.open();
@@ -335,6 +351,7 @@ Future<Bootstrapped> bootstrap({required AppEnvironment environment}) async {
       glass: glass,
       authRepository: auth,
       householdRepository: households,
+      accountsRepository: accounts,
       featureFlags: flags,
     ),
   );
@@ -353,6 +370,7 @@ List<Override> appOverrides({
   required GlassController glass,
   required AuthRepository authRepository,
   required HouseholdRepository householdRepository,
+  required AccountsRepository accountsRepository,
   SecureStore? secureStore,
   FeatureFlagSource? featureFlags,
   AgentClient? agentClient,
@@ -367,6 +385,7 @@ List<Override> appOverrides({
   glassControllerProvider.overrideWithValue(glass),
   authRepositoryProvider.overrideWithValue(authRepository),
   householdRepositoryProvider.overrideWithValue(householdRepository),
+  accountsRepositoryProvider.overrideWithValue(accountsRepository),
   secureStoreProvider.overrideWithValue(secureStore ?? MemorySecureStore()),
   featureFlagSourceProvider.overrideWithValue(
     featureFlags ?? FakeFeatureFlags(),

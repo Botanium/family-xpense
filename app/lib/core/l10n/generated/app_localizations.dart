@@ -216,11 +216,599 @@ abstract class AppLocalizations {
   /// **'Accounts'**
   String get accountsTitle;
 
-  /// Placeholder line on Accounts until the Accounts screen is built.
+  /// Label over the total on Accounts when the member sees every account in the household.
   ///
   /// In en, this message translates to:
-  /// **'Your accounts and the household total will appear here.'**
-  String get accountsPlaceholder;
+  /// **'Household balance'**
+  String get accountsHouseholdBalance;
+
+  /// Label over the total on Accounts when the partner keeps some accounts private, so the total holds only what this member can see.
+  ///
+  /// In en, this message translates to:
+  /// **'Your view'**
+  String get accountsYourView;
+
+  /// Note under the total when the partner keeps accounts private. {name} is the partner's name.
+  ///
+  /// In en, this message translates to:
+  /// **'{name}\'s private accounts aren\'t included.'**
+  String accountsYourViewNote(String name);
+
+  /// Note under the total when the partner, whose name is unknown, keeps accounts private.
+  ///
+  /// In en, this message translates to:
+  /// **'Your partner\'s private accounts aren\'t included.'**
+  String get accountsYourViewNoteUnnamed;
+
+  /// Note under the total when accounts in another currency cannot be converted. {currency} is a code such as IQD.
+  ///
+  /// In en, this message translates to:
+  /// **'{currency} accounts aren\'t in the total until the household enters a dollar rate.'**
+  String accountsUnconvertedNote(String currency);
+
+  /// Filter bar item: every account.
+  ///
+  /// In en, this message translates to:
+  /// **'All'**
+  String get accountsFilterAll;
+
+  /// Filter bar item: the member's own accounts.
+  ///
+  /// In en, this message translates to:
+  /// **'Mine'**
+  String get accountsFilterMine;
+
+  /// Filter bar item for the partner's accounts when their name is unknown.
+  ///
+  /// In en, this message translates to:
+  /// **'Partner'**
+  String get accountsFilterPartner;
+
+  /// Filter bar item: joint accounts.
+  ///
+  /// In en, this message translates to:
+  /// **'Joint'**
+  String get accountsFilterJoint;
+
+  /// VoiceOver label of the filter bar on Accounts.
+  ///
+  /// In en, this message translates to:
+  /// **'Show accounts'**
+  String get accountsFilterLabel;
+
+  /// VoiceOver label of the glass plus button on Accounts.
+  ///
+  /// In en, this message translates to:
+  /// **'Add an account'**
+  String get accountsAdd;
+
+  /// Empty state of Accounts.
+  ///
+  /// In en, this message translates to:
+  /// **'No accounts yet. Add one with the plus button.'**
+  String get accountsEmpty;
+
+  /// Shown when the selected filter keeps no account.
+  ///
+  /// In en, this message translates to:
+  /// **'No accounts here.'**
+  String get accountsFilterEmpty;
+
+  /// Inline error on Accounts when the list cannot load.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t load your accounts.'**
+  String get accountsLoadError;
+
+  /// Action that retries loading.
+  ///
+  /// In en, this message translates to:
+  /// **'Try again'**
+  String get accountsRetry;
+
+  /// Account kind name: cash.
+  ///
+  /// In en, this message translates to:
+  /// **'Cash'**
+  String get accountsKindCash;
+
+  /// Account kind name: bank account.
+  ///
+  /// In en, this message translates to:
+  /// **'Bank account'**
+  String get accountsKindBank;
+
+  /// Account kind name: credit card.
+  ///
+  /// In en, this message translates to:
+  /// **'Credit card'**
+  String get accountsKindCredit;
+
+  /// Account kind name: savings account.
+  ///
+  /// In en, this message translates to:
+  /// **'Savings'**
+  String get accountsKindSavings;
+
+  /// Account kind name: anything else.
+  ///
+  /// In en, this message translates to:
+  /// **'Account'**
+  String get accountsKindOther;
+
+  /// Kind chip: cash.
+  ///
+  /// In en, this message translates to:
+  /// **'Cash'**
+  String get accountsChipCash;
+
+  /// Kind chip: bank account.
+  ///
+  /// In en, this message translates to:
+  /// **'Bank'**
+  String get accountsChipBank;
+
+  /// Kind chip: credit card.
+  ///
+  /// In en, this message translates to:
+  /// **'Card'**
+  String get accountsChipCredit;
+
+  /// Kind chip: savings.
+  ///
+  /// In en, this message translates to:
+  /// **'Savings'**
+  String get accountsChipSavings;
+
+  /// Kind chip: other.
+  ///
+  /// In en, this message translates to:
+  /// **'Other'**
+  String get accountsChipOther;
+
+  /// Mono abbreviation at the start of a cash account row. At most 4 letters.
+  ///
+  /// In en, this message translates to:
+  /// **'CASH'**
+  String get accountsTagCash;
+
+  /// Mono abbreviation for a bank account row. At most 4 letters.
+  ///
+  /// In en, this message translates to:
+  /// **'BANK'**
+  String get accountsTagBank;
+
+  /// Mono abbreviation for a credit card row. At most 4 letters.
+  ///
+  /// In en, this message translates to:
+  /// **'CARD'**
+  String get accountsTagCredit;
+
+  /// Mono abbreviation for a savings row. At most 4 letters.
+  ///
+  /// In en, this message translates to:
+  /// **'SAV'**
+  String get accountsTagSavings;
+
+  /// Mono abbreviation for any other account row. At most 4 letters.
+  ///
+  /// In en, this message translates to:
+  /// **'ACCT'**
+  String get accountsTagOther;
+
+  /// Owner tag of the member's private account.
+  ///
+  /// In en, this message translates to:
+  /// **'You'**
+  String get accountsOwnerYou;
+
+  /// Owner tag of the member's account shared with the partner.
+  ///
+  /// In en, this message translates to:
+  /// **'You, shared'**
+  String get accountsOwnerYouShared;
+
+  /// Owner tag of the partner's shared account. {name} is the partner's name.
+  ///
+  /// In en, this message translates to:
+  /// **'{name}, shared'**
+  String accountsOwnerPartner(String name);
+
+  /// Owner tag of the partner's shared account when their name is unknown.
+  ///
+  /// In en, this message translates to:
+  /// **'Partner, shared'**
+  String get accountsOwnerPartnerUnnamed;
+
+  /// Owner tag of a joint account.
+  ///
+  /// In en, this message translates to:
+  /// **'Joint'**
+  String get accountsOwnerJoint;
+
+  /// Meta line of an account row: its kind, then whose it is.
+  ///
+  /// In en, this message translates to:
+  /// **'{kind} · {owner}'**
+  String accountsRowMeta(String kind, String owner);
+
+  /// Shown on an account row while its history is being shared or made private.
+  ///
+  /// In en, this message translates to:
+  /// **'Sharing…'**
+  String get accountsSharing;
+
+  /// Converted balance under an account in another currency. {amount} is in the base currency.
+  ///
+  /// In en, this message translates to:
+  /// **'≈ {amount}'**
+  String accountsApprox(String amount);
+
+  /// Text button under the account list that shows archived accounts. {count} is how many.
+  ///
+  /// In en, this message translates to:
+  /// **'Show archived ({count})'**
+  String accountsArchivedShow(int count);
+
+  /// Text button that hides the archived accounts again.
+  ///
+  /// In en, this message translates to:
+  /// **'Hide archived'**
+  String get accountsArchivedHide;
+
+  /// Top bar title of an account's detail screen.
+  ///
+  /// In en, this message translates to:
+  /// **'Account'**
+  String get accountsDetailTitle;
+
+  /// Line above the balance on an account's detail screen.
+  ///
+  /// In en, this message translates to:
+  /// **'{name} · {owner}'**
+  String accountsDetailHeader(String name, String owner);
+
+  /// Title of the sharing switch on a personal account. {name} is the partner's name.
+  ///
+  /// In en, this message translates to:
+  /// **'Share with {name}'**
+  String accountsShareWith(String name);
+
+  /// Title of the sharing switch when the partner's name is unknown.
+  ///
+  /// In en, this message translates to:
+  /// **'Share with your partner'**
+  String get accountsShareWithPartner;
+
+  /// Line under the sharing switch when it is on.
+  ///
+  /// In en, this message translates to:
+  /// **'{name} sees this account and its entries.'**
+  String accountsShareOn(String name);
+
+  /// Line under the sharing switch when it is on and the partner's name is unknown.
+  ///
+  /// In en, this message translates to:
+  /// **'Your partner sees this account and its entries.'**
+  String get accountsShareOnUnnamed;
+
+  /// Line under the sharing switch when it is off.
+  ///
+  /// In en, this message translates to:
+  /// **'Only you see this account and its entries.'**
+  String get accountsShareOff;
+
+  /// Line under the disabled sharing switch before the partner has joined.
+  ///
+  /// In en, this message translates to:
+  /// **'You can share it once your partner joins.'**
+  String get accountsShareNoPartner;
+
+  /// Progress line while the history of a newly shared account is being shared.
+  ///
+  /// In en, this message translates to:
+  /// **'Sharing past entries… {done} of {total}'**
+  String accountsSharingProgress(int done, int total);
+
+  /// Progress line while sharing starts, before the entries are counted.
+  ///
+  /// In en, this message translates to:
+  /// **'Sharing past entries…'**
+  String get accountsSharingStarted;
+
+  /// Progress line while the history of an account is being made private again.
+  ///
+  /// In en, this message translates to:
+  /// **'Making past entries private… {done} of {total}'**
+  String accountsUnsharingProgress(int done, int total);
+
+  /// Progress line while making the history private starts.
+  ///
+  /// In en, this message translates to:
+  /// **'Making past entries private…'**
+  String get accountsUnsharingStarted;
+
+  /// Section label over an account's entries.
+  ///
+  /// In en, this message translates to:
+  /// **'Entries'**
+  String get accountsEntries;
+
+  /// Shown when an account has no entries.
+  ///
+  /// In en, this message translates to:
+  /// **'No entries on this account yet.'**
+  String get accountsEntriesEmpty;
+
+  /// Meta line of an entry row: its date, then its kind.
+  ///
+  /// In en, this message translates to:
+  /// **'{date} · {type}'**
+  String accountsEntryMeta(String date, String type);
+
+  /// Entry kind: expense.
+  ///
+  /// In en, this message translates to:
+  /// **'Expense'**
+  String get accountsTypeExpense;
+
+  /// Entry kind: income.
+  ///
+  /// In en, this message translates to:
+  /// **'Income'**
+  String get accountsTypeIncome;
+
+  /// Entry kind: transfer.
+  ///
+  /// In en, this message translates to:
+  /// **'Transfer'**
+  String get accountsTypeTransfer;
+
+  /// Entry kind: a loan given or taken.
+  ///
+  /// In en, this message translates to:
+  /// **'Loan'**
+  String get accountsTypeLoan;
+
+  /// Entry kind: a loan repayment.
+  ///
+  /// In en, this message translates to:
+  /// **'Repayment'**
+  String get accountsTypeRepayment;
+
+  /// Entry kind: a balance adjustment such as the opening balance.
+  ///
+  /// In en, this message translates to:
+  /// **'Balance'**
+  String get accountsTypeAdjustment;
+
+  /// Title of an untitled balance adjustment, such as the one an account's opening balance creates.
+  ///
+  /// In en, this message translates to:
+  /// **'Opening balance'**
+  String get accountsOpeningEntry;
+
+  /// VoiceOver label of the glass more button on an account's detail screen.
+  ///
+  /// In en, this message translates to:
+  /// **'More'**
+  String get accountsMore;
+
+  /// Action: edit the account.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit'**
+  String get accountsEdit;
+
+  /// Action: archive the account.
+  ///
+  /// In en, this message translates to:
+  /// **'Archive'**
+  String get accountsArchive;
+
+  /// Action: bring an archived account back.
+  ///
+  /// In en, this message translates to:
+  /// **'Restore'**
+  String get accountsRestore;
+
+  /// Cancels an action sheet or a form.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancel'**
+  String get accountsCancel;
+
+  /// Note on an archived account's detail screen.
+  ///
+  /// In en, this message translates to:
+  /// **'Archived: hidden from lists and totals.'**
+  String get accountsArchived;
+
+  /// Shown when an account's detail screen has no account to show.
+  ///
+  /// In en, this message translates to:
+  /// **'This account isn\'t here anymore.'**
+  String get accountsNotFound;
+
+  /// Title of the sheet that adds an account.
+  ///
+  /// In en, this message translates to:
+  /// **'New account'**
+  String get accountsNewTitle;
+
+  /// Title of the sheet that edits an account.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit account'**
+  String get accountsEditTitle;
+
+  /// Label of the account name field.
+  ///
+  /// In en, this message translates to:
+  /// **'Name'**
+  String get accountsNameLabel;
+
+  /// Placeholder of the account name field.
+  ///
+  /// In en, this message translates to:
+  /// **'Cash wallet'**
+  String get accountsNameHint;
+
+  /// Error under the account name when it is too long.
+  ///
+  /// In en, this message translates to:
+  /// **'Use up to 40 characters.'**
+  String get accountsNameError;
+
+  /// Section label over the kind chips.
+  ///
+  /// In en, this message translates to:
+  /// **'Kind'**
+  String get accountsKindLabel;
+
+  /// Section label over the currency chips.
+  ///
+  /// In en, this message translates to:
+  /// **'Currency'**
+  String get accountsCurrencyLabel;
+
+  /// Note on the edit sheet under the currency.
+  ///
+  /// In en, this message translates to:
+  /// **'The currency can\'t change once an account is added.'**
+  String get accountsCurrencyFixed;
+
+  /// Section label over the personal or joint chips.
+  ///
+  /// In en, this message translates to:
+  /// **'Whose'**
+  String get accountsWhoseLabel;
+
+  /// Chip: a personal account.
+  ///
+  /// In en, this message translates to:
+  /// **'Just me'**
+  String get accountsWhoseMine;
+
+  /// Chip: a joint account.
+  ///
+  /// In en, this message translates to:
+  /// **'Joint'**
+  String get accountsWhoseJoint;
+
+  /// Switch on the add form for a personal account.
+  ///
+  /// In en, this message translates to:
+  /// **'Share with your partner now'**
+  String get accountsShareNow;
+
+  /// Label of the amount field on the add form.
+  ///
+  /// In en, this message translates to:
+  /// **'{kind} · opening balance'**
+  String accountsOpeningLabel(String kind);
+
+  /// Label of the amount field on the add form for a credit card.
+  ///
+  /// In en, this message translates to:
+  /// **'{kind} · amount owed'**
+  String accountsOwedLabel(String kind);
+
+  /// Error under the amount when it cannot be read.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter an amount, such as 250,000.'**
+  String get accountsAmountError;
+
+  /// Label of the rate field, shown when the opening balance needs converting and the household has no rate yet.
+  ///
+  /// In en, this message translates to:
+  /// **'Today\'s dollar rate, in dinars'**
+  String get accountsRateLabel;
+
+  /// Placeholder of the rate field.
+  ///
+  /// In en, this message translates to:
+  /// **'1,705'**
+  String get accountsRateHint;
+
+  /// Error under the rate field.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter the rate, such as 1,705.'**
+  String get accountsRateError;
+
+  /// Primary button that adds the account.
+  ///
+  /// In en, this message translates to:
+  /// **'Add account'**
+  String get accountsAddAction;
+
+  /// Primary button that saves the edited account.
+  ///
+  /// In en, this message translates to:
+  /// **'Save'**
+  String get accountsSave;
+
+  /// Primary button while the account is being saved.
+  ///
+  /// In en, this message translates to:
+  /// **'Saving…'**
+  String get accountsSaving;
+
+  /// Error when the rules refuse an account write.
+  ///
+  /// In en, this message translates to:
+  /// **'You can\'t change this account.'**
+  String get accountsErrorNotAllowed;
+
+  /// Error when the account to change is gone.
+  ///
+  /// In en, this message translates to:
+  /// **'This account isn\'t here anymore.'**
+  String get accountsErrorNotFound;
+
+  /// Error for any other failure.
+  ///
+  /// In en, this message translates to:
+  /// **'Something went wrong. Try again.'**
+  String get accountsErrorUnknown;
+
+  /// Top bar title of onboarding step 3.
+  ///
+  /// In en, this message translates to:
+  /// **'Add accounts'**
+  String get accountsSetupTitle;
+
+  /// Headline of onboarding step 3.
+  ///
+  /// In en, this message translates to:
+  /// **'Where does your money live?'**
+  String get accountsSetupHeadline;
+
+  /// Paragraph under the headline of onboarding step 3.
+  ///
+  /// In en, this message translates to:
+  /// **'Add each account with today\'s balance. You can add more later.'**
+  String get accountsSetupBody;
+
+  /// Section label over the accounts added so far.
+  ///
+  /// In en, this message translates to:
+  /// **'Added'**
+  String get accountsSetupAdded;
+
+  /// Example line at the bottom of onboarding step 3.
+  ///
+  /// In en, this message translates to:
+  /// **'Or just say it: “I have 3,940 in checking, 250,000 dinars cash, and we owe 612 on the joint Visa.”'**
+  String get accountsSetupSayIt;
+
+  /// Primary button that leaves onboarding step 3.
+  ///
+  /// In en, this message translates to:
+  /// **'Continue'**
+  String get accountsSetupContinue;
 
   /// Top bar title of a loan or debt's detail screen.
   ///

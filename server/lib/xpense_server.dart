@@ -19,6 +19,7 @@ import 'package:xpense_agent/household/household_flows.dart';
 import 'package:xpense_agent/household/household_service.dart';
 import 'package:xpense_agent/http/routes.dart';
 import 'package:xpense_agent/http/server_app.dart';
+import 'package:xpense_agent/jobs/account_visibility.dart';
 import 'package:xpense_agent/telemetry/usage_counters.dart';
 
 /// The assembled service.
@@ -62,6 +63,7 @@ final class XpenseServer {
         classifier?.call(config, usage) ?? FakeEntryClassifier();
     final decide = defineDecideFlow(ai, entryClassifier);
     final household = HouseholdService(gateway.documents, clock: clock);
+    final visibility = AccountVisibilityJob(gateway.documents, clock: clock);
     final handler = buildHandler(
       role: role,
       public: buildPublicRouter(
@@ -69,9 +71,15 @@ final class XpenseServer {
         ping: ping,
         decide: decide,
         householdInvite: defineHouseholdInviteFlow(ai, household),
-        householdJoin: defineHouseholdJoinFlow(ai, household, members),
+        householdJoin: defineHouseholdJoinFlow(
+          ai,
+          household,
+          members,
+          afterJoin: visibility.widenForMembers,
+        ),
       ),
       jobs: buildJobsRouter(),
+      events: {accountVisibilityPath: accountVisibilityHandler(visibility)},
       projectId: projectId,
     );
     return XpenseServer._(

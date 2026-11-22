@@ -93,7 +93,9 @@ class _JoinScreenState extends ConsumerState<JoinScreen> {
     };
     return XpButton.primary(
       label: ready ? l10n.householdContinue : l10n.householdJoinedSyncing,
-      onPressed: ready ? () => unawaited(context.push(AppRoutes.tryIt)) : null,
+      onPressed: ready
+          ? () => unawaited(context.push(AppRoutes.addAccounts))
+          : null,
     );
   }
 

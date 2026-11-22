@@ -28,12 +28,14 @@ const healthPaths = {'/healthz', '/health'};
 ///
 /// - `GET /healthz`, `GET /health`: `{"status":"ok","role":...}`, no auth.
 /// - agent role: [public] under `/v1` (each route has its context provider).
-/// - jobs role: [jobs] at `/jobs/*` and `/events/*`.
+/// - jobs role: [events] by exact path (Eventarc posts CloudEvents, not
+///   Genkit's `{data}` envelope), then [jobs] at `/jobs/*` and `/events/*`.
 /// - anything else: 404.
 Handler buildHandler({
   required XpenseRole role,
   required GenkitRouter public,
   required GenkitRouter jobs,
+  Map<String, Handler> events = const {},
   String? projectId,
 }) {
   final publicHandler = public.asShelfHandler();
@@ -49,6 +51,8 @@ Handler buildHandler({
           return publicHandler(request.change(path: prefix));
         }
       case XpenseRole.jobs:
+        final event = events[path];
+        if (event != null) return event(request);
         if (path.startsWith('/jobs/') || path.startsWith('/events/')) {
           return jobsHandler(request);
         }

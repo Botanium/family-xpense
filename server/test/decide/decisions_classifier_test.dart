@@ -60,6 +60,28 @@ final class FailingIncrements implements DocumentStore {
   @override
   Future<T> transaction<T>(Future<T> Function(DocumentTransaction tx) body) =>
       _inner.transaction(body);
+
+  @override
+  Future<List<StoredDocument>> pageWhereEquals(
+    String collection,
+    String field,
+    Object value, {
+    int limit = 400,
+    String? startAfterId,
+  }) => _inner.pageWhereEquals(
+    collection,
+    field,
+    value,
+    limit: limit,
+    startAfterId: startAfterId,
+  );
+
+  @override
+  Future<int> countWhereEquals(String collection, String field, Object value) =>
+      _inner.countWhereEquals(collection, field, value);
+
+  @override
+  Future<void> writeAll(List<DocumentWrite> writes) => _inner.writeAll(writes);
 }
 
 http.Response ok(Map<String, Object?> answers, {int tokens = 2000}) =>

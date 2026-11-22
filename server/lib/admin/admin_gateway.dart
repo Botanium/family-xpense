@@ -108,6 +108,42 @@ abstract interface class DocumentStore {
   /// thrown by [body] rolls the transaction back and reaches the caller
   /// unchanged; a backend failure is a [GatewayUnavailable].
   Future<T> transaction<T>(Future<T> Function(DocumentTransaction tx) body);
+
+  /// One page of the documents directly in [collection] whose [field]
+  /// equals [value], ordered by document id, starting after the document id
+  /// [startAfterId] when given, at most [limit] of them. Jobs page through
+  /// large sets with it (WP-13 visibility backfill).
+  Future<List<StoredDocument>> pageWhereEquals(
+    String collection,
+    String field,
+    Object value, {
+    int limit = 400,
+    String? startAfterId,
+  });
+
+  /// How many documents directly in [collection] have [field] equal to
+  /// [value] (a count aggregation; documents are not read).
+  Future<int> countWhereEquals(String collection, String field, Object value);
+
+  /// Applies [writes] in one batch: all or none. At most 500 writes.
+  Future<void> writeAll(List<DocumentWrite> writes);
+}
+
+/// One write of a [DocumentStore.writeAll] batch.
+@immutable
+final class DocumentWrite {
+  /// Writes [data] to [path]; with [merge], fields not in [data] are kept
+  /// (nested maps are merged too).
+  const new(this.path, this.data, {this.merge = false});
+
+  /// The document path.
+  final String path;
+
+  /// The fields to write.
+  final Map<String, Object?> data;
+
+  /// Whether to merge into the existing document.
+  final bool merge;
 }
 
 /// A document returned by a query: its slash-separated [path] and [data].
