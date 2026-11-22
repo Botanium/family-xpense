@@ -58,14 +58,34 @@ final class JoinedHousehold {
   final String name;
 }
 
+/// Work a join does inside its own transaction, so it commits with the join
+/// or not at all. Called after the join's reads with the household's new
+/// member ids; it may read, and returns the writes to apply once every read
+/// is done (Firestore transactions read before they write).
+///
+/// WP-13 widens joint and shared accounts to the new member here
+/// (`AccountVisibilityJob.prepareJoinWidening`).
+typedef JoinTransactionHook = Future<void Function()> Function(
+  DocumentTransaction tx,
+  String hid,
+  List<String> memberIds,
+  DateTime now,
+);
+
 /// Creates invites and joins households.
 final class HouseholdService {
   /// Creates the service. [random] must be cryptographically secure outside
-  /// tests; it defaults to `Random.secure()`.
-  new(this._documents, {Clock? clock, Random? random, RateLimiter? limiter})
-    : _clock = clock ?? const Clock(),
-      _random = random ?? Random.secure(),
-      _limiter = limiter ?? RateLimiter(_documents, clock: clock);
+  /// tests; it defaults to `Random.secure()`. `onJoin` runs inside every
+  /// join transaction.
+  new(
+    this._documents, {
+    Clock? clock,
+    Random? random,
+    RateLimiter? limiter,
+    this._onJoin,
+  }) : _clock = clock ?? const Clock(),
+       _random = random ?? Random.secure(),
+       _limiter = limiter ?? RateLimiter(_documents, clock: clock);
 
   /// How long an invite works (D-27).
   static const inviteLifetime = Duration(days: 7);
@@ -80,6 +100,7 @@ final class HouseholdService {
   final Clock _clock;
   final Random _random;
   final RateLimiter _limiter;
+  final JoinTransactionHook? _onJoin;
 
   /// Creates an invite to household [hid] for its member [uid].
   ///
@@ -190,6 +211,7 @@ final class HouseholdService {
         throw const HouseholdRejection(HouseholdFailure.alreadyInHousehold);
       }
       final user = await tx.read('users/$uid');
+      final joinWrites = await _onJoin?.call(tx, hid, [...memberIds, uid], now);
 
       tx
         ..write(_householdPath(hid), {
@@ -216,6 +238,7 @@ final class HouseholdService {
           if (user?['locale'] == null) 'locale': 'en',
         }, merge: true)
         ..write(invitePath, {'usedBy': uid, 'usedAt': now}, merge: true);
+      joinWrites?.call();
       return JoinedHousehold(hid: hid, name: householdName);
     });
     _log.info({'message': 'joined', 'uid': uid, 'hid': joined.hid});

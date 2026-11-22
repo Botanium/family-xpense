@@ -107,6 +107,45 @@ server-only `rateLimits/{uid}` before the work, so failed guesses count.
 | 429 | `rate_limited` | over 10 calls in the hour |
 | 503 | `household_unavailable` | Firestore unreachable; retry |
 
+## Account visibility (WP-13)
+
+`POST /events/account-visibility` on `xpense-jobs` (`lib/jobs/account_visibility.dart`)
+rewrites `visibleTo` on an account's transactions after its sharing changed
+(DATA_MODEL 4). Eventarc posts a CloudEvent for every update under
+`households/*/accounts/*`; the handler takes the account path from the
+`ce-document` (or `ce-subject`) attribute, or a JSON body's `value.name` or
+`document`, and reads the account itself, so the payload encoding does not
+matter. Locally, post the event by hand:
+
+```bash
+curl -X POST localhost:8081/events/account-visibility \
+  -H 'ce-document: households/<hid>/accounts/<accountId>'
+# 200 {"outcome":"synced","rewritten":12,"passes":1}
+```
+
+Account fields it uses, both server-only (the rules refuse them from the
+phone): `visibilityAppliedTo`, the `visibleTo` the history was last rewritten
+for, and `visibilitySync {runId, target, leaseUntil, done, total}` for a
+running rewrite. The job works whenever the account's actual `visibleTo`
+differs from `visibilityAppliedTo` (or it is missing), so no phone-writable
+marker can make it skip a revoke. It pages through the account's
+transactions (400 per page and batch, both `accountId` and `toAccountId`),
+sets each `visibleTo` to the union of its accounts', and finishes, in a
+transaction, by recording `visibilityAppliedTo` once it still equals the
+account's `visibleTo` (another pass otherwise). The app shows "Sharing past
+entries… done of total" while the two differ. A run holds a 90-second lease
+(a `leaseUntil` further out is ignored); the events its own progress writes
+cause get 429 and are delivered again later, and a run that fails releases
+its lease and drops `visibilityAppliedTo` (the history is half rewritten), so
+the retry does a full pass, and answers 503. Answers: 200 with `outcome` (`synced`,
+`upToDate`, `missing`), 429 `busy`, 204 for an event that names no
+account, 503 when Firestore is unreachable (Eventarc retries).
+
+A join widens every joint and shared account to the new member inside the
+join's own transaction, so it is never half done; each widened account then
+fires the event above, and `/v1/household/join` also rewrites their history
+right away, so the partner's first look is complete.
+
 ## Adding a route
 
 Add the action in `lib/http/routes.dart` with

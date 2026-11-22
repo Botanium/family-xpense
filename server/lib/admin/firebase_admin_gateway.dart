@@ -173,6 +173,74 @@ final class _FirestoreDocumentStore implements DocumentStore {
   }
 
   @override
+  Future<List<StoredDocument>> pageWhereEquals(
+    String collection,
+    String field,
+    Object value, {
+    int limit = 400,
+    String? startAfterId,
+  }) async {
+    try {
+      var query = _db
+          .collection(collection)
+          .where(field, fs.WhereFilter.equal, value)
+          .orderBy(fs.FieldPath.documentId)
+          .limit(limit);
+      if (startAfterId != null) {
+        query = query.startAfter([
+          _db.collection(collection).doc(startAfterId),
+        ]);
+      }
+      final snapshot = await query.get();
+      return [
+        for (final doc in snapshot.docs)
+          StoredDocument(
+            doc.ref.path,
+            _fromFirestore(doc.data())! as Map<String, Object?>,
+          ),
+      ];
+    } on Exception catch (e) {
+      throw GatewayUnavailable('pageWhereEquals', e);
+    }
+  }
+
+  @override
+  Future<int> countWhereEquals(
+    String collection,
+    String field,
+    Object value,
+  ) async {
+    try {
+      final snapshot = await _db
+          .collection(collection)
+          .where(field, fs.WhereFilter.equal, value)
+          .count()
+          .get();
+      return snapshot.count ?? 0;
+    } on Exception catch (e) {
+      throw GatewayUnavailable('countWhereEquals', e);
+    }
+  }
+
+  @override
+  Future<void> writeAll(List<DocumentWrite> writes) async {
+    if (writes.isEmpty) return;
+    try {
+      final batch = _db.batch();
+      for (final w in writes) {
+        batch.set(
+          _db.doc(w.path),
+          w.data,
+          options: w.merge ? const fs.SetOptions.merge() : null,
+        );
+      }
+      await batch.commit();
+    } on Exception catch (e) {
+      throw GatewayUnavailable('writeAll', e);
+    }
+  }
+
+  @override
   Future<T> transaction<T>(
     Future<T> Function(DocumentTransaction tx) body,
   ) async {

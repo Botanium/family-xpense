@@ -16,6 +16,14 @@ abstract final class AppRoutes {
   /// Accounts tab.
   static const String accounts = '/accounts';
 
+  /// Add accounts (screen 4), onboarding step 3: after household setup or
+  /// joining, before Try it (WP-13).
+  static const String addAccounts = '/add-accounts';
+
+  /// Route pattern of an account's detail screen (screen 11), pushed above
+  /// the shell.
+  static const String accountPattern = '/accounts/:$idParam';
+
   /// Ask, pushed above the shell by the round glass button.
   static const String ask = '/ask';
 
@@ -29,8 +37,7 @@ abstract final class AppRoutes {
   /// Where a signed-in person without a household goes (WP-12).
   static const String householdSetup = '/household';
 
-  /// Try it (screen 5), the first capture. Household setup and joining
-  /// continue here until WP-13 puts Add accounts (screen 4) in between.
+  /// Try it (screen 5), the first capture, after Add accounts.
   static const String tryIt = '/try-it';
 
   /// Route pattern of an entry's detail screen.
@@ -64,6 +71,9 @@ abstract final class AppRoutes {
 
   /// The detail screen of the entry [id].
   static String entry(String id) => '/entries/${Uri.encodeComponent(id)}';
+
+  /// The detail screen of the account [id].
+  static String account(String id) => '/accounts/${Uri.encodeComponent(id)}';
 
   /// The detail screen of the loan or debt [id].
   static String loan(String id) => '/loans/${Uri.encodeComponent(id)}';

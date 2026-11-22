@@ -78,8 +78,335 @@ class AppLocalizationsEn extends AppLocalizations {
   String get accountsTitle => 'Accounts';
 
   @override
-  String get accountsPlaceholder =>
-      'Your accounts and the household total will appear here.';
+  String get accountsHouseholdBalance => 'Household balance';
+
+  @override
+  String get accountsYourView => 'Your view';
+
+  @override
+  String accountsYourViewNote(String name) {
+    return '$name\'s private accounts aren\'t included.';
+  }
+
+  @override
+  String get accountsYourViewNoteUnnamed =>
+      'Your partner\'s private accounts aren\'t included.';
+
+  @override
+  String accountsUnconvertedNote(String currency) {
+    return '$currency accounts aren\'t in the total until the household enters a dollar rate.';
+  }
+
+  @override
+  String get accountsFilterAll => 'All';
+
+  @override
+  String get accountsFilterMine => 'Mine';
+
+  @override
+  String get accountsFilterPartner => 'Partner';
+
+  @override
+  String get accountsFilterJoint => 'Joint';
+
+  @override
+  String get accountsFilterLabel => 'Show accounts';
+
+  @override
+  String get accountsAdd => 'Add an account';
+
+  @override
+  String get accountsEmpty => 'No accounts yet. Add one with the plus button.';
+
+  @override
+  String get accountsFilterEmpty => 'No accounts here.';
+
+  @override
+  String get accountsLoadError => 'Couldn\'t load your accounts.';
+
+  @override
+  String get accountsRetry => 'Try again';
+
+  @override
+  String get accountsKindCash => 'Cash';
+
+  @override
+  String get accountsKindBank => 'Bank account';
+
+  @override
+  String get accountsKindCredit => 'Credit card';
+
+  @override
+  String get accountsKindSavings => 'Savings';
+
+  @override
+  String get accountsKindOther => 'Account';
+
+  @override
+  String get accountsChipCash => 'Cash';
+
+  @override
+  String get accountsChipBank => 'Bank';
+
+  @override
+  String get accountsChipCredit => 'Card';
+
+  @override
+  String get accountsChipSavings => 'Savings';
+
+  @override
+  String get accountsChipOther => 'Other';
+
+  @override
+  String get accountsTagCash => 'CASH';
+
+  @override
+  String get accountsTagBank => 'BANK';
+
+  @override
+  String get accountsTagCredit => 'CARD';
+
+  @override
+  String get accountsTagSavings => 'SAV';
+
+  @override
+  String get accountsTagOther => 'ACCT';
+
+  @override
+  String get accountsOwnerYou => 'You';
+
+  @override
+  String get accountsOwnerYouShared => 'You, shared';
+
+  @override
+  String accountsOwnerPartner(String name) {
+    return '$name, shared';
+  }
+
+  @override
+  String get accountsOwnerPartnerUnnamed => 'Partner, shared';
+
+  @override
+  String get accountsOwnerJoint => 'Joint';
+
+  @override
+  String accountsRowMeta(String kind, String owner) {
+    return '$kind · $owner';
+  }
+
+  @override
+  String get accountsSharing => 'Sharing…';
+
+  @override
+  String accountsApprox(String amount) {
+    return '≈ $amount';
+  }
+
+  @override
+  String accountsArchivedShow(int count) {
+    return 'Show archived ($count)';
+  }
+
+  @override
+  String get accountsArchivedHide => 'Hide archived';
+
+  @override
+  String get accountsDetailTitle => 'Account';
+
+  @override
+  String accountsDetailHeader(String name, String owner) {
+    return '$name · $owner';
+  }
+
+  @override
+  String accountsShareWith(String name) {
+    return 'Share with $name';
+  }
+
+  @override
+  String get accountsShareWithPartner => 'Share with your partner';
+
+  @override
+  String accountsShareOn(String name) {
+    return '$name sees this account and its entries.';
+  }
+
+  @override
+  String get accountsShareOnUnnamed =>
+      'Your partner sees this account and its entries.';
+
+  @override
+  String get accountsShareOff => 'Only you see this account and its entries.';
+
+  @override
+  String get accountsShareNoPartner =>
+      'You can share it once your partner joins.';
+
+  @override
+  String accountsSharingProgress(int done, int total) {
+    return 'Sharing past entries… $done of $total';
+  }
+
+  @override
+  String get accountsSharingStarted => 'Sharing past entries…';
+
+  @override
+  String accountsUnsharingProgress(int done, int total) {
+    return 'Making past entries private… $done of $total';
+  }
+
+  @override
+  String get accountsUnsharingStarted => 'Making past entries private…';
+
+  @override
+  String get accountsEntries => 'Entries';
+
+  @override
+  String get accountsEntriesEmpty => 'No entries on this account yet.';
+
+  @override
+  String accountsEntryMeta(String date, String type) {
+    return '$date · $type';
+  }
+
+  @override
+  String get accountsTypeExpense => 'Expense';
+
+  @override
+  String get accountsTypeIncome => 'Income';
+
+  @override
+  String get accountsTypeTransfer => 'Transfer';
+
+  @override
+  String get accountsTypeLoan => 'Loan';
+
+  @override
+  String get accountsTypeRepayment => 'Repayment';
+
+  @override
+  String get accountsTypeAdjustment => 'Balance';
+
+  @override
+  String get accountsOpeningEntry => 'Opening balance';
+
+  @override
+  String get accountsMore => 'More';
+
+  @override
+  String get accountsEdit => 'Edit';
+
+  @override
+  String get accountsArchive => 'Archive';
+
+  @override
+  String get accountsRestore => 'Restore';
+
+  @override
+  String get accountsCancel => 'Cancel';
+
+  @override
+  String get accountsArchived => 'Archived: hidden from lists and totals.';
+
+  @override
+  String get accountsNotFound => 'This account isn\'t here anymore.';
+
+  @override
+  String get accountsNewTitle => 'New account';
+
+  @override
+  String get accountsEditTitle => 'Edit account';
+
+  @override
+  String get accountsNameLabel => 'Name';
+
+  @override
+  String get accountsNameHint => 'Cash wallet';
+
+  @override
+  String get accountsNameError => 'Use up to 40 characters.';
+
+  @override
+  String get accountsKindLabel => 'Kind';
+
+  @override
+  String get accountsCurrencyLabel => 'Currency';
+
+  @override
+  String get accountsCurrencyFixed =>
+      'The currency can\'t change once an account is added.';
+
+  @override
+  String get accountsWhoseLabel => 'Whose';
+
+  @override
+  String get accountsWhoseMine => 'Just me';
+
+  @override
+  String get accountsWhoseJoint => 'Joint';
+
+  @override
+  String get accountsShareNow => 'Share with your partner now';
+
+  @override
+  String accountsOpeningLabel(String kind) {
+    return '$kind · opening balance';
+  }
+
+  @override
+  String accountsOwedLabel(String kind) {
+    return '$kind · amount owed';
+  }
+
+  @override
+  String get accountsAmountError => 'Enter an amount, such as 250,000.';
+
+  @override
+  String get accountsRateLabel => 'Today\'s dollar rate, in dinars';
+
+  @override
+  String get accountsRateHint => '1,705';
+
+  @override
+  String get accountsRateError => 'Enter the rate, such as 1,705.';
+
+  @override
+  String get accountsAddAction => 'Add account';
+
+  @override
+  String get accountsSave => 'Save';
+
+  @override
+  String get accountsSaving => 'Saving…';
+
+  @override
+  String get accountsErrorNotAllowed => 'You can\'t change this account.';
+
+  @override
+  String get accountsErrorNotFound => 'This account isn\'t here anymore.';
+
+  @override
+  String get accountsErrorUnknown => 'Something went wrong. Try again.';
+
+  @override
+  String get accountsSetupTitle => 'Add accounts';
+
+  @override
+  String get accountsSetupHeadline => 'Where does your money live?';
+
+  @override
+  String get accountsSetupBody =>
+      'Add each account with today\'s balance. You can add more later.';
+
+  @override
+  String get accountsSetupAdded => 'Added';
+
+  @override
+  String get accountsSetupSayIt =>
+      'Or just say it: “I have 3,940 in checking, 250,000 dinars cash, and we owe 612 on the joint Visa.”';
+
+  @override
+  String get accountsSetupContinue => 'Continue';
 
   @override
   String get loansTitle => 'Loan';

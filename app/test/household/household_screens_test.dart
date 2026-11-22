@@ -239,26 +239,25 @@ void main() {
       expect(find.semantics.byLabel('Invite later'), findsNothing);
     });
 
-    testWidgets('Continue goes on to Try it, and Back returns to the code', (
-      tester,
-    ) async {
+    testWidgets('Continue goes on to Add accounts, and Back returns to the '
+        'code', (tester) async {
       final (container, _) = await pumpHousehold(tester);
       await createHousehold(tester);
       await tapLabel(tester, 'Continue');
 
-      expect(location(container).path, AppRoutes.tryIt);
-      expect(find.text('TRY IT'), findsOneWidget);
+      expect(location(container).path, AppRoutes.addAccounts);
+      expect(find.text('ADD ACCOUNTS'), findsOneWidget);
       await tester.tap(find.bySemanticsLabel('Back'));
       await tester.pumpAndSettle();
       expect(location(container).path, AppRoutes.householdSetup);
       expect(find.text(code), findsOneWidget);
     });
 
-    testWidgets('Invite later goes on to Try it too', (tester) async {
+    testWidgets('Invite later goes on to Add accounts too', (tester) async {
       final (container, _) = await pumpHousehold(tester);
       await createHousehold(tester);
       await tapLabel(tester, 'Invite later');
-      expect(location(container).path, AppRoutes.tryIt);
+      expect(location(container).path, AppRoutes.addAccounts);
     });
 
     testWidgets('no code: the reason in place of it, and Try again', (
@@ -562,10 +561,10 @@ void main() {
       services.households.setMembership(services.households.pendingMembership!);
       await tester.pumpAndSettle();
       await tapLabel(tester, 'Continue');
-      expect(location(container).path, AppRoutes.tryIt);
+      expect(location(container).path, AppRoutes.addAccounts);
     });
 
-    testWidgets('joined: a welcome, then Continue goes on to Try it', (
+    testWidgets('joined: a welcome, then Continue goes on to Add accounts', (
       tester,
     ) async {
       final (container, services) = await pumpHousehold(tester);
@@ -590,7 +589,7 @@ void main() {
       expect(find.bySemanticsLabel('Back'), findsNothing);
 
       await tapLabel(tester, 'Continue');
-      expect(location(container).path, AppRoutes.tryIt);
+      expect(location(container).path, AppRoutes.addAccounts);
     });
 
     testWidgets('"Set up a household instead" opens setup', (tester) async {
