@@ -124,3 +124,43 @@ final class XpenseContext {
       'XpenseContext(uid: $uid, hid: $hid, locale: $locale, '
       'privacyMode: ${privacyMode.wire}, tz: $tz)';
 }
+
+/// The context of a route open to any signed-in user, such as
+/// `/household/join`, whose caller may not have a household yet: `{uid}`.
+@immutable
+final class CallerContext {
+  /// Creates a context.
+  const new({required this.uid});
+
+  /// Reads the context of a running action (`ctx.context`).
+  ///
+  /// Throws an unauthenticated [GenkitException] when the action was invoked
+  /// without a provider, so a flow never runs for a made-up user.
+  factory of(Map<String, dynamic>? context) {
+    final uid = context?[_uid];
+    if (uid is! String || uid.isEmpty) {
+      throw GenkitException(
+        'missing_context',
+        status: StatusCode.unauthenticated,
+      );
+    }
+    return CallerContext(uid: uid);
+  }
+
+  static const _uid = 'uid';
+
+  /// Firebase Auth user id of the caller.
+  final String uid;
+
+  /// The map handed to Genkit as the action context.
+  Map<String, dynamic> toMap() => {_uid: uid};
+
+  @override
+  bool operator ==(Object other) => other is CallerContext && other.uid == uid;
+
+  @override
+  int get hashCode => uid.hashCode;
+
+  @override
+  String toString() => 'CallerContext(uid: $uid)';
+}

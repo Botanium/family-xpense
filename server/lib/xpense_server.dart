@@ -15,6 +15,8 @@ import 'package:xpense_agent/config/server_env.dart';
 import 'package:xpense_agent/decide/classifier.dart';
 import 'package:xpense_agent/decide/decide_flow.dart';
 import 'package:xpense_agent/flows/ping.dart';
+import 'package:xpense_agent/household/household_flows.dart';
+import 'package:xpense_agent/household/household_service.dart';
 import 'package:xpense_agent/http/routes.dart';
 import 'package:xpense_agent/http/server_app.dart';
 import 'package:xpense_agent/telemetry/usage_counters.dart';
@@ -59,9 +61,16 @@ final class XpenseServer {
     final entryClassifier =
         classifier?.call(config, usage) ?? FakeEntryClassifier();
     final decide = defineDecideFlow(ai, entryClassifier);
+    final household = HouseholdService(gateway.documents, clock: clock);
     final handler = buildHandler(
       role: role,
-      public: buildPublicRouter(auth: auth, ping: ping, decide: decide),
+      public: buildPublicRouter(
+        auth: auth,
+        ping: ping,
+        decide: decide,
+        householdInvite: defineHouseholdInviteFlow(ai, household),
+        householdJoin: defineHouseholdJoinFlow(ai, household, members),
+      ),
       jobs: buildJobsRouter(),
       projectId: projectId,
     );

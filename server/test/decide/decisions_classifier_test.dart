@@ -56,6 +56,10 @@ final class FailingIncrements implements DocumentStore {
     Map<String, Object?> data, {
     bool merge = false,
   }) => _inner.write(path, data, merge: merge);
+
+  @override
+  Future<T> transaction<T>(Future<T> Function(DocumentTransaction tx) body) =>
+      _inner.transaction(body);
 }
 
 http.Response ok(Map<String, Object?> answers, {int tokens = 2000}) =>

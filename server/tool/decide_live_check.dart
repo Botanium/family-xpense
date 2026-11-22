@@ -118,6 +118,11 @@ final class MemoryStore implements DocumentStore {
     Map<String, Object?> data, {
     bool merge = false,
   }) async => docs[path] = data;
+
+  // The decide flow never needs a transaction (WP-12 added them for joins).
+  @override
+  Future<T> transaction<T>(Future<T> Function(DocumentTransaction tx) body) =>
+      throw UnsupportedError('MemoryStore has no transactions');
 }
 
 final class FixtureSource implements HouseholdSource {

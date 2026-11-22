@@ -89,11 +89,197 @@ class AppLocalizationsEn extends AppLocalizations {
       'The loan\'s balance, due date and repayments will appear here.';
 
   @override
+  String get householdSetupTitle => 'Household';
+
+  @override
+  String get householdSetupHeadline => 'Set up your household';
+
+  @override
+  String get householdNameLabel => 'Household name';
+
+  @override
+  String get householdNameHint => 'Our home';
+
+  @override
+  String get householdNameErrorEmpty => 'Give your household a name.';
+
+  @override
+  String householdNameErrorLong(int max) {
+    return 'Use $max characters or fewer.';
+  }
+
+  @override
+  String get householdYourNameLabel => 'Your name';
+
+  @override
+  String get householdYourNameHint => 'How your partner will see you';
+
+  @override
+  String get householdYourNameErrorEmpty =>
+      'Add the name your partner will see.';
+
+  @override
+  String get householdCurrencyLabel => 'Base currency';
+
+  @override
+  String get householdCurrencyNote =>
+      'Household totals and reports add up in this currency. It can\'t be changed later.';
+
+  @override
+  String get householdCreateAction => 'Continue';
+
+  @override
+  String get householdCreating => 'Setting up…';
+
+  @override
+  String get householdHaveInvite => 'I have an invite';
+
+  @override
+  String get householdInviteLabel => 'Invite your partner';
+
+  @override
+  String get householdInviteLoading => 'Making an invite code';
+
+  @override
+  String householdInviteCodeSemantics(String spelled) {
+    return 'Invite code $spelled';
+  }
+
+  @override
+  String get householdInviteShare => 'Share';
+
+  @override
+  String householdInviteShareMessage(String code, String link) {
+    return 'Join our household in Family Xpense with this code: $code\n\nOr open this link on your iPhone: $link\n\nThe code works once, for 7 days.';
+  }
+
+  @override
+  String get householdInviteValidity =>
+      'Works once, for 7 days. A new code replaces this one.';
+
+  @override
+  String get householdInviteFailed => 'Couldn\'t make an invite code.';
+
+  @override
+  String get householdInviteOffline =>
+      'You\'re offline. Connect to get an invite code.';
+
+  @override
+  String get householdInviteUnavailable =>
+      'Invites aren\'t available right now. Try again later.';
+
+  @override
+  String get householdInviteRateLimited =>
+      'Too many new codes. Wait an hour, then try again.';
+
+  @override
+  String get householdInviteFull => 'Your partner has joined.';
+
+  @override
+  String get householdRetry => 'Try again';
+
+  @override
+  String get householdSharedLabel => 'Shared';
+
+  @override
+  String get householdSharedValue => 'Joint money, goals';
+
+  @override
+  String get householdPrivateLabel => 'Private';
+
+  @override
+  String get householdPrivateValue => 'Your own accounts';
+
+  @override
+  String get householdContinue => 'Continue';
+
+  @override
+  String get householdInviteLater => 'Invite later';
+
+  @override
+  String get householdOffline =>
+      'You\'re offline. Setting up needs a connection.';
+
+  @override
+  String get householdErrorNotAllowed =>
+      'Your sign-in has expired. Sign out and sign in again.';
+
+  @override
+  String get householdErrorUnknown => 'Something went wrong. Try again.';
+
+  @override
   String get householdJoinTitle => 'Join';
 
   @override
-  String get householdJoinPlaceholder =>
-      'Joining a household from an invite arrives in a later version.';
+  String get householdJoinHeadline => 'Join your partner\'s household';
+
+  @override
+  String get householdJoinBody =>
+      'Enter the code your partner shared. Each code works once, for 7 days.';
+
+  @override
+  String get householdJoinCodeLabel => 'Invite code';
+
+  @override
+  String get householdJoinCodeHint => 'ABCDE-12345';
+
+  @override
+  String get householdJoinCodeErrorEmpty => 'Enter the code from your partner.';
+
+  @override
+  String get householdJoinCodeErrorShape =>
+      'Codes have 10 letters and numbers.';
+
+  @override
+  String get householdJoinAction => 'Join household';
+
+  @override
+  String get householdJoining => 'Joining…';
+
+  @override
+  String get householdJoinErrorInvalid =>
+      'That code doesn\'t match an invite. Check it with your partner.';
+
+  @override
+  String get householdJoinErrorExpired =>
+      'That invite has expired. Ask your partner for a new code.';
+
+  @override
+  String get householdJoinErrorUsed =>
+      'That invite was already used. Ask your partner for a new code.';
+
+  @override
+  String get householdJoinErrorFull => 'That household already has two people.';
+
+  @override
+  String get householdJoinErrorAlready =>
+      'You\'re already in a household. Each person can be in one.';
+
+  @override
+  String get householdJoinErrorRateLimited =>
+      'Too many tries. Wait an hour, then try again.';
+
+  @override
+  String get householdJoinOffline =>
+      'You\'re offline. Joining needs a connection.';
+
+  @override
+  String householdJoinedHeadline(String household) {
+    return 'Welcome to $household';
+  }
+
+  @override
+  String get householdJoinedHeadlineUnnamed => 'You\'re in';
+
+  @override
+  String get householdJoinedBody =>
+      'You and your partner now share joint money and goals. Your own accounts stay yours.';
+
+  @override
+  String get householdJoinedSyncing => 'Getting your household ready…';
+
+  @override
+  String get householdJoinSetUpInstead => 'Set up a household instead';
 
   @override
   String get askTitle => 'Ask';

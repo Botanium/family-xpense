@@ -12,6 +12,7 @@ import 'package:genkit/io.dart';
 
 import 'package:xpense_agent/auth/context_provider.dart';
 import 'package:xpense_agent/decide/decide_flow.dart';
+import 'package:xpense_agent/household/household_flows.dart';
 import 'package:xpense_agent/telemetry/usage_counters.dart';
 
 /// The version prefix of the public routes (D-32). Tied to the Xpense
@@ -19,10 +20,16 @@ import 'package:xpense_agent/telemetry/usage_counters.dart';
 const publicPrefix = '/v1';
 
 /// Public routes for `xpense-agent`, mounted under [publicPrefix].
+///
+/// The household routes do no AI work, so they consume no usage counters and
+/// admit On-device members; `/household/join` is open to a signed-in user
+/// without a household, which is who joins (WP-12).
 GenkitRouter buildPublicRouter({
   required XpenseContextProvider auth,
   required Flow<String?, Map<String, String>, void, void> ping,
   required DecideFlow decide,
+  required HouseholdFlow householdInvite,
+  required HouseholdFlow householdJoin,
 }) => GenkitRouter()
   ..addAction(ping, path: '/ping', contextProvider: auth.forRoute())
   // The Decisions proxy (WP-33): refused at the daily `decisions` limit.
@@ -30,6 +37,16 @@ GenkitRouter buildPublicRouter({
     decide,
     path: '/decide',
     contextProvider: auth.forRoute(meters: {UsageCounter.decisions}),
+  )
+  ..addAction(
+    householdInvite,
+    path: '/household/invite',
+    contextProvider: auth.forRoute(allowOnDevice: true),
+  )
+  ..addAction(
+    householdJoin,
+    path: '/household/join',
+    contextProvider: auth.forSignedInUser(),
   );
 
 /// Private routes for `xpense-jobs`, mounted at the root. Cloud Run IAM is the

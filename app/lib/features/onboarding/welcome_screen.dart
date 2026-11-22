@@ -5,7 +5,6 @@ import 'package:xpense_app/core/l10n/l10n.dart';
 import 'package:xpense_app/core/theme/theme.dart';
 import 'package:xpense_app/core/ui/ui.dart';
 import 'package:xpense_app/features/onboarding/onboarding_gate.dart';
-import 'package:xpense_app/features/onboarding/onboarding_layout.dart';
 import 'package:xpense_shared/xpense_shared.dart';
 
 /// Welcome (DESIGN_SYSTEM 9, screen 1; PRD ON-1): the value before an

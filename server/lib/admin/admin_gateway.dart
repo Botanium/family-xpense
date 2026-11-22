@@ -99,6 +99,61 @@ abstract interface class DocumentStore {
     Map<String, Object?> data, {
     bool merge = false,
   });
+
+  /// Runs [body] in one Firestore transaction and returns its result.
+  ///
+  /// Every read happens before the first write. The store may run [body]
+  /// more than once when another writer touched the same documents, so it
+  /// must have no side effects outside [DocumentTransaction]. An exception
+  /// thrown by [body] rolls the transaction back and reaches the caller
+  /// unchanged; a backend failure is a [GatewayUnavailable].
+  Future<T> transaction<T>(Future<T> Function(DocumentTransaction tx) body);
+}
+
+/// A document returned by a query: its slash-separated [path] and [data].
+@immutable
+final class StoredDocument {
+  /// Creates a stored document.
+  const new(this.path, this.data);
+
+  /// The document path, e.g. `invites/abc`.
+  final String path;
+
+  /// The document's fields, in the plain Dart values of [DocumentStore].
+  final Map<String, Object?> data;
+}
+
+/// Reads and writes inside one [DocumentStore.transaction].
+///
+/// Reads come first: the store refuses a read after a write. Writes are
+/// applied together when the body returns.
+abstract interface class DocumentTransaction {
+  /// Reads one document. Returns null when it does not exist.
+  Future<Map<String, Object?>?> read(String path);
+
+  /// The documents directly in [collection] whose [field] equals [value], at
+  /// most [limit] of them.
+  Future<List<StoredDocument>> whereEquals(
+    String collection,
+    String field,
+    Object value, {
+    int limit = 50,
+  });
+
+  /// The documents directly in [collection] whose list [field] contains
+  /// [value], at most [limit] of them.
+  Future<List<StoredDocument>> whereArrayContains(
+    String collection,
+    String field,
+    Object value, {
+    int limit = 50,
+  });
+
+  /// Writes [data] to [path]; with [merge], fields not in [data] are kept.
+  void write(String path, Map<String, Object?> data, {bool merge = false});
+
+  /// Deletes the document at [path]. Deleting a missing document is fine.
+  void delete(String path);
 }
 
 /// A push notification to one device.

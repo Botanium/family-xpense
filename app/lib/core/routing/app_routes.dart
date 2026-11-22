@@ -25,6 +25,14 @@ abstract final class AppRoutes {
   /// Join a household from an invite.
   static const String join = '/join';
 
+  /// Household setup (screen 3): name, display name, base currency, invite.
+  /// Where a signed-in person without a household goes (WP-12).
+  static const String householdSetup = '/household';
+
+  /// Try it (screen 5), the first capture. Household setup and joining
+  /// continue here until WP-13 puts Add accounts (screen 4) in between.
+  static const String tryIt = '/try-it';
+
   /// Route pattern of an entry's detail screen.
   static const String entryPattern = '/entries/:$idParam';
 
