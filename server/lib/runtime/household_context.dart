@@ -236,7 +236,7 @@ String householdBlock(
       '${partner == null ? '' : '; partner: $partner ("partner")'}',
     )
     ..writeln('accounts (id | name | currency | scope):');
-  for (final a in snap.accounts) {
+  for (final a in snap.activeAccounts) {
     b.writeln('- ${a.id} | ${a.name} | ${a.currency} | ${a.scope}');
   }
   final groups = [

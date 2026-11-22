@@ -287,34 +287,115 @@ void main() {
     });
 
     test(
-      'a same-day entry with the same amount is a duplicate candidate',
+      "the duplicate hint names the classifier's entry (PR #30 review)",
       () async {
+        // The classifier picks its own candidates and names the one it
+        // judged in duplicate_of. The old code linked the first local
+        // candidate (here the demo's 96.00 lunch) instead.
         final classifier = FakeEntryClassifier.always(
-          DecideResponse(duplicate: YesNoAnswer(probability: 0.9)),
+          DecideResponse(
+            duplicate: YesNoAnswer(probability: 0.9),
+            duplicateOf: 'txn_judged',
+          ),
         );
-        // The demo household has 96.00 at Abu Afif on the 4th.
         final out = await prepareEntries(
           _input([
             ProposedEntry(
               intent: 'expense',
               amount: '96',
-              text: 'lunch at Abu Afif 96 on the 4th',
+              text: 'lunch at Abu Afif 96 on the 4th on the visa',
               dateWords: 'on the 4th',
               accountHint: 'visa',
             ),
           ]),
           dara,
           demoDeps(
-            texts: ['lunch at Abu Afif 96 on the 4th'],
+            texts: ['lunch at Abu Afif 96 on the 4th on the visa'],
             classifier: classifier,
           ),
         );
         final d = out.drafts.single;
         expect(d.occurredOn, '2026-11-04');
-        expect(d.duplicate?.txnId, isNotNull);
+        expect(d.duplicate?.txnId, 'txn_judged');
         expect(d.duplicate?.probability, 0.9);
-        expect(classifier.calls.single.ask, contains(DecideQuestion.duplicate));
-        expect(classifier.calls.single.candidates.single.amountMinor, 9600);
+        final call = classifier.calls.single;
+        expect(call.ask, contains(DecideQuestion.duplicate));
+        // The settled account narrows the classifier's search.
+        expect(call.hints.single.id, 'acc_visa');
+      },
+    );
+
+    test('no duplicate hint without the entry the classifier judged', () async {
+      final classifier = FakeEntryClassifier.always(
+        DecideResponse(duplicate: YesNoAnswer(probability: 0.95)),
+      );
+      final out = await prepareEntries(
+        _input([
+          ProposedEntry(intent: 'expense', amount: '12', text: 'tea 12'),
+        ]),
+        dara,
+        demoDeps(texts: ['tea 12'], classifier: classifier),
+      );
+      expect(out.drafts.single.duplicate, isNull);
+      // Asked even with no local match: the classifier searches itself.
+      expect(classifier.calls.single.ask, contains(DecideQuestion.duplicate));
+    });
+
+    test(
+      'a low category answer keeps the category asked (PR #30 review)',
+      () async {
+        // The model hinted a slug the member did not write; the classifier
+        // scored the category below conf_low. The old code filled the model's
+        // slug back in and the draft became savable.
+        final out = await prepareEntries(
+          _input([
+            ProposedEntry(
+              intent: 'expense',
+              amount: '14',
+              text: 'lunch 14',
+              categoryHint: 'bakery_tea',
+            ),
+          ]),
+          dara,
+          demoDeps(
+            texts: ['lunch 14'],
+            classifier: FakeEntryClassifier.always(
+              DecideResponse(
+                category: ChoiceAnswer(choice: 'dining', confidence: 0.3),
+              ),
+            ),
+          ),
+        );
+        final d = out.drafts.single;
+        expect(d.categoryId, isNull);
+        expect(d.missing, contains('categoryId'));
+      },
+    );
+
+    test(
+      'transfer destinations include other currencies (PR #30 review)',
+      () async {
+        // From checking (USD) to the IQD cash wallet is a valid transfer
+        // (toAmountMinor). The old options were USD only and included the
+        // source account itself.
+        final out = await prepareEntries(
+          _input([
+            ProposedEntry(
+              intent: 'transfer',
+              amount: '100',
+              currency: 'USD',
+              text: 'moved 100 dollars out of checking',
+              accountHint: 'checking',
+            ),
+          ]),
+          dara,
+          demoDeps(texts: ['moved 100 dollars out of checking']),
+        );
+        expect(out.drafts.single.accountId, 'acc_chk');
+        expect(out.ask?.field, 'toAccountId');
+        final values = out.ask!.options!.map((o) => o.value);
+        expect(values, contains('acc_cash_iqd'));
+        expect(values, isNot(contains('acc_chk')));
       },
     );
 

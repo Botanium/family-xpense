@@ -89,7 +89,7 @@ final class OutputGuardMiddleware extends GenerateMiddleware {
   void _report(List<GuardViolation> violations) {
     for (final v in violations) {
       _log.warning({
-        'message': 'outputGuard dropped a draft',
+        'message': 'outputGuard removed agent output',
         'surfaceId': v.surfaceId,
         'reason': v.reason,
       });

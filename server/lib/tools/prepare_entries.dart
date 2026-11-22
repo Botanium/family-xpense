@@ -187,6 +187,19 @@ final class _DraftBuilder {
   final guessed = <String>{};
   final listedMissing = <String>{};
   HouseholdCategory? modelCategory;
+  HouseholdAccount? modelAccount;
+  HouseholdAccount? modelToAccount;
+
+  /// Account ids by the classifier's probability, highest first.
+  List<String> accountRanking = const [];
+
+  /// Whether the classifier answered the category question (any answer,
+  /// low or `unspecified` included).
+  bool categoryScored = false;
+
+  /// The same for the account questions.
+  bool accountScored = false;
+  bool toAccountScored = false;
   FxQuote? fx;
   DuplicateHint? duplicate;
   RecurringHint? recurring;
@@ -234,11 +247,15 @@ final class _DraftBuilder {
       code = entry.currency ?? snap.baseCurrency;
       guessed.add('currency');
     }
+    final known = Currency.tryParse(code);
+    if (known == null) {
+      // Household data with a currency the app does not know: ask.
+      notes.add('$id: unknown currency $code; ask for the amount');
+      guessed.remove('currency');
+      return;
+    }
     currency = code;
-    final money = Money.parseMajor(
-      found.value.toString(),
-      Currency.tryParse(code)!,
-    );
+    final money = Money.parseMajor(found.value.toString(), known);
     if (money case Ok(:final value)) {
       amountMinor = value.minorUnits;
     } else {
@@ -247,16 +264,26 @@ final class _DraftBuilder {
   }
 
   void resolveWords() {
-    // Account words.
+    // Account words. Like categories below, only words the member wrote
+    // settle a field; a hint the model made up ("dollars", "checking" for
+    // "Groceries 45") is kept as a guess the classifier can override.
     final accounts = _matchAccounts(entry.accountHint, currency);
     if (accounts.length == 1) {
-      accountId = accounts.single.id;
-      confidence['account'] = 1;
+      if (_wrote(entry.accountHint!)) {
+        accountId = accounts.single.id;
+        confidence['account'] = 1;
+      } else {
+        modelAccount = accounts.single;
+      }
     }
     if (_isTransfer) {
       final to = _matchAccounts(entry.toAccountHint, null);
       if (to.length == 1 && to.single.id != accountId) {
-        toAccountId = to.single.id;
+        if (_wrote(entry.toAccountHint!)) {
+          toAccountId = to.single.id;
+        } else {
+          modelToAccount = to.single;
+        }
       }
     }
     // Category words. Only words the member wrote settle the category; a
@@ -273,18 +300,41 @@ final class _DraftBuilder {
         }
       }
     }
-    // Who.
-    if (entry.who case final w?) {
+    // Who: only when the words say so ("we", "my", the partner's name).
+    if (entry.who case final w? when _saysWho(w)) {
       who = w;
       confidence['who'] = 1;
     }
-    // Person.
-    if (entry.person case final name?) {
+    // Person: only a name the member wrote.
+    if (entry.person case final name? when _mentions(text, name)) {
       final p = _matchPerson(name);
       if (p != null) personId = p.id;
     }
     // Date.
     occurredOn = _resolveDate();
+  }
+
+  /// Whether the member's words contain every significant word of [hint].
+  bool _wrote(String hint) {
+    final words = [
+      for (final w in _words(_norm(hint)))
+        if (w.length > 2 && !_fillerWords.contains(w)) w,
+    ];
+    final said = _words(_norm(text)).toSet();
+    return words.isNotEmpty && words.every(said.contains);
+  }
+
+  /// Whether the words carry the cue for [who].
+  bool _saysWho(String who) {
+    final said = _words(_norm(text)).toSet();
+    return switch (who) {
+      'joint' => said.any(_jointCues.contains),
+      'me' => said.any(_meCues.contains),
+      'partner' =>
+        said.contains('partner') ||
+            _mentions(text, snap.partner?.displayName ?? ''),
+      _ => false,
+    };
   }
 
   String _resolveDate() {
@@ -300,7 +350,7 @@ final class _DraftBuilder {
     if (hint == null || hint.trim().isEmpty) return const [];
     final h = _norm(hint);
     final byCurrency = [
-      for (final a in snap.accounts)
+      for (final a in snap.activeAccounts)
         if (currency == null || a.currency == currency) a,
     ];
     final exact = [
@@ -345,48 +395,34 @@ final class _DraftBuilder {
     required ToolDeps deps,
     required Thresholds thresholds,
   }) async {
-    final candidates = await _duplicateCandidates(context, deps);
-    await _classify(context, deps, thresholds, candidates);
-    // The model's category stands in, as a guess, when nothing better came.
-    if (categoryId == null && modelCategory != null) {
+    await _classify(context, deps, thresholds);
+    // The model's category stands in, as a guess, only when the classifier
+    // gave no answer about the category at all. A low or `unspecified`
+    // answer keeps the category asked (AI_PIPELINE 9).
+    if (categoryId == null && modelCategory != null && !categoryScored) {
       categoryId = modelCategory!.id;
       guessed.add('categoryId');
     }
-    await _convert(context, deps);
-  }
-
-  Future<List<LedgerTxn>> _duplicateCandidates(
-    XpenseContext context,
-    ToolDeps deps,
-  ) async {
-    final amount = amountMinor;
-    final day = occurredOn;
-    if (amount == null || day == null) return const [];
-    try {
-      final txns = await deps.reader.transactions(
-        context.hid,
-        uid: context.uid,
-        fromOn: addDays(day, -1),
-        toOn: addDays(day, 1),
-      );
-      return [
-        for (final t in txns.items)
-          if (t.amountMinor == amount &&
-              t.currency == currency &&
-              (accountId == null || t.accountId == accountId))
-            t,
-      ].take(3).toList();
-    } on HouseholdUnavailable catch (e) {
-      _log.warning('duplicate search skipped: ${e.operation}');
-      return const [];
+    // The same for accounts the model named but the member did not.
+    if (accountId == null && modelAccount != null && !accountScored) {
+      accountId = modelAccount!.id;
+      guessed.add('accountId');
     }
+    if (_isTransfer &&
+        toAccountId == null &&
+        modelToAccount != null &&
+        !toAccountScored &&
+        modelToAccount!.id != accountId) {
+      toAccountId = modelToAccount!.id;
+      guessed.add('toAccountId');
+    }
+    await _convert(context, deps);
   }
 
   Future<void> _classify(
     XpenseContext context,
     ToolDeps deps,
     Thresholds t,
-    List<LedgerTxn> candidates,
   ) async {
     final ask = <DecideQuestion>{
       DecideQuestion.intent,
@@ -397,7 +433,9 @@ final class _DraftBuilder {
       if (_hasPerson && personId == null) DecideQuestion.person,
       if (intent == CaptureIntent.expense || intent == CaptureIntent.income)
         DecideQuestion.isRecurring,
-      if (candidates.isNotEmpty) DecideQuestion.duplicate,
+      // The classifier finds the duplicate candidates itself (server-side,
+      // nearest date first) and asks only when it has some.
+      if (amountMinor != null && currency != null) DecideQuestion.duplicate,
     };
     final DecideResponse answer;
     try {
@@ -410,15 +448,10 @@ final class _DraftBuilder {
           currency: currency,
           date: occurredOn,
         ),
-        candidates: [
-          for (final c in candidates)
-            DuplicateCandidate(
-              txnId: c.id,
-              amountMinor: c.amountMinor,
-              currency: c.currency,
-              occurredOn: c.occurredOn,
-              title: c.title,
-            ),
+        // The settled account narrows the classifier's duplicate search.
+        hints: [
+          if (accountId case final id?)
+            ParseHint(kind: 'account', id: id, confidence: 1),
         ],
       );
     } on Object catch (e) {
@@ -455,9 +488,18 @@ final class _DraftBuilder {
       return a.choice;
     }
 
+    if (answer.account?.probabilities case final probs?) {
+      accountRanking = [
+        for (final e
+            in probs.entries.toList()
+              ..sort((a, b) => b.value.compareTo(a.value)))
+          e.key,
+      ];
+    }
     if (accountId == null) {
+      accountScored = answer.account?.choice != null;
       final id = pick(answer.account, 'accountId', 'account');
-      final account = snap.account(id);
+      final account = snap.activeAccount(id);
       // Only an account in the entry's currency can hold it.
       if (account != null &&
           (currency == null || account.currency == currency)) {
@@ -467,14 +509,17 @@ final class _DraftBuilder {
       }
     }
     if (_isTransfer && toAccountId == null) {
-      final id = pick(answer.toAccount, 'toAccountId', 'account');
-      if (snap.account(id) != null && id != accountId) {
+      toAccountScored = answer.toAccount?.choice != null;
+      // Its own confidence key: `DraftConfidence.account` is the source's.
+      final id = pick(answer.toAccount, 'toAccountId', 'toAccount');
+      if (snap.activeAccount(id) != null && id != accountId) {
         toAccountId = id;
       } else {
         guessed.remove('toAccountId');
       }
     }
     if (_hasCategory && categoryId == null) {
+      categoryScored = answer.category?.choice != null;
       final c = snap.activeCategory(
         pick(answer.category, 'categoryId', 'category'),
       );
@@ -504,9 +549,13 @@ final class _DraftBuilder {
         when p >= threshold(t, 'recurring_offer')) {
       recurring = RecurringHint(probability: p, unit: 'month', interval: 1);
     }
+    // The hint names the entry the classifier judged (`duplicate_of`),
+    // never a guess of ours.
     if (answer.duplicate?.probability case final p?
-        when p >= threshold(t, 'dup_warn') && candidates.isNotEmpty) {
-      duplicate = DuplicateHint(txnId: candidates.first.id, probability: p);
+        when p >= threshold(t, 'dup_warn')) {
+      if (answer.duplicateOf case final txnId? when txnId.isNotEmpty) {
+        duplicate = DuplicateHint(txnId: txnId, probability: p);
+      }
     }
   }
 
@@ -605,6 +654,15 @@ String _norm(String s) => s
 
 Iterable<String> _words(String s) => s.split(' ');
 
+/// Words that carry no meaning in an account hint.
+const _fillerWords = {'the', 'my', 'our', 'from', 'with', 'card', 'account'};
+
+/// Words that say an entry is shared.
+const _jointCues = {'we', 'our', 'us', 'joint', 'together', 'shared'};
+
+/// Words that say an entry is the speaker's own.
+const _meCues = {'i', 'my', 'me', 'mine', 'myself'};
+
 /// Whether [text] contains [phrase] (a slug's underscores read as spaces).
 bool _mentions(String text, String phrase) {
   final p = _norm(phrase.replaceAll('_', ' '));
@@ -623,7 +681,7 @@ const askableFields = {
 
 /// The single follow-up of this turn: the first draft with a missing
 /// askable field, its first such field in [followUpOrder], with up to
-/// three options.
+/// four options.
 FollowUp? _firstFollowUp(
   List<EntryDraft> drafts,
   List<_DraftBuilder> builders,
@@ -636,11 +694,26 @@ FollowUp? _firstFollowUp(
     if (askable.isEmpty) continue;
     final field = askable.first;
     final snap = builders[i].snap;
+    // The classifier's likeliest accounts first, then list order.
+    final rank = builders[i].accountRanking;
+    int order(HouseholdAccount a) {
+      final r = rank.indexOf(a.id);
+      return r < 0 ? rank.length + snap.activeAccounts.indexOf(a) : r;
+    }
+
+    final ranked = [...snap.activeAccounts]
+      ..sort((a, b) => order(a).compareTo(order(b)));
     final options = switch (field) {
-      'accountId' || 'toAccountId' => [
-        for (final a in snap.accounts)
+      'accountId' => [
+        for (final a in ranked)
           if (d.currency == null || a.currency == d.currency)
             FollowUpOption(label: a.name, value: a.id),
+      ],
+      // A transfer may arrive in another currency (`toAmountMinor`,
+      // DATA_MODEL 2.5); never offer the source account.
+      'toAccountId' => [
+        for (final a in ranked)
+          if (a.id != d.accountId) FollowUpOption(label: a.name, value: a.id),
       ],
       'categoryId' => const <FollowUpOption>[],
       _ => const <FollowUpOption>[],
@@ -649,7 +722,8 @@ FollowUp? _firstFollowUp(
       draftId: d.id,
       index: i,
       field: field,
-      options: options.isEmpty ? null : options.take(3).toList(),
+      // Up to four: a ChoicePrompt takes 2 to 5 options.
+      options: options.isEmpty ? null : options.take(4).toList(),
     );
   }
   return null;

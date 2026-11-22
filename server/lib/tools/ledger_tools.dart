@@ -39,9 +39,9 @@ Future<LedgerResult> queryLedger(
       ? q.from!
       : '${today.substring(0, 8)}01';
   if (from.compareTo(to) > 0) (from, to) = (to, from);
-  if (parseIsoDay(to)!.difference(parseIsoDay(from)!).inDays > maxQueryDays) {
-    from = addDays(to, -maxQueryDays);
-  }
+  final shortened =
+      parseIsoDay(to)!.difference(parseIsoDay(from)!).inDays > maxQueryDays;
+  if (shortened) from = addDays(to, -maxQueryDays);
 
   // Sequential awaits keep a HouseholdUnavailable unwrapped (a record's
   // `.wait` would wrap it in a ParallelWaitError).
@@ -64,11 +64,31 @@ Future<LedgerResult> queryLedger(
       rows: [],
       complete: false,
       partialView: partialView,
+      rangeShortened: shortened ? true : null,
     );
   }
   final txns = read.items;
   final types = q.types?.isNotEmpty ?? false ? q.types!.toSet() : {'expense'};
   final categoryIds = _expandCategories(q.categories, snap);
+  final unknown = [
+    for (final name in q.categories ?? const <String>[])
+      if (snap.category(name) == null) name,
+  ];
+  // Only unknown categories: no figures, rather than a total of 0.
+  if (categoryIds != null && categoryIds.isEmpty) {
+    return LedgerResult(
+      currency: snap.baseCurrency,
+      metric: q.metric ?? 'sum',
+      from: from,
+      to: to,
+      count: 0,
+      rows: [],
+      complete: true,
+      partialView: partialView,
+      unknownCategories: unknown,
+      rangeShortened: shortened ? true : null,
+    );
+  }
   final accountIds = q.accountIds?.toSet();
   final text = q.text?.toLowerCase().trim();
   final partnerUid = snap.partner?.uid;
@@ -110,8 +130,12 @@ Future<LedgerResult> queryLedger(
     'month' => t.occurredOn.substring(0, 7),
     'category' => _groupCategory(t.categoryId, snap, categoryIds),
     'account' => t.accountId,
-    'who' =>
-      t.whoScope == 'joint' ? 'joint' : (t.whoUid == c.uid ? 'me' : 'partner'),
+    'who' => switch (t) {
+      LedgerTxn(whoScope: 'joint') => 'joint',
+      LedgerTxn(:final whoUid) when whoUid == c.uid => 'me',
+      LedgerTxn(:final whoUid) when whoUid != null => 'partner',
+      _ => 'unknown',
+    },
     _ => 'all',
   };
   for (final t in matching) {
@@ -166,6 +190,8 @@ Future<LedgerResult> queryLedger(
     daily: daily,
     complete: true,
     partialView: partialView,
+    unknownCategories: unknown.isEmpty ? null : unknown,
+    rangeShortened: shortened ? true : null,
   );
 }
 
@@ -214,7 +240,8 @@ String _label(String groupBy, String key, HouseholdSnapshot snap) =>
       'who' => switch (key) {
         'me' => snap.me?.displayName ?? 'Me',
         'partner' => snap.partner?.displayName ?? 'Partner',
-        _ => 'Joint',
+        'joint' => 'Joint',
+        _ => 'Not set',
       },
       'none' => 'All',
       _ => key,
@@ -241,7 +268,7 @@ Future<BalancesResult> getBalances(
   final partnerUid = snap.partner?.uid;
   final scope = q.scope ?? 'all';
   final accounts = [
-    for (final a in snap.accounts)
+    for (final a in snap.activeAccounts)
       if (switch (scope) {
         'mine' => a.scope == 'personal' && a.ownerUid == c.uid,
         'partner' => a.scope == 'personal' && a.ownerUid == partnerUid,
@@ -337,10 +364,12 @@ Future<BudgetsResult> getBudgets(
           final ids = b.categoryId == 'total'
               ? null
               : _expandCategories([b.categoryId], snap);
+          // A budget on a category that no longer exists: no figure, not 0.
+          final known = ids == null || ids.isNotEmpty;
           // A personal budget limits one member's own spending: their
           // member entries, not joint ones and not the partner's
           // (DATA_MODEL 2.10).
-          final spent = read.complete
+          final spent = read.complete && known
               ? _sum([
                   for (final t in expenses)
                     if ((ids == null || ids.contains(t.categoryId)) &&

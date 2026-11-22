@@ -102,11 +102,13 @@ final class GuardFacts {
     final draft = check.draft!;
     final amount = draft.amountMinor;
     if (amount == null) return null;
-    final prepared = preparedDrafts[draft.id];
-    if (prepared != null &&
-        prepared['amountMinor'] == amount &&
-        prepared['currency'] == draft.currency) {
-      return null;
+    // A draft prepareEntries returned may carry only its own amount: other
+    // figures from the message (another entry's) are not enough.
+    if (preparedDrafts[draft.id] case final prepared?) {
+      return prepared['amountMinor'] == amount &&
+              prepared['currency'] == draft.currency
+          ? null
+          : 'unbacked_amount';
     }
     if (toolMinorAmounts.contains(amount)) return null;
     final currency = Currency.tryParse(draft.currency ?? '');

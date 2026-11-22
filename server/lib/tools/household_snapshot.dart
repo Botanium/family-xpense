@@ -35,8 +35,15 @@ final class HouseholdSnapshot {
   /// Every member.
   final List<HouseholdMember> members;
 
-  /// Accounts visible to [uid], archived ones excluded.
+  /// Accounts visible to [uid], archived ones included (labels of past
+  /// entries). Balances and new entries use [activeAccounts].
   final List<HouseholdAccount> accounts;
+
+  /// The accounts a new entry may use, and that balances list.
+  List<HouseholdAccount> get activeAccounts => [
+    for (final a in accounts)
+      if (!a.archived) a,
+  ];
 
   /// Every category, archived ones included: past entries keep their
   /// category, so totals, budgets and labels must still find it. New
@@ -71,12 +78,18 @@ final class HouseholdSnapshot {
     return null;
   }
 
-  /// The account with [id], or null.
+  /// The account with [id], archived or not, or null (labels).
   HouseholdAccount? account(String? id) {
     for (final a in accounts) {
       if (a.id == id) return a;
     }
     return null;
+  }
+
+  /// The active account with [id], or null (new entries).
+  HouseholdAccount? activeAccount(String? id) {
+    final a = account(id);
+    return a == null || a.archived ? null : a;
   }
 
   /// The category with [idOrSlug] as its id or slug, archived or not, or
@@ -111,14 +124,14 @@ final class HouseholdSnapshot {
 
   /// The ids the phone would check drafts against.
   HouseholdRefs get refs => HouseholdRefs(
-    accountCurrencies: {for (final a in accounts) a.id: a.currency},
+    accountCurrencies: {for (final a in activeAccounts) a.id: a.currency},
     categoryIds: {for (final c in activeCategories) c.id},
     personIds: {for (final p in people) p.id},
   );
 
   /// The fast parser's view of the household.
   List<ParserAccount> get parserAccounts => [
-    for (final a in accounts)
+    for (final a in activeAccounts)
       if (Currency.tryParse(a.currency) case final currency?)
         ParserAccount(id: a.id, name: a.name, currency: currency, kind: a.kind),
   ];
@@ -198,10 +211,7 @@ final class HouseholdSnapshots {
       profile: profile,
       uid: uid,
       members: members,
-      accounts: [
-        for (final a in accounts)
-          if (!a.archived) a,
-      ]..sort((a, b) => a.order.compareTo(b.order)),
+      accounts: [...accounts]..sort((a, b) => a.order.compareTo(b.order)),
       categories: categories,
       people: people,
     );

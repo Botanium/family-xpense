@@ -952,6 +952,8 @@ base class LedgerResult {
     List<int>? daily,
     required bool complete,
     required bool partialView,
+    List<String>? unknownCategories,
+    bool? rangeShortened,
   }) {
     _json = {
       'currency': currency,
@@ -964,6 +966,8 @@ base class LedgerResult {
       'daily': ?daily,
       'complete': complete,
       'partialView': partialView,
+      'unknownCategories': ?unknownCategories,
+      'rangeShortened': ?rangeShortened,
     };
   }
 
@@ -1089,6 +1093,38 @@ base class LedgerResult {
     _json['partialView'] = value;
   }
 
+  /// Category names the household does not have; when every requested
+  /// category is unknown, no figures are given.
+  List<String>? get unknownCategories {
+    return (_json['unknownCategories'] as List?)?.cast<String>();
+  }
+
+  /// Category names the household does not have; when every requested
+  /// category is unknown, no figures are given.
+  set unknownCategories(List<String>? value) {
+    if (value == null) {
+      _json.remove('unknownCategories');
+    } else {
+      _json['unknownCategories'] = value;
+    }
+  }
+
+  /// True when the requested range was longer than 400 days and was
+  /// shortened to end at `to`.
+  bool? get rangeShortened {
+    return _json['rangeShortened'] as bool?;
+  }
+
+  /// True when the requested range was longer than 400 days and was
+  /// shortened to end at `to`.
+  set rangeShortened(bool? value) {
+    if (value == null) {
+      _json.remove('rangeShortened');
+    } else {
+      _json['rangeShortened'] = value;
+    }
+  }
+
   @override
   String toString() {
     return _json.toString();
@@ -1137,6 +1173,15 @@ base class _LedgerResultTypeFactory extends SchemanticType<LedgerResult> {
           'type': 'boolean',
           'description':
               'True: the partner\'s private accounts are not included.',
+        },
+        'unknownCategories': <String, Object?>{
+          'type': 'array',
+          'description': 'Requested categories that do not exist.',
+          'items': <String, Object?>{'type': 'string'},
+        },
+        'rangeShortened': <String, Object?>{
+          'type': 'boolean',
+          'description': 'True: the range was shortened to the last 400 days.',
         },
       },
       'required': [

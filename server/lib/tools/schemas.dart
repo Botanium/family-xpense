@@ -214,6 +214,16 @@ abstract class $LedgerResult {
   /// the member's own view.
   @Field(description: "True: the partner's private accounts are not included.")
   bool get partialView;
+
+  /// Category names the household does not have; when every requested
+  /// category is unknown, no figures are given.
+  @Field(description: 'Requested categories that do not exist.')
+  List<String>? get unknownCategories;
+
+  /// True when the requested range was longer than 400 days and was
+  /// shortened to end at `to`.
+  @Field(description: 'True: the range was shortened to the last 400 days.')
+  bool? get rangeShortened;
 }
 
 /// One grouped row.
