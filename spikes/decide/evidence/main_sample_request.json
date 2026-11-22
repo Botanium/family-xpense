@@ -1,0 +1,114 @@
+{
+  "model": "gemini-decision-1",
+  "input": "Today: 2026-11-22 (Sunday). Household currency: USD. Speaker: Dara (me). Partner: Shilan.\nPeople: Alex (friend), Karwan (Dara's brother), Rebin (colleague), Aram (Dara's uncle), Mom (Dara's mother).\nAlready parsed: amount IQD 10000, date today.\nMessage: \"\"\"Spent ten thousand dinars on lunch with the kids\"\"\"",
+  "questions": {
+    "intent": {
+      "type": "choice",
+      "instructions": "What kind of money event does the message describe?",
+      "criteria": {
+        "expense": "Money spent on goods, services or bills.",
+        "income": "Money received and kept: salary, freelance pay, a gift received, a refund, a sale.",
+        "transfer": "Money moved between the household's own or joint accounts, including cash withdrawals and currency exchange.",
+        "savings_move": "Money put into or taken out of a savings goal.",
+        "loan_given": "Money lent to someone who is expected to pay it back.",
+        "loan_taken": "Money borrowed from someone or a bank, to be paid back.",
+        "repayment_received": "Someone paying back money they owed us.",
+        "repayment_made": "Us paying back money we borrowed, or paying an instalment on a loan or debt.",
+        "adjustment": "Correcting an account balance or setting an opening balance.",
+        "question": "A question about past spending, income, balances, budgets or entries.",
+        "command": "A request to edit, delete or undo an entry, set a budget, create a goal or change a setting.",
+        "other": "Greeting, chit-chat, unclear, or not about household money."
+      }
+    },
+    "category": {
+      "type": "choice",
+      "instructions": "Which category fits this spending or income best?",
+      "criteria": {
+        "groceries": "Spending: Groceries (Food). Examples: supermarket, market, fruit, vegetables, meat, food shopping.",
+        "dining": "Spending: Dining out (Food). Examples: restaurants, lunch or dinner out, takeaway, delivery, cafes.",
+        "bakery_tea": "Spending: Bakery and tea (Food). Examples: bread, samoon, bakery, tea, coffee, sweets.",
+        "rent": "Spending: Rent (Home). Examples: house or flat rent.",
+        "electricity_generator": "Spending: Electricity and generator (Home). Examples: electricity bill, neighbourhood generator fee (ampere), fuel for a home generator.",
+        "water": "Spending: Water (Home). Examples: water bill, drinking water delivery.",
+        "internet_phone": "Spending: Internet and phone (Home). Examples: internet, mobile credit, phone bill.",
+        "household_goods": "Spending: Household goods (Home). Examples: furniture, appliances, kitchen items, cleaning supplies.",
+        "repairs": "Spending: Repairs (Home). Examples: plumber, electrician, home repairs.",
+        "fuel": "Spending: Fuel (Transport). Examples: petrol, benzine, diesel for the car.",
+        "taxi": "Spending: Taxi (Transport). Examples: taxi, ride hailing (Careem, Uber).",
+        "car_maintenance": "Spending: Car maintenance (Transport). Examples: mechanic, car repair, tyres, oil change, car wash.",
+        "public_transport": "Spending: Public transport (Transport). Examples: bus, minibus, train.",
+        "kids_school": "Spending: Kids and school (Family). Examples: school fees, books, school supplies, kindergarten, toys.",
+        "clothing": "Spending: Clothing (Family). Examples: clothes, shoes.",
+        "health": "Spending: Health (Family). Examples: doctor, pharmacy, medicine, hospital, dentist.",
+        "personal_care": "Spending: Personal care (Family). Examples: barber, salon, cosmetics, toiletries.",
+        "gifts": "Spending: Gifts (Social). Examples: presents bought for others.",
+        "family_support": "Spending: Family support (Social). Examples: money given to support parents or relatives.",
+        "charity": "Spending: Charity and zakat (Social). Examples: donations, zakat, mosque, charity.",
+        "occasions": "Spending: Weddings and occasions (Social). Examples: weddings, funerals, Eid, parties, celebrations.",
+        "entertainment": "Spending: Entertainment (Leisure). Examples: cinema, games, outings, hobbies.",
+        "travel": "Spending: Travel (Leisure). Examples: flights, hotels, trips.",
+        "subscriptions": "Spending: Subscriptions (Leisure). Examples: streaming, apps, memberships (Netflix, Spotify, gym).",
+        "fees": "Spending: Fees (Finance). Examples: bank fees, transfer fees, card fees.",
+        "interest": "Spending: Interest (Finance). Examples: interest paid.",
+        "taxes": "Spending: Taxes (Finance). Examples: taxes, government fees.",
+        "other_expense": "Spending: Other spending. Examples: spending that fits no other category.",
+        "salary": "Income: Salary (Earned). Examples: monthly salary, wages, bonus.",
+        "freelance": "Income: Freelance (Earned). Examples: freelance or side work paid per job.",
+        "business": "Income: Business (Earned). Examples: business or shop income.",
+        "gift_received": "Income: Gifts received (Received). Examples: money given to us as a gift, Eid money.",
+        "refund": "Income: Refunds (Received). Examples: refunds, returned purchases, cashback.",
+        "sale": "Income: Sales (Received). Examples: selling our own things.",
+        "rental_income": "Income: Rental income (Received). Examples: rent received from a tenant.",
+        "other_income": "Income: Other income. Examples: income that fits no other category."
+      }
+    },
+    "account": {
+      "type": "choice",
+      "instructions": "Which account was the money paid from or received into?",
+      "criteria": {
+        "k3Qw8ZpL1rT6yVb2nM0a": "Cash wallet, IQD, mine (Dara's)",
+        "p9Xe4HcJ7uS2fD5gK1oB": "Cash dollars, USD, mine (Dara's)",
+        "m2Rt6YwN8qZ3vB7xL4cC": "Checking account, USD, mine (Dara's); bank account where salary arrives",
+        "j5Fh1KsD9aG4wE6rT8dD": "Joint Visa card, USD, joint (shared by Dara and Shilan)",
+        "v7Lp3QzX5cM9bN2kJ6eE": "Shilan's cash wallet, IQD, partner's (Shilan's)",
+        "s4Gt8WrE2yU6iO1pA3fF": "Savings account, USD, joint (shared by Dara and Shilan); holds the savings goals (vacation, car)",
+        "f1Nb5VcX7zL3kJ9hG2gG": "FIB mobile wallet, IQD, mine (Dara's); First Iraqi Bank app",
+        "unspecified": "The message does not say which account."
+      }
+    },
+    "who": {
+      "type": "choice",
+      "instructions": "Whose spending or income is this?",
+      "criteria": {
+        "me": "Dara, the speaker, for themselves.",
+        "partner": "Shilan, the partner.",
+        "joint": "Both of them, for the shared household.",
+        "unspecified": "The message does not say."
+      }
+    },
+    "multi_entry": {
+      "type": "noul",
+      "instructions": "Does the message describe more than one separate money event?",
+      "criteria": {
+        "true_description": "Two or more separate payments, incomes or transfers are described.",
+        "false_description": "Exactly one money event, or none (a question or a command)."
+      }
+    },
+    "needs_followup": {
+      "type": "noul",
+      "instructions": "Is information that is essential to record this event missing or ambiguous?",
+      "criteria": {
+        "true_description": "The amount is missing, or it is unclear whether money was spent, received, lent or borrowed, or what it was for.",
+        "false_description": "The amount and the kind of event are clear; the account may be left to the default."
+      }
+    },
+    "is_recurring": {
+      "type": "noul",
+      "instructions": "Is this a payment or income that normally repeats every month or week?",
+      "criteria": {
+        "true_description": "A regular bill, subscription, rent, instalment or salary.",
+        "false_description": "A one-off or occasional purchase or event."
+      }
+    }
+  }
+}
