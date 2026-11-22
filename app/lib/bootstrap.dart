@@ -61,8 +61,9 @@ enum AppEnvironment {
 }
 
 /// `--dart-define=XPENSE_AUTH_EMULATOR=host:port` points Firebase Auth at
-/// the emulator suite (`firebase/firebase.json`: `localhost:9099`). Dev
-/// builds only; ignored in prod.
+/// the emulator suite (`firebase/firebase.json`: `127.0.0.1:9099`). Use the
+/// IP: on the simulator `localhost` may resolve to IPv6, where the emulator
+/// does not listen. Dev builds only; ignored in prod.
 const String authEmulatorDefine = String.fromEnvironment(
   'XPENSE_AUTH_EMULATOR',
 );

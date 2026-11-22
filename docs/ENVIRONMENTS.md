@@ -177,7 +177,8 @@ Not enabled yet (the server deploy needs it): `cloudbuild` (server/DEPLOY.md ste
   through the URL scheme `app-1-648682359990-ios-b2b46595d20bceaf172a17`
   (this app id with `-` for `:`), registered in `Info.plist`.
   Against the Auth emulator add
-  `--dart-define=XPENSE_AUTH_EMULATOR=localhost:9099`.
+  `--dart-define=XPENSE_AUTH_EMULATOR=127.0.0.1:9099` (the IP: the
+  emulator does not listen on IPv6 `localhost`).
 
 ### 3.8 App Check
 
