@@ -151,8 +151,13 @@ Not enabled yet (the server deploy needs it): `cloudbuild` (server/DEPLOY.md ste
 
 - Firebase iOS app "Family Xpense", bundle id `com.bitrelia.familyxpense`, app
   id `1:648682359990:ios:b2b46595d20bceaf172a17` (registered before WP-01).
-- Apple Team ID on the app: **pending the owner** (section 6). App Attest
-  needs it.
+- Apple Team ID on the app: `7TMGB6MVP7`, set on 2026-11-22 with the
+  Firebase Management API
+  (`PATCH …/v1beta1/projects/expense-family-cc6ee/iosApps/<app id>?updateMask=teamId`).
+  It was read from the OU field of the owner's Apple Development signing
+  certificate. The code in parentheses in that certificate's name is the
+  personal certificate id, not the team. App Attest and Sign in with Apple
+  need it. A Team ID is not a secret; it is in every app the team signs.
 - The repository's Xcode project still uses the placeholder bundle id
   `app.familyxpense.xpenseApp`; it must become `com.bitrelia.familyxpense`
   before the app can talk to this project (owner of `app/ios/`).
@@ -178,8 +183,9 @@ Not enabled yet (the server deploy needs it): `cloudbuild` (server/DEPLOY.md ste
 
 ### 3.8 App Check
 
-- iOS app: **App Attest** provider registered (token lifetime 1 hour). The
-  exchange only works once the Team ID is set (3.7).
+- iOS app: **App Attest** provider registered (token lifetime 1 hour), with
+  the Team ID set (3.7). Not yet exercised from a device: that needs the App
+  Attest capability on the App ID and the entitlement in the app.
 - DeviceCheck: not configured. Both household phones (D-37) support App
   Attest; the app's `AppleAppAttestWithDeviceCheckFallbackProvider` falls back
   to DeviceCheck only on iOS versions before 14.
@@ -291,9 +297,9 @@ Done by the owner (or by the planning session on the owner's behalf):
 
 Still needed:
 
-1. **Apple Team ID.** Give it to whoever continues WP-01, or set it yourself:
-   Firebase console → Project settings → Your apps → Family Xpense → Team ID.
-   App Attest does not work until it is set.
+1. ~~Apple Team ID~~: done, `7TMGB6MVP7` (3.7). Sign in with Apple and App
+   Attest need a paid Apple Developer Program membership on that team;
+   confirm it is not a free "Personal Team".
 2. **Gemini key (paid tier, D-34).** In Google AI Studio → API keys → Create
    API key → project "Expense Family". Check the key shows a paid tier. Then,
    in your own terminal (zsh), store it without it being echoed or written
