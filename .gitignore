@@ -50,3 +50,6 @@ node_modules/
 
 # Genkit local runtime
 .genkit/
+
+# PR demo recordings (tools/pr_demo.sh)
+.pr-demo/

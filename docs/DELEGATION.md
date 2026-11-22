@@ -16,6 +16,7 @@ Every prompt below starts by pointing the session here. These rules apply to all
 8. **Codegen:** run `dart run build_runner build` (no `--delete-conflicting-outputs`; the flag was removed) before analyzing.
 9. **Done means:** acceptance criteria met, tests written and passing, analyzers clean, the listed test commands pasted with their output into the PR description, and anything you could not verify stated plainly.
 10. **Branch and PR:** branch `wp-NN-short-name` from `main`; one PR; title `WP-NN: …`. Do not merge your own PR.
+11. **Show visible changes.** If the PR changes anything a person can see in the app, record a short demo on the iOS Simulator and attach it: `tools/pr_demo.sh start`, perform the change (scripted with `flutter drive` or simulator taps), `tools/pr_demo.sh stop`, then `tools/pr_demo.sh publish <pr-number> .pr-demo/demo.gif "What changed"`. Keep it under 20 seconds and show how to use the feature, not every state. Do not watch the recording frame by frame; extract one still to confirm it is not blank. Server, rules, parser and other non-visual PRs skip this. If no simulator is available, say so in the PR.
 
 ## Order and parallelism
 
@@ -31,6 +32,7 @@ Every prompt below starts by pointing the session here. These rules apply to all
 | 7 | WP-60 → WP-61, WP-62 | |
 | 8 | WP-70 → WP-71 | can overlap wave 6 and 7 |
 | 9 | WP-80, WP-81, WP-82, WP-83 in parallel; WP-84 last | |
+| design | WP-D1 any time after WP-03, ideally before the M1 screens; WP-85 once M1 to M5 are merged, before WP-84 | the owner wants the design pixel perfect once the base features are solid |
 
 Two files are shared by many packages. To keep parallel work safe: each feature exports its routes from `features/<name>/routes.dart` (stubs created in WP-10, so the central router is not edited again), and ARB keys are added in a feature-prefixed block (conflicts are mechanical; rebase before opening the PR).
 
@@ -481,6 +483,28 @@ Export OTLP traces and metrics from genkit_otel to Cloud Trace and Monitoring wi
 ```text
 You are running WP-84 for Family Xpense. Read docs/DELEGATION.md "Rules for every package" and docs/DESIGN_SYSTEM.md, especially section 12.
 Run one structured review on a release build: every screen on a small and a large iPhone, light and dark, largest accessibility text size, Reduce Motion, Reduce Transparency and Increase Contrast, plus a pass on the owner's iPhone 15 Pro Max and iPhone 17 Pro (simulators stand in for smaller and older models; say so in the sign-off). Grade findings (blocker, fix, note); every accessibility-floor violation is a blocker. Do one fix round, re-check, and write a dated sign-off with screenshots. Measure cold start and scrolling with glass on the iPhone 15 Pro Max and finalise the glass tier table. Say plainly what you could not check.
+```
+
+### WP-D1 Signal reference artboards for every screen
+- **Goal:** a pixel-exact design reference in the Signal style for every screen in DESIGN_SYSTEM section 9, so builders and the pixel-perfect pass have something to match.
+- **Owns:** the design canvas (new artboards on a new page), `docs/design/` (exported PNGs at 1x and 3x and a short index).
+- **Depends on:** WP-03 (tokens are final). **Parallel-safe:** yes. Best done before the screen packages of M1 and M2 start, so they build against it.
+- **Skills and tools:** the Artifact tool (Design canvas), `mobile-app-design:ios-screens`, `mobile-design-system:mobile-design-system`.
+
+```text
+You are running WP-D1 for Family Xpense. Read docs/DELEGATION.md "Rules for every package", docs/DESIGN_SYSTEM.md (all of it) and the merged design-system code in app/lib/core/theme and app/lib/core/ui, which is now the source of truth for tokens.
+On the design canvas https://claude.ai/artifact/XxHQWTHVpRGpvSfzEQdX9S (read it with the Artifact tool first; read the canvas type's instructions), add a new page "v4 · Signal, all screens" and draw every screen in DESIGN_SYSTEM section 9 at 390 x 844, in light and graphite dark, using exactly the tokens in app/lib/core/theme (colours, type sizes, spacing, radii, glass recipes). Start from the existing Signal artboards (S3Home, S3Ask, S3Receipt) and restyle the v1 flow. Include the daily RatePrompt on Home. English only. Then export each artboard as PNG at 1x and 3x into docs/design/ with an index.md listing screen, file and the components used. Open a PR titled "WP-D1: Signal reference artboards". Do not merge it.
+```
+
+### WP-85 Pixel-perfect pass
+- **Goal:** every built screen matches its WP-D1 reference artboard to the pixel at 1x on iPhone 17 Pro and iPhone 15 Pro Max sizes.
+- **Owns:** fixes in `app/lib/features/*` and, only for token errors, `app/lib/core/theme/` (coordinate: run alone).
+- **Depends on:** WP-D1, and the base and solid features (M1 to M5) merged. **Parallel-safe:** no.
+- **Skills and tools:** `flutter:widget-golden-and-a11y-testing`, `flutter:design-review-workflow`, `mobile-app-design:ios-review`; iOS Simulator; `ffmpeg` or ImageMagick for overlays.
+
+```text
+You are running WP-85 for Family Xpense. Read docs/DELEGATION.md "Rules for every package", docs/DESIGN_SYSTEM.md and docs/design/index.md.
+For every screen with a reference in docs/design/: capture the same state in the iOS Simulator (iPhone 17 Pro and iPhone 15 Pro Max, light and dark) with fixed test data, overlay it on the 1x reference at 50% opacity and as a difference image, and list every deviation over 1 point in position or size, any colour that differs from its token, and any type style that differs. Fix the code (never the reference, unless the reference breaks a rule in DESIGN_SYSTEM, in which case note it). Add the final captures as goldens so the match is kept. Report before and after difference images per screen in the PR, with a demo GIF per rule 11. Do not merge it.
 ```
 
 ---

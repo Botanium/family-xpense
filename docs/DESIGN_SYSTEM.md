@@ -361,3 +361,12 @@ Method: the `ios-review` checklist applied to this specification and to the sour
 | 17 | Home figure rolls when the balance changes |
 
 Not applicable: paywall checks (the app has no purchases in v1).
+
+## 13. Pixel-perfect target
+
+The owner wants the finished app to be pixel perfect. The sequence:
+
+1. **References (WP-D1).** Every screen in section 9 gets a Signal artboard in light and dark at 390 x 844, drawn with the merged tokens, exported to `docs/design/`. Only Home, Ask and Receipt exist in Signal today; the rest of the flow exists only in the superseded v1 style.
+2. **Build against them.** Screen packages compare their result with the reference as they go, and attach a demo GIF to the PR (DELEGATION rule 11).
+3. **Pixel pass (WP-85), once the base and solid features (M1 to M5) are merged.** Simulator captures are overlaid on the references at 1x on both household phones; deviations over 1 point, off-token colours and wrong type styles are fixed; the captures become goldens so the match holds.
+

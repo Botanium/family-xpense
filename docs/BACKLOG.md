@@ -38,6 +38,7 @@ MVP for the two partners is M0 to M4 plus loans from M5.
 | S0.12 | Spike: glass performance | frame timings for tiers 1 to 3 on the iPhone 15 Pro Max and the iPhone 17 Pro; recommended device table | S | S0.1 | WP-S2 |
 | S0.13 | Spike: on-device capability | on a real iPhone: Apple model availability, Gemma 4 E2B load time and memory, extraction on 30 English utterances, on-device English speech, ML Kit OCR on Latin receipts | M | S0.1, owner's phone | WP-S3 |
 | S0.14 | Spike: Decisions API | question set runs against real categories; accuracy and calibration on 60 English utterances; measured tokens per call; Gemini transcription of 10 English clips scored | M | S0.3 | WP-S4 |
+| S0.15 | Signal reference artboards | every screen in DESIGN_SYSTEM 9 drawn in Signal, light and dark, at 390 x 844 with the merged tokens; PNG exports in `docs/design/` | M | S0.6 | WP-D1 |
 
 ## E1. Auth, household, accounts (M1)
 
@@ -138,6 +139,7 @@ MVP for the two partners is M0 to M4 plus loans from M5.
 | S8.6 | App Check enforcement | enforcement on for Firestore, Storage and the server in `xpense-prod`; debug tokens removed | S | S8.5 | WP-83 |
 | S8.7 | Rendered design review | every screen on a small and a large iPhone, light and dark, largest text size, Reduce Motion and Reduce Transparency; findings fixed in one round | L | all screens | WP-84 |
 | S8.8 | Performance pass | cold start under 2.5 s and 60 fps scrolling with glass on the iPhone 15 Pro Max; glass tier table final | M | S8.7 | WP-84 |
+| S8.9 | Pixel-perfect pass | every screen matches its Signal reference artboard within 1 pt at 1x on both household phones, light and dark; colours and type match tokens exactly; final captures kept as goldens | L | WP-D1, M1 to M5 | WP-85 |
 
 ## Later (not scheduled)
 

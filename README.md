@@ -15,6 +15,7 @@ start with [`docs/DELEGATION.md`](docs/DELEGATION.md) and
 | `firebase/` | rules, indexes, emulator config, rules tests | |
 | `evals/` | evaluation datasets and fixtures | |
 | `docs/` | specification | |
+| `tools/` | developer scripts, e.g. `pr_demo.sh` for PR demo GIFs | |
 
 ## Toolchain
 
