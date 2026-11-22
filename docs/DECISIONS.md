@@ -211,15 +211,18 @@ Three parts: decisions locked by the owner (L), decisions made while planning (D
 
 Not verified, and settled by spikes: items marked Verify above; how a real Gemini model writes Express for this catalog (WP-32); behaviour on a physical iPhone (all local probes ran on macOS or not at all).
 
+**D-40. Catalog id uses the owner's domain.** `https://bitrelia.com/xpense/a2ui/catalogs/xpense/v1/catalog.json`, matching the bundle id `com.bitrelia.familyxpense`. Status: Locked by the owner on 2026-11-22. It is an identifier only and never has to resolve.
+
+**D-41. Category tree changes.** Status: Locked by the owner on 2026-11-22. `rent` removed; `apartment_gas` added under Home. The owner also asked for "Internet fee" and "Online subscriptions", which overlap the existing `internet_phone` and `subscriptions`; how to resolve the overlap is open (section 4). Categories stay editable in the app (story S2.7).
+
+**D-42. The app is planned to go public as a paid subscription** after the owner and partner use it themselves. Status: Stated by the owner on 2026-11-22; not yet planned in detail. Consequences to plan before M8: in-app subscriptions and a paywall, a separate production Firebase project (already planned), per-user cost limits that fit the price, App Store review for a subscription finance app, and probably Kurdish and Arabic for the local market (D-36 deferred them). A planning pass is added as WP-P1 in DELEGATION.
+
 ## 4. Open questions for the owner
 
-Answered on 2026-11-22: region is Doha (D-18); English only for now (D-36); the app asks for the exchange rate every day (D-16); phones are iPhone 17 Pro and iPhone 15 Pro Max, and the base currency is USD (D-37).
+Answered on 2026-11-22: region is Doha (D-18); English only for now (D-36); the app asks for the exchange rate every day (D-16); phones are iPhone 17 Pro and iPhone 15 Pro Max, and the base currency is USD (D-37); orange means "act or live" as proposed (D-26, now Locked); the daily rate is labelled `market` (D-16); the catalog domain is bitrelia.com (D-40); categories (D-41, partly); email and password sign-in stays (D-24, Locked); Apple Intelligence is on for the iPhone 15 Pro Max.
 
 Still open:
 
-1. **Orange.** Is "act or live" (Ask, mic, plus live markers) acceptable, or should every marker other than Ask and mic become ink? (D-26)
-2. **Rate label.** Is the rate you will type each day the market rate (my default) or the official one? It only changes the label shown in reports.
-3. **Categories.** Review the default tree, especially `electricity_generator`, `family_support`, `charity` and `occasions`.
-4. **Domain and bundle id.** The catalog id uses `familyxpense.app` as a placeholder.
-5. **Email sign-in.** Email and password for the MVP, or is Apple plus Google enough?
-6. **Apple Intelligence.** Is it switched on, with iOS 26 or later, on both phones? On-device extraction depends on it.
+1. **Category overlaps.** Does "Internet fee" replace `internet_phone` (leaving phone separate), and does "Online subscriptions" replace `subscriptions`?
+2. **Apple Intelligence on the iPhone 17 Pro.** Not yet checked.
+3. **Apple Developer Program.** Enrollment in progress; recheck the Team ID after approval (D-39).

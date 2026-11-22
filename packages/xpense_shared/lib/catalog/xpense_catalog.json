@@ -1,10 +1,10 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://familyxpense.app/a2ui/catalogs/xpense/v1/catalog.json",
+  "$id": "https://bitrelia.com/xpense/a2ui/catalogs/xpense/v1/catalog.json",
   "protocolVersion": "1.0",
   "title": "Family Xpense catalog",
   "description": "Household money cards for Family Xpense: 8 basic components and 16 Xpense components (A2UI_CATALOG.md).",
-  "catalogId": "https://familyxpense.app/a2ui/catalogs/xpense/v1/catalog.json",
+  "catalogId": "https://bitrelia.com/xpense/a2ui/catalogs/xpense/v1/catalog.json",
   "components": {
     "Column": {
       "type": "object",

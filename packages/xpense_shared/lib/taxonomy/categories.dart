@@ -76,12 +76,6 @@ const List<CategoryDef> defaultCategories = [
   ),
   CategoryDef(slug: 'home', kind: .expense, names: {'en': 'Home'}),
   CategoryDef(
-    slug: 'rent',
-    kind: .expense,
-    parentSlug: 'home',
-    names: {'en': 'Rent'},
-  ),
-  CategoryDef(
     slug: 'electricity_generator',
     kind: .expense,
     parentSlug: 'home',
@@ -92,6 +86,12 @@ const List<CategoryDef> defaultCategories = [
     kind: .expense,
     parentSlug: 'home',
     names: {'en': 'Water'},
+  ),
+  CategoryDef(
+    slug: 'apartment_gas',
+    kind: .expense,
+    parentSlug: 'home',
+    names: {'en': 'Apartment gas'},
   ),
   CategoryDef(
     slug: 'internet_phone',
