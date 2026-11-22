@@ -41,9 +41,15 @@ dependencies:
   # State and routing (L-10).
   flutter_riverpod: ^3.5.0
   flutter_secure_storage: ^11.2.0
+  # The cloud agent client, remoteAgent (WP-34, ARCHITECTURE 3.2). The agent
+  # API is experimental in 1.0; only lib/services/agent_client_remote.dart.
+  genkit: ^1.0.3
   go_router: ^18.1.4
   # Latin OCR and Android (D-08). Only lib/services/.
   google_mlkit_text_recognition: ^1.0.3
+  # The HTTP client under remoteAgent, wrapped to read the trace header.
+  # Already resolved through genkit. Only lib/services/.
+  http: ^1.6.0
   intl: ^0.20.3
   # The Schema type of a2ui_core's component schemas (WP-31). Pre-1.0, the
   # version a2ui_core 0.8.0 resolves; only lib/a2ui/.

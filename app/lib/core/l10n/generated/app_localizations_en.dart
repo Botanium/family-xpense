@@ -285,8 +285,43 @@ class AppLocalizationsEn extends AppLocalizations {
   String get askTitle => 'Ask';
 
   @override
-  String get askPlaceholder =>
-      'Tell Xpense what you spent, earned or lent. Talking, typing and scanning arrive in a later version.';
+  String get askEmpty =>
+      'Tell Xpense what you spent, earned or lent, or ask about your money.';
+
+  @override
+  String get askModeDecide => 'Smart: classification in cloud';
+
+  @override
+  String get askThinking => 'Working on it…';
+
+  @override
+  String get askStop => 'Stop';
+
+  @override
+  String get askRetry => 'Retry';
+
+  @override
+  String get askFinishManually => 'Finish manually';
+
+  @override
+  String get askNoticeOffline => 'No connection. This message needs the cloud.';
+
+  @override
+  String get askNoticeLimit =>
+      'Today\'s cloud limit for your household is used up. It resets tomorrow.';
+
+  @override
+  String get askNoticePrivacy =>
+      'On-device mode keeps this on your phone. Change the privacy mode in Settings to use the cloud.';
+
+  @override
+  String get askNoticeError => 'Something went wrong with this message.';
+
+  @override
+  String get askOffline => 'Offline. Entries are made on this phone.';
+
+  @override
+  String get askSend => 'Send';
 
   @override
   String get askModeOnDevice => 'On-device';

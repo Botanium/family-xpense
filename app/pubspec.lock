@@ -177,6 +177,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "3.2.6"
+  dotprompt:
+    dependency: transitive
+    description:
+      name: dotprompt
+      sha256: "85d42c0fbfe015dacb7f46f3476fdec5c99af161cb21b37d05addfb7c1307efe"
+      url: "https://pub.dev"
+    source: hosted
+    version: "2.0.1"
   email_validator:
     dependency: transitive
     description:
@@ -535,6 +543,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "0.2.4"
+  genkit:
+    dependency: "direct main"
+    description:
+      name: genkit
+      sha256: d874741730a44ce0615630eac23a930b330056dd1dae1fc7e48fdf99c06c69e8
+      url: "https://pub.dev"
+    source: hosted
+    version: "1.0.3"
   go_router:
     dependency: "direct main"
     description:
@@ -559,6 +575,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.0.3"
+  handlebars_dart:
+    dependency: transitive
+    description:
+      name: handlebars_dart
+      sha256: "267f946bae6b46be5f80150a4572740098a460866ee2b6cb7ac39cd463eb7562"
+      url: "https://pub.dev"
+    source: hosted
+    version: "1.0.0"
   hooks:
     dependency: transitive
     description:
@@ -576,7 +600,7 @@ packages:
     source: hosted
     version: "0.15.7"
   http:
-    dependency: transitive
+    dependency: "direct main"
     description:
       name: http
       sha256: "87721a4a50b19c7f1d49001e51409bddc46303966ce89a65af4f4e6004896412"
@@ -1193,6 +1217,22 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.1.2"
+  web_socket:
+    dependency: transitive
+    description:
+      name: web_socket
+      sha256: "34d64019aa8e36bf9842ac014bb5d2f5586ca73df5e4d9bf5c936975cae6982c"
+      url: "https://pub.dev"
+    source: hosted
+    version: "1.0.1"
+  web_socket_channel:
+    dependency: transitive
+    description:
+      name: web_socket_channel
+      sha256: d645757fb0f4773d602444000a8131ff5d48c9e47adfe9772652dd1a4f2d45c8
+      url: "https://pub.dev"
+    source: hosted
+    version: "3.0.3"
   webdriver:
     dependency: transitive
     description:
