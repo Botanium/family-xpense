@@ -204,11 +204,20 @@ class _HouseholdSetupScreenState extends ConsumerState<HouseholdSetupScreen> {
                   ? () => unawaited(context.push(AppRoutes.join))
                   : null,
             )
-          else if (!state.shared && invite is! InviteNotNeeded)
-            XpButton.text(
-              label: l10n.householdInviteLater,
-              expand: true,
-              onPressed: _next,
+          else
+            // Once the code is shared (or the partner is in) there is
+            // nothing to put off; the slot keeps its height so Continue
+            // does not jump.
+            Visibility(
+              visible: !state.shared && invite is! InviteNotNeeded,
+              maintainSize: true,
+              maintainAnimation: true,
+              maintainState: true,
+              child: XpButton.text(
+                label: l10n.householdInviteLater,
+                expand: true,
+                onPressed: _next,
+              ),
             ),
         ],
       ),

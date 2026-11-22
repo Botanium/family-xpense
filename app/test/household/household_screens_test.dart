@@ -201,7 +201,7 @@ void main() {
         isNull,
       );
       expect(find.text('Continue', skipOffstage: false), findsOneWidget);
-      expect(find.text('Invite later', skipOffstage: false), findsOneWidget);
+      expect(find.text('Invite later').hitTestable(), findsOneWidget);
       expect(find.text('I have an invite', skipOffstage: false), findsNothing);
     });
 
@@ -233,8 +233,10 @@ void main() {
       expect(shared.single, contains(code));
       expect(shared.single, contains('xpense://join?code=AB3DE7GH9K'));
       expect(shared.single, contains('works once, for 7 days'));
-      // Once shared, "Invite later" no longer applies.
-      expect(find.text('Invite later', skipOffstage: false), findsNothing);
+      // Once shared, "Invite later" no longer applies; Continue stays put.
+      expect(find.text('Invite later').hitTestable(), findsNothing);
+      // Hidden from VoiceOver too.
+      expect(find.semantics.byLabel('Invite later'), findsNothing);
     });
 
     testWidgets('Continue goes on to Try it, and Back returns to the code', (
@@ -364,7 +366,7 @@ void main() {
 
       expect(find.text(code), findsNothing);
       expect(find.text('Your partner has joined.'), findsOneWidget);
-      expect(find.text('Invite later', skipOffstage: false), findsNothing);
+      expect(find.text('Invite later').hitTestable(), findsNothing);
     });
 
     testWidgets('opened again after creating: straight to the invite', (
