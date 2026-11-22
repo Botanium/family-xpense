@@ -68,10 +68,11 @@ abstract interface class EntryClassifier {
   /// speaker in [context].
   ///
   /// [parsed] and [hints] are what the fast parser settled; an account hint
-  /// with an id narrows the duplicate search. [candidates] are duplicate
-  /// candidates the caller already found (the phone may know of unsynced
-  /// entries); the classifier adds its own deterministic ones and asks
-  /// `duplicate` only when there is at least one. [lang] is `en` for now.
+  /// with an id narrows the duplicate search. Duplicate candidates are found
+  /// on the server only, among the saved entries the speaker can see;
+  /// `duplicate` is asked only when there is at least one. [candidates] is
+  /// kept for compatibility with `DecideRequest` and is ignored. [lang] is
+  /// `en` for now.
   ///
   /// Each asked question that got an answer is set on the response; others
   /// are absent. Answers from the uncalibrated fallback carry

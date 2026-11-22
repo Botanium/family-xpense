@@ -112,6 +112,7 @@ final _decideResponse = DecideResponse(
   needsFollowup: YesNoAnswer(probability: 0.1),
   isRecurring: YesNoAnswer(probability: 0.05),
   duplicate: YesNoAnswer(probability: 0.3),
+  duplicateOf: 't1',
   calibrated: true,
 );
 
@@ -348,6 +349,7 @@ void main() {
       final keys = props(DecideResponse.$schema).keys.toSet();
       expect(keys, containsAll(decideQuestionKeys));
       expect(keys.difference(decideQuestionKeys.toSet()), {
+        'duplicate_of',
         'calibrated',
         'unavailable',
       });
