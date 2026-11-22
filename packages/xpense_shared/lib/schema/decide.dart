@@ -76,8 +76,17 @@ abstract class $DecideResponse {
   /// Answer to `category`.
   $ChoiceAnswer? get category;
 
-  /// Answer to `account`.
+  /// Answer to `account`: the account the money left from or arrived in.
   $ChoiceAnswer? get account;
+
+  /// Answer to `to_account`: the destination account of a transfer or
+  /// savings move (WP-S4).
+  @Field(name: 'to_account')
+  $ChoiceAnswer? get toAccount;
+
+  /// Answer to `person`: the household's person a loan, repayment or gift
+  /// is with (WP-S4).
+  $ChoiceAnswer? get person;
 
   /// Answer to `who`.
   $ChoiceAnswer? get who;
