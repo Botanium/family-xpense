@@ -11,7 +11,10 @@ final _plainDecimal = RegExp(r'^([0-9]+)(?:\.([0-9]+))?$');
 ///
 /// Never a `double` (DATA_MODEL 1). Arithmetic across currencies is a
 /// programmer error and throws [ArgumentError]; convert through an `FxRate`
-/// first.
+/// first. Arithmetic whose exact result does not fit in a signed 64-bit
+/// `int` throws [StateError] instead of silently wrapping, just as
+/// [parseMajor] and FX conversion reject such results with
+/// [AmountOutOfRange].
 @immutable
 final class Money implements Comparable<Money> {
   /// Creates [minorUnits] of [currency] (cents for USD, dinars for IQD).
@@ -62,19 +65,45 @@ final class Money implements Comparable<Money> {
   bool get isNegative => minorUnits < 0;
 
   /// The sum of two amounts in the same currency.
+  ///
+  /// Throws [StateError] if the exact sum does not fit in a 64-bit `int`.
   Money operator +(Money other) {
     _checkSameCurrency(other);
-    return Money(minorUnits + other.minorUnits, currency);
+    return _checked(
+      BigInt.from(minorUnits) + BigInt.from(other.minorUnits),
+      '+',
+    );
   }
 
   /// The difference of two amounts in the same currency.
+  ///
+  /// Throws [StateError] if the exact difference does not fit in a 64-bit
+  /// `int`.
   Money operator -(Money other) {
     _checkSameCurrency(other);
-    return Money(minorUnits - other.minorUnits, currency);
+    return _checked(
+      BigInt.from(minorUnits) - BigInt.from(other.minorUnits),
+      '-',
+    );
   }
 
   /// The negated amount.
-  Money operator -() => Money(-minorUnits, currency);
+  ///
+  /// Throws [StateError] for the most negative `int`, whose negation does
+  /// not fit in a 64-bit `int`.
+  Money operator -() => _checked(-BigInt.from(minorUnits), 'negate');
+
+  /// Wraps an exact [result] in this currency, or throws [StateError] when
+  /// it is outside the 64-bit range instead of letting it wrap around.
+  Money _checked(BigInt result, String operation) {
+    if (!result.isValidInt) {
+      throw StateError(
+        'Money overflow: $operation gives $result ${currency.code} minor '
+        'units, outside the 64-bit range',
+      );
+    }
+    return Money(result.toInt(), currency);
+  }
 
   /// Splits this amount across [weights] with [allocate], so the parts sum
   /// exactly to this amount.

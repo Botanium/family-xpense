@@ -151,4 +151,74 @@ void main() {
       expect(const Money(1000, Currency.iqd).hashCode, dinars.hashCode);
     });
   });
+
+  group('Money arithmetic at the 64-bit boundaries', () {
+    const maxInt = 9223372036854775807;
+    const minInt = -9223372036854775808;
+    Money iqd(int minor) => Money(minor, Currency.iqd);
+
+    final inRange = <({String name, Money Function() op, int expected})>[
+      (name: 'max + 0', op: () => iqd(maxInt) + iqd(0), expected: maxInt),
+      (name: 'max + -1', op: () => iqd(maxInt) + iqd(-1), expected: maxInt - 1),
+      (name: 'min + 0', op: () => iqd(minInt) + iqd(0), expected: minInt),
+      (name: 'max + min', op: () => iqd(maxInt) + iqd(minInt), expected: -1),
+      (name: 'min + 1', op: () => iqd(minInt) + iqd(1), expected: minInt + 1),
+      (
+        name: '(max - 1) + 1',
+        op: () => iqd(maxInt - 1) + iqd(1),
+        expected: maxInt,
+      ),
+      (name: 'max - 0', op: () => iqd(maxInt) - iqd(0), expected: maxInt),
+      (name: 'min - 0', op: () => iqd(minInt) - iqd(0), expected: minInt),
+      (name: 'max - max', op: () => iqd(maxInt) - iqd(maxInt), expected: 0),
+      (name: 'min - min', op: () => iqd(minInt) - iqd(minInt), expected: 0),
+      (name: '-1 - max', op: () => iqd(-1) - iqd(maxInt), expected: minInt),
+      (name: '0 - max', op: () => iqd(0) - iqd(maxInt), expected: -maxInt),
+      (
+        name: '(min + 1) - 1',
+        op: () => iqd(minInt + 1) - iqd(1),
+        expected: minInt,
+      ),
+      (name: '-max', op: () => -iqd(maxInt), expected: -maxInt),
+      (name: '-(min + 1)', op: () => -iqd(minInt + 1), expected: maxInt),
+      (name: '-0', op: () => -iqd(0), expected: 0),
+    ];
+    for (final c in inRange) {
+      test('${c.name} stays exact', () {
+        expect(c.op(), iqd(c.expected));
+      });
+    }
+
+    final overflowing = <({String name, Money Function() op})>[
+      (name: 'max + 1', op: () => iqd(maxInt) + iqd(1)),
+      (name: 'max + max', op: () => iqd(maxInt) + iqd(maxInt)),
+      (name: 'min + -1', op: () => iqd(minInt) + iqd(-1)),
+      (name: 'min + min', op: () => iqd(minInt) + iqd(minInt)),
+      (name: 'min - 1', op: () => iqd(minInt) - iqd(1)),
+      (name: 'max - -1', op: () => iqd(maxInt) - iqd(-1)),
+      (name: 'max - min', op: () => iqd(maxInt) - iqd(minInt)),
+      (name: '0 - min', op: () => iqd(0) - iqd(minInt)),
+      (name: 'min - max', op: () => iqd(minInt) - iqd(maxInt)),
+      (name: '-min', op: () => -iqd(minInt)),
+    ];
+    for (final c in overflowing) {
+      test('${c.name} throws instead of wrapping', () {
+        expect(c.op, throwsStateError);
+      });
+    }
+
+    test('USD overflows the same way', () {
+      expect(
+        () => const Money(maxInt, Currency.usd) + const Money(1, Currency.usd),
+        throwsStateError,
+      );
+    });
+
+    test('a currency mismatch is reported before overflow', () {
+      expect(
+        () => iqd(maxInt) + const Money(1, Currency.usd),
+        throwsArgumentError,
+      );
+    });
+  });
 }
