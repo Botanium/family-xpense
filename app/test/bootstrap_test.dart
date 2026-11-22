@@ -12,6 +12,7 @@ import 'package:xpense_app/services/agent_client.dart';
 import 'package:xpense_app/services/biometric_lock.dart';
 import 'package:xpense_app/services/clock.dart';
 import 'package:xpense_app/services/decisions_client.dart';
+import 'package:xpense_app/services/feature_flags.dart';
 import 'package:xpense_app/services/ocr_engine.dart';
 import 'package:xpense_app/services/on_device_llm/on_device_llm.dart';
 import 'package:xpense_app/services/secure_store.dart';
@@ -21,6 +22,42 @@ import 'package:xpense_app/services/speech_capture.dart';
 import 'support/test_app.dart';
 
 void main() {
+  group('App Check provider (D-39)', () {
+    test('App Attest only in a release build on a device', () {
+      expect(
+        appleAppCheckFor(releaseBuild: true, simulator: false),
+        AppleAppCheck.appAttest,
+      );
+    });
+
+    test('the debug provider on the simulator and outside release', () {
+      for (final (release, simulator) in [
+        (true, true),
+        (false, true),
+        (false, false),
+      ]) {
+        expect(
+          appleAppCheckFor(releaseBuild: release, simulator: simulator),
+          AppleAppCheck.debug,
+          reason: 'release: $release, simulator: $simulator',
+        );
+      }
+    });
+
+    test('a test run is not the simulator', () {
+      expect(runningOnSimulator, isFalse);
+    });
+  });
+
+  group('feature flags', () {
+    test('fakes start at the shipped defaults: Apple sign-in off', () async {
+      final flags = await connectFeatureFlags(AppEnvironment.fakes);
+      expect(flags.current, FeatureFlags.defaults);
+      expect(flags.current.appleSignInEnabled, isFalse);
+      expect(FeatureFlags.remoteDefaults, {'apple_sign_in_enabled': false});
+    });
+  });
+
   group('AppEnvironment', () {
     test('defaults to fakes, which needs no Firebase', () {
       expect(AppEnvironment.fromName(''), AppEnvironment.fakes);

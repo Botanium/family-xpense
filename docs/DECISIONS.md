@@ -172,6 +172,16 @@ Three parts: decisions locked by the owner (L), decisions made while planning (D
 - The iOS bundle id is `com.bitrelia.familyxpense`, already registered in that project, replacing the `app.familyxpense.xpenseApp` placeholder.
 - Unchanged from L-22: never use the machine's active gcloud project. Every `gcloud` command passes `--project` and `--billing-project`, because some command groups bill the active project otherwise (ENVIRONMENTS 2).
 
+**D-39. Apple sign-in and App Attest gated off until the paid Apple Developer Program enrollment is approved; recheck the Team ID afterwards, since it may differ from `7TMGB6MVP7`.** Status: Decided on 2026-11-22. The owner's Apple account is a free Personal Team and the paid enrollment is pending.
+- **Sign in with Apple:** the "Continue with Apple" button shows only while the Remote Config flag `apple_sign_in_enabled` is on. The local default is off, so builds ship with it off; turning it on in the Firebase console needs no release, and open screens update live (`FeatureFlags.appleSignInEnabled`, `app/lib/services/feature_flags.dart`). Google and email are unaffected.
+- **App Check:** the debug provider is used on the simulator and in debug and profile builds. App Attest (with DeviceCheck before iOS 14) is used only in a release build on a device (`appleAppCheckFor` in `bootstrap.dart`), so nothing on the free team depends on App Attest.
+- **After approval:**
+  1. Read the Team ID again in the developer account and correct it on the Firebase iOS app if it changed (ENVIRONMENTS 3.7).
+  2. Turn on the *Sign in with Apple* and *App Attest* capabilities on the App ID (ENVIRONMENTS section 6, step 3).
+  3. Add the entitlements to `app/ios/Runner`.
+  4. Set `apple_sign_in_enabled` to true in Remote Config.
+- **Before the App Store:** the flag must be on, because App Review guideline 4.8 requires Sign in with Apple when Google sign-in is offered.
+
 ## 3. What was verified (2026-11-22)
 
 | Subject | How | Result |

@@ -25,6 +25,7 @@ import 'package:xpense_app/features/onboarding/routes.dart';
 import 'package:xpense_app/features/settings_privacy/lock/app_lock_controller.dart';
 import 'package:xpense_app/features/settings_privacy/lock/app_lock_gate.dart';
 import 'package:xpense_app/features/settings_privacy/routes.dart';
+import 'package:xpense_app/services/feature_flags.dart';
 import 'package:xpense_app/services/on_device_llm/on_device_llm.dart';
 import 'package:xpense_app/services/settings_store.dart';
 
@@ -121,6 +122,13 @@ class _XpenseAppState extends ConsumerState<XpenseApp> {
   // Remote Config fetch (WP-01) and the rule cache sync (WP-34) join here.
   void _afterFirstFrame() {
     if (!mounted) return;
+    // Remote Config: fetch, activate, then follow console changes (D-39).
+    unawaited(
+      ref
+          .read(featureFlagSourceProvider)
+          .refresh()
+          .then<void>((_) {}, onError: _log),
+    );
     unawaited(
       ref.read(onDeviceProbeProvider.future).then<void>((_) {}, onError: _log),
     );
