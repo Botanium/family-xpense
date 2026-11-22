@@ -125,10 +125,15 @@ final class FakeDocumentStore implements DocumentStore {
   /// Number of transactions that committed.
   int commits = 0;
 
+  /// Called as each transaction starts, before its body; tests use it to
+  /// change data between a job's reads and its commit.
+  Future<void> Function()? onTransaction;
+
   @override
   Future<T> transaction<T>(
     Future<T> Function(DocumentTransaction tx) body,
   ) async {
+    await onTransaction?.call();
     final previous = _lock;
     final done = Completer<void>();
     _lock = done.future;

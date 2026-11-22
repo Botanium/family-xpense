@@ -530,6 +530,52 @@ void main() {
     );
   });
 
+  group('a transfer between two accounts whose sharing changes at once', () {
+    test("is never committed with the other account's stale visibility "
+        '(Codex review, PR #33)', () async {
+      // A was shared and is being made private; B is private and is about
+      // to be shared. Transfer x runs from A to B.
+      seedAccount('a', visibleTo: [owner], applied: [owner, partner]);
+      seedAccount('b', visibleTo: [owner], applied: [owner]);
+      seedTxn('x', 'a', to: 'b', visibleTo: [owner, partner]);
+      var fired = false;
+      docs.onTransaction = () async {
+        // After A's run has read its page (and B as private), before it
+        // commits: B gets shared and B's run finishes.
+        if (fired || docs.pageReads != 1) return;
+        fired = true;
+        docs.docs['$accounts/b']!
+          ..['visibleTo'] = [owner, partner]
+          ..['sharedWithPartner'] = true
+          ..['visibilityAppliedTo'] = [owner, partner];
+      };
+
+      final result = await job.sync(hid, 'a');
+
+      expect(fired, isTrue);
+      expect(result.outcome, VisibilityOutcome.synced);
+      // B is shared, so the transfer into it stays visible to the partner.
+      expect(visibleOf('$txns/x'), [owner, partner]);
+    });
+
+    test('gives up with 503 when the other account never settles', () async {
+      seedAccount('a', visibleTo: [owner], applied: [owner, partner]);
+      seedAccount('b', visibleTo: [owner], applied: [owner]);
+      seedTxn('x', 'a', to: 'b', visibleTo: [owner, partner]);
+      var flips = 0;
+      docs.onTransaction = () async {
+        if (docs.pageReads != 1) return;
+        final b = docs.docs['$accounts/b']!;
+        b['visibleTo'] = (flips++).isEven ? [owner, partner] : [owner];
+      };
+
+      await expectLater(job.sync(hid, 'a'), throwsA(isA<GatewayUnavailable>()));
+      // Nothing half written, and the repair stays pending.
+      expect(visibleOf('$txns/x'), [owner, partner]);
+      expect(docs.docs['$accounts/a']!['visibilityAppliedTo'], isNull);
+    });
+  });
+
   group('accountFromEvent', () {
     test('reads the ce-document attribute', () {
       expect(accountFromEvent({'ce-document': 'households/h/accounts/a'}, ''), (

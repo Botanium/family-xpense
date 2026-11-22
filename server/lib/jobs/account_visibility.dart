@@ -115,6 +115,10 @@ final class AccountVisibilityJob {
   /// How long a run's claim on an account lasts without a progress write.
   final Duration lease;
 
+  /// How often one page is computed again because a transfer's other
+  /// account changed before it committed, before the run gives up (503).
+  static const maxPageAttempts = 5;
+
   /// The transaction fields that name an account.
   static const _accountFields = ['accountId', 'toAccountId'];
 
@@ -288,7 +292,10 @@ final class AccountVisibilityJob {
     }
     var done = 0;
     var rewritten = 0;
-    if (!await _progress(accountPath, runId, target, done, total)) return null;
+    if (await _progress(accountPath, runId, target, done, total) ==
+        _Commit.lost) {
+      return null;
+    }
 
     for (final field in _accountFields) {
       String? after;
@@ -301,52 +308,39 @@ final class AccountVisibilityJob {
           startAfterId: after,
         );
         if (page.isEmpty) break;
-        // This account counts with the visibleTo the pass is for (a change
-        // during the run gets its own pass); the other account of a
-        // transfer is read fresh for every page.
-        final visibleTo = <String, List<String>?>{accountId: target};
-        Future<List<String>?> visibilityOf(String id) async {
-          if (visibleTo.containsKey(id)) return visibleTo[id];
-          final doc = await _store.read('households/$hid/accounts/$id');
-          return visibleTo[id] = doc == null
-              ? null
-              : _stringList(doc['visibleTo']);
-        }
-
-        final writes = <DocumentWrite>[];
-        final now = _clock.now().toUtc();
-        for (final doc in page) {
-          final desired = <String>{};
-          for (final f in _accountFields) {
-            final id = doc.data[f];
-            if (id is! String || id.isEmpty) continue;
-            final v = await visibilityOf(id);
-            if (v != null) desired.addAll(v);
-          }
-          if (desired.isEmpty) continue; // accounts gone: leave it alone
-          final current = _stringList(doc.data['visibleTo']);
-          if (_sameSet(current, desired)) continue;
-          writes.add(
-            DocumentWrite(doc.path, {
-              'visibleTo': desired.toList()..sort(),
-              'updatedAt': now,
-              'updatedBy': 'system',
-            }, merge: true),
-          );
-        }
         done += page.length;
-        // The page's writes commit only while this run still holds the
-        // lease, in the same transaction that checks it: a run whose lease
-        // ran out and was taken over writes nothing more (Codex review).
-        if (!await _progress(
-          accountPath,
-          runId,
-          target,
-          done,
-          total,
-          writes: writes,
-        )) {
-          return null;
+        // A transfer's other account is read outside the commit; the commit
+        // re-reads it and refuses the page when it changed meanwhile, and
+        // the page is computed again (Codex review, PR #33).
+        List<DocumentWrite>? writes;
+        for (var attempt = 0; writes == null; attempt++) {
+          if (attempt == maxPageAttempts) {
+            throw const GatewayUnavailable(
+              'visibility: accounts kept changing under one page',
+            );
+          }
+          final (pageWrites, counterparts) = await _pageWrites(
+            hid,
+            accountId,
+            target,
+            page,
+          );
+          switch (await _progress(
+            accountPath,
+            runId,
+            target,
+            done,
+            total,
+            writes: pageWrites,
+            counterparts: counterparts,
+          )) {
+            case _Commit.lost:
+              return null;
+            case _Commit.stale:
+              continue;
+            case _Commit.done:
+              writes = pageWrites;
+          }
         }
         rewritten += writes.length;
         if (page.length < pageSize) break;
@@ -357,19 +351,29 @@ final class AccountVisibilityJob {
   }
 
   /// In one transaction: checks that [runId] still holds the account's
-  /// lease, applies [writes] (a page of history), writes progress and renews
-  /// the lease. Returns false, writing nothing, when another run holds the
-  /// account now.
-  Future<bool> _progress(
+  /// lease and that every account in [counterparts] still has the
+  /// `visibleTo` the page was computed with, then applies [writes] (a page
+  /// of history), writes progress and renews the lease. Writes nothing when
+  /// the lease is lost or a counterpart changed.
+  Future<_Commit> _progress(
     String accountPath,
     String runId,
     List<String> target,
     int done,
     int total, {
     List<DocumentWrite> writes = const [],
+    Map<String, List<String>?> counterparts = const {},
   }) => _store.transaction((tx) async {
     final account = await tx.read(accountPath);
-    if (!_holds(account, runId)) return false;
+    if (!_holds(account, runId)) return _Commit.lost;
+    for (final MapEntry(key: path, value: used) in counterparts.entries) {
+      final now = await tx.read(path);
+      final visibleTo = now == null ? null : _stringList(now['visibleTo']);
+      final same = visibleTo == null || used == null
+          ? visibleTo == used
+          : _sameSet(visibleTo, used);
+      if (!same) return _Commit.stale;
+    }
     for (final w in writes) {
       tx.write(w.path, w.data, merge: w.merge);
     }
@@ -382,8 +386,54 @@ final class AccountVisibilityJob {
         total: total < done ? done : total,
       ),
     }, merge: true);
-    return true;
+    return _Commit.done;
   });
+
+  /// The writes that bring [page] in line: each transaction's `visibleTo`
+  /// becomes the union of its accounts'. This account counts with
+  /// [target], the `visibleTo` the pass is for (a change during the run
+  /// gets its own pass); a transfer's other account is read now, and its
+  /// `visibleTo` as used is returned by path, for the commit to check.
+  Future<(List<DocumentWrite>, Map<String, List<String>?>)> _pageWrites(
+    String hid,
+    String accountId,
+    List<String> target,
+    List<StoredDocument> page,
+  ) async {
+    final counterparts = <String, List<String>?>{};
+    Future<List<String>?> visibilityOf(String id) async {
+      if (id == accountId) return target;
+      final path = 'households/$hid/accounts/$id';
+      if (counterparts.containsKey(path)) return counterparts[path];
+      final doc = await _store.read(path);
+      return counterparts[path] = doc == null
+          ? null
+          : _stringList(doc['visibleTo']);
+    }
+
+    final writes = <DocumentWrite>[];
+    final now = _clock.now().toUtc();
+    for (final doc in page) {
+      final desired = <String>{};
+      for (final f in _accountFields) {
+        final id = doc.data[f];
+        if (id is! String || id.isEmpty) continue;
+        final v = await visibilityOf(id);
+        if (v != null) desired.addAll(v);
+      }
+      if (desired.isEmpty) continue; // accounts gone: leave it alone
+      final current = _stringList(doc.data['visibleTo']);
+      if (_sameSet(current, desired)) continue;
+      writes.add(
+        DocumentWrite(doc.path, {
+          'visibleTo': desired.toList()..sort(),
+          'updatedAt': now,
+          'updatedBy': 'system',
+        }, merge: true),
+      );
+    }
+    return (writes, counterparts);
+  }
 
   /// Records [target] as applied when it is still the account's
   /// `visibleTo` and releases the lease. Returns null when finished, or the
@@ -558,6 +608,19 @@ final _accountPath = RegExp(
     }
   }
   return null;
+}
+
+/// How a page commit ended.
+enum _Commit {
+  /// Written under the lease.
+  done,
+
+  /// Another run holds the lease: nothing written.
+  lost,
+
+  /// A transfer's other account changed since the page was computed:
+  /// nothing written; compute it again.
+  stale,
 }
 
 /// A run found its lease taken over by another run.
