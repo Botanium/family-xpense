@@ -248,22 +248,23 @@ The switch `decideEnabled` in `config/runtime` turns step 1 to 3 off (`{unavaila
 
 ### Measured (WP-33 live check, 2026-11-22)
 
-`server/tool/decide_live_check.dart` ran the real classifier against `gemini-decision-1` and `gemini-3.5-flash-lite` on a fixture household from the owner's Mac, with the key read from Secret Manager (`latest`, version 2) at run time:
+`server/tool/decide_live_check.dart` ran the real classifier against `gemini-decision-1` and `gemini-3.5-flash-lite` on a fixture household with the D-41 category tree (35 leaves plus two catch-alls), from the owner's Mac, with the key read from Secret Manager (`latest`, version 2) at run time:
 
 | Measure | Result |
 |---|---|
-| scored answers (intent, category, account, to_account, person on 9 messages) | 20/20 right |
-| input tokens, 7 default questions | 1,896 (WP-S4: mean 2,002) |
-| input tokens, all 10 questions without `duplicate` | 2,388 |
-| input tokens, 4 questions | 876 to 1,570 (category is about 860 of it) |
-| latency per call | 301 to 480 ms |
+| scored answers (intent, category, account, to_account, person on 11 messages) | 23/23 right |
+| input tokens, 7 default questions | 1,941 (WP-S4: mean 2,002) |
+| input tokens, all 10 questions without `duplicate` | 2,433 |
+| input tokens, 3 or 4 questions | 876 to 1,640 (the category question is about 860 of it) |
+| latency per call | 248 to 634 ms, 343 ms median |
 | transfers with `to_account` | "Moved 500 dollars from checking to savings": from checking 0.99, to savings 0.88; "Withdrew 200 dollars cash from checking": to Cash dollars 0.84 (`needs_followup` still 0.62) |
 | `person` | Alex 1.00 on a loan; Mom 1.00 on family support; `none` 1.00 on bread |
+| new D-41 categories | phone top-up → `phone_mobile_credit` 1.00; Netflix → `online_subscriptions` 1.00 |
 | duplicates | generator payment against yesterday's generator entry 0.75 (below `dup_warn` 0.80, as WP-S4 found); bread against yesterday's bread 0.10 |
 | key re-read | a stale key was refused, `latest` re-read once, answered |
 | error shapes | unknown field → 400 `invalid_request`; unknown model → 404 `not_found`; both classified as request errors, not blocks |
 | cache | repeat answered in under 1 ms, no usage counted |
-| Flash-Lite fallback | same answers on the three cases tried; 947 to 2,130 input and 141 to 261 output tokens; 1.0 to 1.4 s; about USD 0.0010 per call |
+| Flash-Lite fallback | same answers as the Decisions API on the three cases tried, except `to_account` `unspecified` (1.00) on the expense where the Decisions API was unsure; 947 to 2,175 input and 141 to 260 output tokens; 0.9 to 1.3 s; about USD 0.0010 per call |
 
 Not exercised live: a safety block (neither shape has been observed), a 429 or 5xx, and Cloud Run to API latency. These paths are covered by unit tests with a fake HTTP client.
 
@@ -494,7 +495,7 @@ Prices are the verified paid-tier rates. Token counts are estimates to be replac
 
 | Call | Tokens (estimate) | Cost |
 |---|---|---|
-| `/decide` | 1,900 in, measured (7 questions, 36 category and 8 account options; WP-33); 2,400 with all 10 questions; Flash-Lite fallback about 2,000 in and 200 out | USD 0.00019 (fallback USD 0.0011) |
+| `/decide` | 1,940 in, measured (7 questions, 37 category and 6 account options; WP-33); 2,430 with all 10 questions; Flash-Lite fallback about 2,000 in and 200 out | USD 0.00019 (fallback USD 0.0011) |
 | agent capture turn, Flash-Lite, two model calls + one Decisions call | 16,000 in (about 12,000 of it catalog instructions), 450 out | USD 0.0060 |
 | average agent capture (1.25 turns) | | USD 0.0075 |
 | cloud audio, 8 s | + 256 in (32 tokens per second) | + USD 0.00008 |

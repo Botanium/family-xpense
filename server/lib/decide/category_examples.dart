@@ -1,5 +1,6 @@
 /// Typical examples per default category slug, shown in the `category`
-/// option descriptions. From WP-S4, where category was 27/27 with them.
+/// option descriptions. From WP-S4, where category was 27/27 with them;
+/// the D-41 categories were added in WP-33.
 /// Categories a household adds have no examples; their name is enough.
 library;
 
@@ -10,12 +11,14 @@ const Map<String, String> categoryExamples = {
   'dining': 'restaurants, lunch or dinner out, takeaway, delivery, cafes',
   'bakery_tea': 'bread, samoon, bakery, tea, coffee, sweets',
   'home': 'home costs in general',
-  'rent': 'house or flat rent',
   'electricity_generator':
       'electricity bill, neighbourhood generator fee (ampere), fuel for a '
       'home generator',
   'water': 'water bill, drinking water delivery',
-  'internet_phone': 'internet, mobile credit, phone bill',
+  'apartment_gas': 'apartment gas bill, gas cylinder, cooking gas',
+  'internet_fee': 'home internet, fibre, wifi, internet subscription',
+  'phone_mobile_credit':
+      'mobile credit top-up, phone bill, mobile data package',
   'household_goods': 'furniture, appliances, kitchen items, cleaning supplies',
   'repairs': 'plumber, electrician, home repairs',
   'transport': 'transport in general',
@@ -36,7 +39,8 @@ const Map<String, String> categoryExamples = {
   'leisure': 'leisure in general',
   'entertainment': 'cinema, games, outings, hobbies',
   'travel': 'flights, hotels, trips',
-  'subscriptions': 'streaming, apps, memberships (Netflix, Spotify, gym)',
+  'online_subscriptions':
+      'streaming, apps, online memberships (Netflix, Spotify, iCloud)',
   'finance': 'financial costs in general',
   'fees': 'bank fees, transfer fees, card fees',
   'interest': 'interest paid',

@@ -1,4 +1,5 @@
 import 'package:test/test.dart';
+import 'package:xpense_agent/decide/category_examples.dart';
 import 'package:xpense_agent/decide/classifier.dart';
 import 'package:xpense_agent/decide/household_profile.dart';
 import 'package:xpense_agent/decide/local_day.dart';
@@ -101,7 +102,8 @@ void main() {
 
     test('category: the leaves plus both catch-alls, with examples', () {
       final options = criteriaOf(plan({.category}), .category);
-      expect(options, hasLength(36));
+      final leaves = defaultCategories.where((c) => !c.isGroup).length;
+      expect(options, hasLength(leaves + 2), reason: 'leaves + catch-alls');
       expect(options.keys, containsAll(['other_expense', 'other_income']));
       expect(options.keys, isNot(contains('food')));
       expect(
@@ -292,6 +294,11 @@ void main() {
     test('duplicate is dropped without candidates', () {
       expect(plan({.duplicate, .intent}).questions.keys, ['intent']);
     });
+  });
+
+  test('every default category has examples, and no stale slug does', () {
+    final slugs = {for (final c in defaultCategories) c.slug};
+    expect(categoryExamples.keys.toSet(), slugs);
   });
 
   group('helpers', () {

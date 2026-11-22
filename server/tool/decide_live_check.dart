@@ -317,6 +317,21 @@ final List<Case> cases = [
     expect: {'category': 'bakery_tea', 'person': 'none'},
   ),
   (
+    text: 'Topped up my phone 10,000 dinars',
+    ask: {.intent, .category, .isRecurring},
+    parsed: DecideParsed(amountMinor: 10000, currency: 'IQD'),
+    expect: {'category': 'phone_mobile_credit'},
+  ),
+  (
+    text: 'Netflix 15.99 on my checking account',
+    ask: {.intent, .category, .account, .isRecurring},
+    parsed: DecideParsed(amountMinor: 1599, currency: 'USD'),
+    expect: {
+      'category': 'online_subscriptions',
+      'account': 'm2Rt6YwN8qZ3vB7xL4cC',
+    },
+  ),
+  (
     text: 'Paid the generator guy 50,000 dinars for this month',
     ask: {.intent, .category, .isRecurring, .duplicate},
     parsed: DecideParsed(amountMinor: 50000, currency: 'IQD'),
