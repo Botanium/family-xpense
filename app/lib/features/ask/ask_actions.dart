@@ -2,7 +2,6 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:xpense_app/a2ui/xpense_surface_host.dart';
 import 'package:xpense_app/data/rules_repository.dart';
-import 'package:xpense_app/features/capture/router/capture_router.dart';
 import 'package:xpense_shared/xpense_shared.dart';
 
 /// The app's [XpenseActions]: the household cache and the write path.
@@ -39,6 +38,7 @@ final class AskActions implements XpenseActions {
   });
 
   final XpenseActions _inner;
+
   /// The rules store, read when a lesson arrives: it changes with the
   /// membership, and the thread must not.
   final RulesRepository Function() _rules;

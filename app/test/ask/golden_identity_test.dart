@@ -12,8 +12,8 @@ import 'package:clock/clock.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:xpense_app/a2ui/testing/fake_xpense_actions.dart';
-import 'package:xpense_app/features/capture/router/confidence_policy.dart';
-import 'package:xpense_app/features/capture/router/draft_builder.dart';
+import 'package:xpense_app/features/ask/capture/confidence_policy.dart';
+import 'package:xpense_app/features/ask/capture/draft_builder.dart';
 import 'package:xpense_app/services/feature_flags.dart';
 import 'package:xpense_shared/xpense_shared.dart';
 

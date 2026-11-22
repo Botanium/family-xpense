@@ -1,5 +1,5 @@
 import 'package:flutter/foundation.dart';
-import 'package:xpense_app/features/capture/router/capture_router.dart';
+import 'package:xpense_shared/xpense_shared.dart';
 
 /// One row of the Ask thread (DESIGN_SYSTEM screen 7).
 @immutable

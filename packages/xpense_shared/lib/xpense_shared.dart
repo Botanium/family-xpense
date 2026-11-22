@@ -25,6 +25,7 @@ export 'parse/receipt.dart';
 export 'parse/rules.dart';
 export 'parse/signals.dart';
 export 'parse/tokens.dart';
+export 'routing/capture_router.dart';
 export 'schema/decide.dart';
 export 'schema/entry_draft.dart';
 export 'schema/parse_result.dart';

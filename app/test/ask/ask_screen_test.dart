@@ -13,7 +13,6 @@ import 'package:xpense_app/core/routing/routing.dart';
 import 'package:xpense_app/data/rules_repository.dart';
 import 'package:xpense_app/features/ask/ask_actions.dart';
 import 'package:xpense_app/features/ask/ask_controller.dart';
-import 'package:xpense_app/features/capture/router/capture_router.dart';
 import 'package:xpense_app/services/agent_client.dart';
 import 'package:xpense_app/services/feature_flags.dart';
 import 'package:xpense_app/services/service_failure.dart';

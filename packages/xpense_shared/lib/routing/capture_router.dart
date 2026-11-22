@@ -1,13 +1,15 @@
 /// Step 0 of the pipeline: the capture router (AI_PIPELINE 2, story S3.8).
 ///
-/// Pure Dart, no I/O. [routeCapture] reads the privacy mode, connectivity,
-/// device capability and the fast parser's complexity signals, and returns
-/// the path a message takes with a reason code. The reason is logged
+/// Pure Dart, no I/O, shared by the app (Ask, and later voice, receipts and
+/// quick capture) and the server's evaluations. [routeCapture] reads the
+/// privacy mode, connectivity, device capability and the fast parser's
+/// complexity signals, and returns the path a message takes with a reason
+/// code. The reason is logged
 /// without the message's content.
 library;
 
-import 'package:flutter/foundation.dart';
-import 'package:xpense_shared/xpense_shared.dart';
+import 'package:meta/meta.dart';
+import 'package:xpense_shared/parse/signals.dart';
 
 /// The household's privacy mode (ARCHITECTURE 6).
 enum CapturePrivacyMode {

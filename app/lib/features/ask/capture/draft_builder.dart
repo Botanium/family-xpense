@@ -10,7 +10,7 @@ library;
 import 'package:clock/clock.dart';
 import 'package:flutter/foundation.dart';
 import 'package:xpense_app/a2ui/xpense_surface_host.dart';
-import 'package:xpense_app/features/capture/router/confidence_policy.dart';
+import 'package:xpense_app/features/ask/capture/confidence_policy.dart';
 import 'package:xpense_app/services/decisions_client.dart';
 import 'package:xpense_shared/xpense_shared.dart';
 

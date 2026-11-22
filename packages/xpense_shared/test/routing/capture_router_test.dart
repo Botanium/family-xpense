@@ -1,8 +1,7 @@
 // The router's decision table (AI_PIPELINE 2, story S3.8): one test per
 // row, each built so that only its row can match first, plus the edges
 // between rows.
-import 'package:flutter_test/flutter_test.dart';
-import 'package:xpense_app/features/capture/router/capture_router.dart';
+import 'package:test/test.dart';
 import 'package:xpense_shared/xpense_shared.dart';
 
 Signals _signals({

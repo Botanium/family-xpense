@@ -36,7 +36,7 @@ import 'package:xpense_app/data/auth_repository.dart';
 import 'package:xpense_app/data/household_repository.dart';
 import 'package:xpense_app/features/ask/ask_controller.dart';
 import 'package:xpense_app/features/ask/ask_state.dart';
-import 'package:xpense_app/features/capture/router/capture_router.dart';
+import 'package:xpense_shared/xpense_shared.dart';
 
 import 'onboarding_emulator_test.dart' show pause, pumpUntil;
 
