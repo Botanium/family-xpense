@@ -474,7 +474,8 @@ void main() {
       );
       final account = docs.docs['$accounts/chk']!;
       expect(account['visibilitySync'], isNull);
-      expect(account['visibilityAppliedTo'], [owner], reason: 'still pending');
+      // Unknown history: the record is dropped so the work stays pending.
+      expect(account['visibilityAppliedTo'], isNull);
 
       // Eventarc retries at once, well inside the old lease.
       docs.onPage = null;
@@ -484,6 +485,49 @@ void main() {
         expect(visibleOf('$txns/t$i'), [owner, partner]);
       }
     });
+  });
+
+  group('a failed run after a flip back', () {
+    test(
+      'still repairs the pages it already shared (Codex review, PR #33)',
+      () async {
+        seedAccount(
+          'chk',
+          visibleTo: [owner, partner],
+          shared: true,
+          applied: [owner],
+        );
+        for (var i = 0; i < 5; i++) {
+          seedTxn('t$i', 'chk', visibleTo: [owner]);
+        }
+        docs.onPage = (page) async {
+          if (page != 1) return;
+          // The first page is shared; then the owner turns sharing off again
+          // and the next page read fails.
+          docs.docs['$accounts/chk']!
+            ..['visibleTo'] = [owner]
+            ..['sharedWithPartner'] = false;
+          throw const GatewayUnavailable('pageWhereEquals');
+        };
+
+        await expectLater(
+          job.sync(hid, 'chk'),
+          throwsA(isA<GatewayUnavailable>()),
+        );
+        expect(visibleOf('$txns/t0'), [owner, partner], reason: 'half done');
+
+        // visibleTo is back to what was applied before the run, yet the
+        // retry must not take that for "up to date".
+        docs.onPage = null;
+        final retry = await job.sync(hid, 'chk');
+
+        expect(retry.outcome, VisibilityOutcome.synced);
+        for (var i = 0; i < 5; i++) {
+          expect(visibleOf('$txns/t$i'), [owner], reason: 't$i');
+        }
+        expect(docs.docs['$accounts/chk']!['visibilityAppliedTo'], [owner]);
+      },
+    );
   });
 
   group('accountFromEvent', () {

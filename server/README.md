@@ -136,7 +136,8 @@ account's `visibleTo` (another pass otherwise). The app shows "Sharing past
 entries… done of total" while the two differ. A run holds a 90-second lease
 (a `leaseUntil` further out is ignored); the events its own progress writes
 cause get 429 and are delivered again later, and a run that fails releases
-its lease and answers 503. Answers: 200 with `outcome` (`synced`,
+its lease and drops `visibilityAppliedTo` (the history is half rewritten), so
+the retry does a full pass, and answers 503. Answers: 200 with `outcome` (`synced`,
 `upToDate`, `missing`), 429 `busy`, 204 for an event that names no
 account, 503 when Firestore is unreachable (Eventarc retries).
 

@@ -417,9 +417,10 @@ final class AccountVisibilityJob {
     return null;
   });
 
-  /// Drops [runId]'s claim on the account, keeping what was applied, so the
+  /// Drops [runId]'s claim on the account and its applied record, so the
   /// work stays pending for the next delivery. Best effort: when this fails
-  /// too, the lease simply runs out.
+  /// too, the lease simply runs out and the expired claim keeps the work
+  /// pending.
   Future<void> _release(String accountPath, String runId) async {
     try {
       await _store.transaction((tx) async {
@@ -427,7 +428,15 @@ final class AccountVisibilityJob {
         if (account == null) return;
         final running = _map(account['visibilitySync']);
         if (running == null || running['runId'] != runId) return;
-        tx.write(accountPath, {...account, 'visibilitySync': null});
+        // Some pages may already be rewritten, for a visibility the account
+        // may since have left: the history is in an unknown state. Dropping
+        // the applied record makes the next claim do a full pass even when
+        // visibleTo equals what was applied before (Codex review, PR #33).
+        tx.write(accountPath, {
+          ...account,
+          'visibilitySync': null,
+          'visibilityAppliedTo': null,
+        });
       });
     } on Object catch (e) {
       _log.warning('could not release the visibility lease', e);
