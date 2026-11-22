@@ -105,7 +105,8 @@ Not enabled yet (the server deploy needs it): `cloudbuild` (server/DEPLOY.md ste
   15.34.2 request to `firestore.googleapis.com` hung ("HTTP/2 headers
   timeout"), while gcloud and the CLI's calls to the Rules API worked. Try the
   CLI again first next time; if it hangs, create each index with gcloud from
-  the JSON, as was done here. No field overrides exist yet.
+  the JSON, as was done here. No field overrides exist yet. All 13 reached
+  `READY` on 2026-11-22; none failed.
 - `firebase.json` names no `database`. With `"database": "(default)"` the CLI
   tried to create the existing `cloud.firestore` release and failed with
   HTTP 409.
@@ -334,7 +335,7 @@ Still needed:
 | Storage | `gcloud storage buckets describe gs://expense-family-cc6ee.firebasestorage.app --project=…` | `ME-CENTRAL1`, public access prevention enforced |
 | Rules | `firebase deploy --project expense-family-cc6ee --only firestore,storage --dry-run` | both rules files compile; indexes read |
 | Rules deploy | `firebase deploy --project expense-family-cc6ee --only firestore:rules` and `--only storage` | released; released source equals the repository files |
-| Indexes | `gcloud firestore indexes composite list --project=… --billing-project=… --database='(default)'` | 13 indexes (see 3.4) |
+| Indexes | `gcloud firestore indexes composite list --project=… --billing-project=… --database='(default)'` | 13 indexes, all `READY` (see 3.4) |
 | Emulators | `firebase emulators:exec --project demo-xpense --only auth,firestore,storage "echo ok"` | `ok`, exit 0 |
 
 ## 8. Production (later, D-38)
