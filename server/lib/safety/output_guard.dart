@@ -13,6 +13,7 @@ import 'package:genkit/genkit.dart';
 import 'package:logging/logging.dart';
 
 import 'package:xpense_agent/safety/draft_guard.dart';
+import 'package:xpense_agent/tools/turn_evidence.dart';
 
 final _log = Logger('xpense.safety.outputGuard');
 
@@ -66,6 +67,9 @@ final class OutputGuardMiddleware extends GenerateMiddleware {
     if (content == null) return response;
     final result = guardParts(content, facts);
     _report(result.violations);
+    // What the member was shown backs the amounts of an audio or image
+    // turn (tools/turn_evidence.dart); only output that passed the guard.
+    TurnEvidence.current?.recordShown(result.parts);
     if (!result.changed) return response;
     return ModelResponse.fromJson({
       ...json,

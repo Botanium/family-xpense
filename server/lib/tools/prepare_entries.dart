@@ -77,8 +77,13 @@ Future<PrepareEntriesOutput> prepareEntries(
   // wallet" becomes 12,500 IQD), and here only the figures matter.
   final plain = ParseContext(clock: clock);
   final texts = deps.turnText();
+  // An audio or image turn: what the agent showed the member (transcript,
+  // receipt) backs amounts too; unbacked figures become provisional.
+  final evidence = deps.evidence();
+  final mediaTurn = evidence?.mediaTurn ?? false;
   final pool = _AmountPool([
-    for (final text in texts) ...parseText(text, plain).amounts,
+    for (final text in [...texts, ...?evidence?.shownTexts])
+      ...parseText(text, plain).amounts,
   ]);
 
   final builders = [
@@ -87,6 +92,7 @@ Future<PrepareEntriesOutput> prepareEntries(
         id: 'd${i + 1}',
         entry: e,
         text: _memberText(e.text, texts),
+        mediaTurn: mediaTurn,
         snap: snap,
         today: today.iso,
         parseContext: parseContext,
@@ -176,6 +182,7 @@ final class _DraftBuilder {
     required this.snap,
     required this.today,
     required this.parseContext,
+    this.mediaTurn = false,
   }) : intent =
            CaptureIntent.tryParse(entry.intent ?? '') ?? CaptureIntent.expense;
 
@@ -184,6 +191,9 @@ final class _DraftBuilder {
 
   /// The entry's words, or the message when the model gave none.
   final String text;
+
+  /// Whether the member's message carried audio or an image.
+  final bool mediaTurn;
   final HouseholdSnapshot snap;
   final String today;
   final ParseContext parseContext;
@@ -247,6 +257,10 @@ final class _DraftBuilder {
       return;
     }
     final found = pool.take(value, entry.currency);
+    if (found == null && mediaTurn) {
+      _provisionalAmount(value, notes);
+      return;
+    }
     if (found == null) {
       // The model's figure is not in anything the user wrote: drop it and
       // ask (AI_PIPELINE 10).
@@ -290,6 +304,29 @@ final class _DraftBuilder {
       amountMinor = value.minorUnits;
     } else {
       notes.add('$id: $code cannot hold the amount ${entry.amount}');
+    }
+  }
+
+  /// A figure from audio or an image that the agent did not show the member
+  /// this turn: kept so the slip is not empty, but Guessed and listed as
+  /// missing, so the member must confirm it before saving. (WP-40 and WP-41
+  /// replace this with checked transcripts and receipt extractions.)
+  void _provisionalAmount(Decimal value, List<String> notes) {
+    final code = entry.currency ?? snap.baseCurrency;
+    final known = Currency.tryParse(code);
+    if (known == null) return;
+    if (Money.parseMajor(value.toString(), known) case Ok(:final value)) {
+      amountMinor = value.minorUnits;
+      amountValue = Decimal.parse(
+        Money(value.minorUnits, known).toMajorString(),
+      );
+      currency = code;
+      guessed.addAll(['amountMinor', 'currency']);
+      listedMissing.add('amountMinor');
+      notes.add(
+        '$id: amount ${entry.amount} was not shown to the member; '
+        'they must confirm it',
+      );
     }
   }
 
@@ -393,17 +430,31 @@ final class _DraftBuilder {
     };
   }
 
-  String _resolveDate() {
+  /// The entry's date: a written ISO date (`2026-11-01`, which the fast
+  /// parser does not read), the parser's reading of the written date words
+  /// or the entry text, or today when no date was written. Date words the
+  /// member wrote but nothing can read leave the date empty (asked on the
+  /// slip) rather than silently today.
+  String? _resolveDate() {
     // Date words count only when the member wrote them.
     final dateWords = entry.dateWords;
-    for (final words in [
-      if (dateWords != null && _mentions(text, dateWords)) dateWords,
-      text,
-    ]) {
+    final written = dateWords != null && _mentions(text, dateWords);
+    for (final words in [if (written) dateWords, text]) {
+      if (_isoDate(words) case final iso?) return iso;
       final mention = parseText(words, parseContext).dateMention;
       if (mention != null) return mention.date.iso;
     }
-    return today;
+    return written ? null : today;
+  }
+
+  static final _isoPattern = RegExp(r'(?<![0-9])(\d{4}-\d{2}-\d{2})(?![0-9])');
+
+  /// The first valid `YYYY-MM-DD` date in [words], or null.
+  static String? _isoDate(String words) {
+    for (final m in _isoPattern.allMatches(words)) {
+      if (parseIsoDay(m.group(1)) != null) return m.group(1);
+    }
+    return null;
   }
 
   List<HouseholdAccount> _matchAccounts(String? hint, String? currency) {

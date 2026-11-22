@@ -6,6 +6,7 @@ import 'package:clock/clock.dart';
 import 'package:xpense_agent/decide/classifier.dart';
 import 'package:xpense_agent/tools/household_reader.dart';
 import 'package:xpense_agent/tools/household_snapshot.dart';
+import 'package:xpense_agent/tools/turn_evidence.dart';
 
 /// The confidence thresholds of AI_PIPELINE 9, from `config/runtime`.
 typedef Thresholds = Map<String, double>;
@@ -24,7 +25,9 @@ final class ToolDeps {
     required this.turnText,
     HouseholdSnapshots? snapshots,
     Clock? clock,
-  }) : clock = clock ?? const Clock(),
+    TurnEvidence? Function()? evidence,
+  }) : evidence = evidence ?? (() => TurnEvidence.current),
+       clock = clock ?? const Clock(),
        snapshots = snapshots ?? HouseholdSnapshots(reader, clock: clock);
 
   /// Household data.
@@ -41,6 +44,9 @@ final class ToolDeps {
 
   /// The user texts of the conversation, oldest first.
   final List<String> Function() turnText;
+
+  /// The running turn's media evidence (tests inject one).
+  final TurnEvidence? Function() evidence;
 
   /// The wall clock.
   final Clock clock;

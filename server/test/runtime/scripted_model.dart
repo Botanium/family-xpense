@@ -10,7 +10,11 @@ typedef Render = String Function(List<Object?> drafts);
 
 /// A model script.
 final class Script {
-  new({required this.entries, required this.render});
+  new({required this.entries, required this.render, this.before});
+
+  /// Text sent with the tool request on the first call (for example a
+  /// `<a2ui>` Transcript block shown before preparing entries).
+  final String? before;
 
   /// The entries passed to `prepareEntries`.
   final List<Map<String, Object?>> entries;
@@ -37,6 +41,7 @@ void defineScripted(Genkit ai, String name, Script script) {
           message: Message(
             role: Role.model,
             content: [
+              if (script.before case final text?) TextPart(text: text),
               ToolRequestPart(
                 toolRequest: ToolRequest(
                   ref: 'r1',

@@ -21,6 +21,7 @@ import 'package:xpense_agent/config/runtime_config.dart';
 import 'package:xpense_agent/tools/household_snapshot.dart';
 import 'package:xpense_agent/tools/local_day.dart';
 import 'package:xpense_agent/tools/tool_deps.dart';
+import 'package:xpense_agent/tools/turn_evidence.dart';
 import 'package:xpense_shared/xpense_shared.dart';
 
 final _log = Logger('xpense.runtime.householdContext');
@@ -120,7 +121,19 @@ final class HouseholdContextMiddleware extends GenerateMiddleware {
     final context = XpenseContext.of(ctx.context);
     final cfg = await config();
     final primary = cfg.model('agent');
-    var result = await next(_withModel(envelope, primary), ctx);
+    // Evidence for an audio or image turn (tools/turn_evidence.dart): the
+    // tool loop runs in a zone holding it, so outputGuard can record what
+    // the agent showed and prepareEntries can read it.
+    final users = [
+      for (final m in envelope.request.messages)
+        if (m.role == Role.user) m,
+    ];
+    TurnEvidence fresh() => TurnEvidence(
+      mediaTurn: users.isNotEmpty && TurnEvidence.hasMedia(users.last.toJson()),
+    );
+    var result = await fresh().run(
+      () => next(_withModel(envelope, primary), ctx),
+    );
     final escalation = cfg.model('escalation');
     if (result.finishReason == FinishReason.failed &&
         !cfg.isOn('liteOnly') &&
@@ -133,7 +146,9 @@ final class HouseholdContextMiddleware extends GenerateMiddleware {
         'status': result.error?.status,
       });
       _stats.escalated = true;
-      result = await next(_withModel(envelope, escalation), ctx);
+      result = await fresh().run(
+        () => next(_withModel(envelope, escalation), ctx),
+      );
     }
     _stats.finishReason = result.finishReason;
     onTurn?.call(context, _stats);

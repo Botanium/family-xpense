@@ -47,6 +47,12 @@ Future<({XpenseAgentRuntime rt, Genkit ai, List<String> turns})> _runtime({
   return (rt: rt, ai: ai, turns: turns);
 }
 
+/// The drafts in a createSurface's data model.
+List<Map<String, dynamic>> _draftsOf(Map<String, dynamic> create) => [
+  for (final d in (create['dataModel'] as Map)['drafts'] as List)
+    (d as Map).cast<String, dynamic>(),
+];
+
 List<Map<String, dynamic>> _creates(Map<String, dynamic> summary) => [
   for (final m in summary['a2ui'] as List)
     if ((m as Map)['createSurface'] case final Map<String, dynamic> c) c,
@@ -149,6 +155,65 @@ void main() {
         (_creates(summary).single['dataModel'] as Map)['drafts'] as List;
     expect(drafts, toolDrafts);
     expect((drafts.first as Map)['origin'], 'agent');
+  });
+
+  group('audio turns (PR #30 review)', () {
+    // A voice note carries no typed text: the amounts must come from the
+    // transcript the agent showed the member in the same turn.
+    final audio = Message(
+      role: Role.user,
+      content: [
+        MediaPart(
+          media: Media(
+            url: 'data:audio/wav;base64,AAAA',
+            contentType: 'audio/wav',
+          ),
+        ),
+      ],
+    );
+    const generator = [
+      {
+        'intent': 'expense',
+        'amount': '50',
+        'currency': 'USD',
+        'text': 'paid the generator 50 dollars',
+      },
+    ];
+
+    test('an amount in the shown transcript is backed', () async {
+      final lite = Script(
+        entries: generator,
+        before:
+            '<a2ui>\nsurface("tr_1")\n'
+            'root = Transcript("Paid the generator 50 dollars")\n</a2ui>',
+        render: scriptedCapture,
+      );
+      final (:rt, ai: _, turns: _) = await _runtime(lite: lite);
+      final res = await rt.agent.chat().send(
+        message: audio,
+        context: demoContext,
+      );
+      final capture = _creates(turnSummary(res.message))
+          .where((c) => c['surfaceId'] == 'cap_test')
+          .single;
+      final d = _draftsOf(capture).single;
+      expect(d['amountMinor'], 5000);
+      expect(d['guessed'] ?? const <Object?>[], isNot(contains('amountMinor')));
+      expect(d['missing'] ?? const <Object?>[], isNot(contains('amountMinor')));
+    });
+
+    test('an amount not shown to the member must be confirmed', () async {
+      final lite = Script(entries: generator, render: scriptedCapture);
+      final (:rt, ai: _, turns: _) = await _runtime(lite: lite);
+      final res = await rt.agent.chat().send(
+        message: audio,
+        context: demoContext,
+      );
+      final d = _draftsOf(_creates(turnSummary(res.message)).single).single;
+      expect(d['amountMinor'], 5000);
+      expect(d['guessed'], contains('amountMinor'));
+      expect(d['missing'], contains('amountMinor'));
+    });
   });
 
   test('a failed turn is re-run once on the escalation model', () async {

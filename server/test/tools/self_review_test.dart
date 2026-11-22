@@ -9,6 +9,8 @@ import 'package:xpense_agent/tools/in_memory_reader.dart';
 import 'package:xpense_agent/tools/ledger_tools.dart';
 import 'package:xpense_agent/tools/prepare_entries.dart';
 import 'package:xpense_agent/tools/schemas.dart';
+import 'package:xpense_agent/tools/tool_deps.dart';
+import 'package:xpense_agent/tools/turn_evidence.dart';
 import 'package:xpense_shared/xpense_shared.dart';
 
 import 'support.dart';
@@ -223,6 +225,143 @@ void main() {
       final d = out.drafts.single;
       expect(d.confidence?.account, isNull);
       expect(d.guessed, contains('accountId'));
+    });
+  });
+
+  group('written ISO dates (PR #30 review)', () {
+    test('an ISO date in the date words or the text is kept', () async {
+      final viaWords = await prepare(
+        ProposedEntry(
+          intent: 'expense',
+          amount: '10',
+          text: r'Groceries $10 on 2026-11-01',
+          dateWords: '2026-11-01',
+        ),
+        r'Groceries $10 on 2026-11-01',
+      );
+      expect(viaWords.drafts.single.occurredOn, '2026-11-01');
+      final viaText = await prepare(
+        ProposedEntry(
+          intent: 'expense',
+          amount: '10',
+          text: r'Groceries $10 on 2026-11-01',
+        ),
+        r'Groceries $10 on 2026-11-01',
+      );
+      expect(viaText.drafts.single.occurredOn, '2026-11-01');
+    });
+
+    test('written date words nothing can read leave the date asked', () async {
+      final out = await prepare(
+        ProposedEntry(
+          intent: 'expense',
+          amount: '10',
+          text: 'cake 10 the day after the wedding',
+          dateWords: 'the day after the wedding',
+        ),
+        'cake 10 the day after the wedding',
+      );
+      expect(out.drafts.single.occurredOn, isNull);
+      expect(out.drafts.single.missing, contains('occurredOn'));
+    });
+
+    test('an impossible ISO date is not taken', () async {
+      final out = await prepare(
+        ProposedEntry(
+          intent: 'expense',
+          amount: '10',
+          text: 'tea 10 on 2026-02-31',
+          dateWords: '2026-02-31',
+        ),
+        'tea 10 on 2026-02-31',
+      );
+      expect(out.drafts.single.occurredOn, isNull);
+    });
+  });
+
+  group('media evidence (PR #30 review)', () {
+    test('recordShown reads transcripts and receipts, bound or literal', () {
+      final e = TurnEvidence(mediaTurn: true)
+        ..recordShown([
+          {
+            'metadata': {'mimeType': 'application/a2ui+json'},
+            'data': {
+              'messages': [
+                {
+                  'createSurface': {
+                    'surfaceId': 's',
+                    'components': [
+                      {'id': 'a', 'component': 'Transcript', 'text': 'Tea 5'},
+                      {
+                        'id': 'b',
+                        'component': 'Transcript',
+                        'text': {'@path': '/heard'},
+                      },
+                      {
+                        'id': 'c',
+                        'component': 'ReceiptSummary',
+                        'receipt': {'@path': '/receipt'},
+                      },
+                    ],
+                    'dataModel': {
+                      'heard': 'and bread 2',
+                      'receipt': {
+                        'currency': 'USD',
+                        'totalMinor': 4520,
+                        'lines': [
+                          {'text': 'milk', 'amountMinor': 1220},
+                        ],
+                      },
+                    },
+                  },
+                },
+              ],
+            },
+          },
+          {'text': 'not a surface 99'},
+        ]);
+      expect(e.shownTexts, [
+        'Tea 5',
+        'and bread 2',
+        '45.20 dollars and 12.20 dollars',
+      ]);
+    });
+
+    test('a shown figure backs an amount; others need confirming', () async {
+      final evidence = TurnEvidence(mediaTurn: true)
+        ..shownTexts.add('Paid the generator 50 dollars');
+      Future<PrepareEntriesOutput> run(String amount) => prepareEntries(
+        PrepareEntriesInput(
+          entries: [
+            ProposedEntry(intent: 'expense', amount: amount, currency: 'USD'),
+          ],
+        ),
+        dara,
+        ToolDeps(
+          reader: demoReader('2026-11-22'),
+          classifier: FakeEntryClassifier(),
+          thresholds: () async => const {},
+          turnText: () => const [],
+          clock: fixedClock,
+          evidence: () => evidence,
+        ),
+      );
+      final shown = (await run('50')).drafts.single;
+      expect(shown.amountMinor, 5000);
+      expect(shown.missing ?? const [], isNot(contains('amountMinor')));
+      final unshown = await run('70');
+      expect(unshown.drafts.single.amountMinor, 7000);
+      expect(unshown.drafts.single.guessed, contains('amountMinor'));
+      expect(unshown.drafts.single.missing, contains('amountMinor'));
+      expect(unshown.notes, contains(contains('confirm')));
+    });
+
+    test('a typed turn still drops amounts the member never wrote', () async {
+      final out = await prepare(
+        ProposedEntry(intent: 'expense', amount: '70', text: 'tea'),
+        'tea',
+      );
+      expect(out.drafts.single.amountMinor, isNull);
     });
   });
 
