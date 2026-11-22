@@ -11,6 +11,7 @@ import 'package:genkit/genkit.dart';
 import 'package:genkit/io.dart';
 
 import 'package:xpense_agent/auth/context_provider.dart';
+import 'package:xpense_agent/decide/decide_flow.dart';
 import 'package:xpense_agent/runtime/agent.dart';
 import 'package:xpense_agent/telemetry/usage_counters.dart';
 
@@ -19,16 +20,22 @@ import 'package:xpense_agent/telemetry/usage_counters.dart';
 const publicPrefix = '/v1';
 
 /// Public routes for `xpense-agent`, mounted under [publicPrefix].
-///
-/// `/agent` (WP-32) is the agent turn route plus its `/agent/getSnapshot`
-/// and `/agent/abort` companions; it consumes `agentTurns`.
 GenkitRouter buildPublicRouter({
   required XpenseContextProvider auth,
   required Flow<String?, Map<String, String>, void, void> ping,
+  required DecideFlow decide,
   XpenseAgentRuntime? agent,
 }) {
   final router = GenkitRouter()
-    ..addAction(ping, path: '/ping', contextProvider: auth.forRoute());
+    ..addAction(ping, path: '/ping', contextProvider: auth.forRoute())
+    // The Decisions proxy (WP-33): refused at the daily `decisions` limit.
+    ..addAction(
+      decide,
+      path: '/decide',
+      contextProvider: auth.forRoute(meters: {UsageCounter.decisions}),
+    );
+  // The agent (WP-32): `/agent` plus `/agent/getSnapshot` and
+  // `/agent/abort`; refused at the daily `agentTurns` limit.
   agent?.mount(
     router,
     path: '/agent',

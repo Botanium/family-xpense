@@ -507,6 +507,11 @@ You are running WP-85 for Family Xpense. Read docs/DELEGATION.md "Rules for ever
 For every screen with a reference in docs/design/: capture the same state in the iOS Simulator (iPhone 17 Pro and iPhone 15 Pro Max, light and dark) with fixed test data, overlay it on the 1x reference at 50% opacity and as a difference image, and list every deviation over 1 point in position or size, any colour that differs from its token, and any type style that differs. Fix the code (never the reference, unless the reference breaks a rule in DESIGN_SYSTEM, in which case note it). Add the final captures as goldens so the match is kept. Report before and after difference images per screen in the PR, with a demo GIF per rule 11. Do not merge it.
 ```
 
+### WP-P1 Planning pass: going public with subscriptions
+- **Goal:** turn D-42 into a concrete plan before M8: pricing against measured AI cost, subscription and trial design, paywall, entitlement checks on the server, App Store review risks, the production project, abuse and rate limits for strangers' households, analytics, support, and whether Kurdish and Arabic come back for launch.
+- **Owns:** `docs/` only. **Depends on:** M3 merged (real cost numbers). **Parallel-safe:** yes. Best run by the planning model (Fable), not as a build package.
+- **Skills:** `mobile-app-design:paywall`, `mobile-app-design:ios-flows`, `flutter:ads-and-iap-monetization`, `flutter:release-and-store-shipping`.
+
 ---
 
 ## Escalate to Fable when

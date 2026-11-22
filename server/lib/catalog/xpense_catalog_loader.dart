@@ -87,10 +87,20 @@ Map<String, dynamic> trimCatalogForAgent(Map<String, dynamic> json) {
 A2uiCatalog agentCatalog(Map<String, dynamic> json, {bool trim = true}) =>
     A2uiCatalog.fromJson(trim ? trimCatalogForAgent(json) : json);
 
-/// Registers the agent catalog on [ai] under `xpense` before any turn.
-Future<A2uiCatalog> registerXpenseCatalog(Genkit ai, {File? file}) async =>
-    await loadCatalog(
-      ai,
-      id: xpenseCatalogLookupId,
-      catalog: agentCatalog(await readCatalogJson(file: file)),
-    );
+/// Registers the agent view of [json] on [ai] under `xpense`, before any
+/// turn. Synchronous, so the agent can be built while the server is
+/// assembled; [json] is read beforehand with [readCatalogJson].
+///
+/// Does what `loadCatalog` does for an inline catalog: rendering the
+/// instructions once validates the document (an invalid catalog throws
+/// here, at startup, not on the first turn).
+A2uiCatalog registerXpenseCatalog(Genkit ai, Map<String, dynamic> json) {
+  final catalog = agentCatalog(json);
+  renderCatalogInstructions(catalog);
+  ai.registry.registerValue(
+    a2uiCatalogValueType,
+    xpenseCatalogLookupId,
+    catalog,
+  );
+  return catalog;
+}

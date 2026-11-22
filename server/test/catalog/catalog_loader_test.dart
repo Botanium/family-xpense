@@ -50,7 +50,7 @@ void main() {
 
   test('registers under "xpense" and compiles the documented blocks', () async {
     final ai = Genkit(plugins: [A2uiPlugin()]);
-    final catalog = await registerXpenseCatalog(ai);
+    final catalog = registerXpenseCatalog(ai, json);
     expect(
       ai.registry.lookupValue<A2uiCatalog>(a2uiCatalogValueType, 'xpense'),
       same(catalog),

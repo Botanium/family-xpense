@@ -9,11 +9,13 @@ import 'package:genkit/genkit.dart';
 import 'package:genkit_a2ui/a2ui.dart';
 import 'package:shelf/shelf_io.dart' as shelf_io;
 import 'package:test/test.dart';
+import 'package:xpense_agent/catalog/xpense_catalog_loader.dart';
 import 'package:xpense_agent/config/runtime_config.dart';
 import 'package:xpense_agent/config/server_env.dart';
 import 'package:xpense_agent/decide/classifier.dart';
 import 'package:xpense_agent/runtime/agent.dart';
 import 'package:xpense_agent/runtime/demo_household.dart';
+import 'package:xpense_agent/telemetry/usage_counters.dart';
 import 'package:xpense_agent/xpense_server.dart';
 
 import '../runtime/scripted_model.dart';
@@ -33,8 +35,14 @@ void main() {
     docs = FakeDocumentStore()
       ..seedMember(uid: demoUid, hid: demoHid)
       ..seedMember(uid: 'u_other', hid: 'hh_other');
-    final agent = await XpenseAgentRuntime.create(
+    final catalogJson = await readCatalogJson();
+    XpenseAgentRuntime agent(
+      EntryClassifier classifier,
+      RuntimeConfigLoader config,
+      UsageCounters usage,
+    ) => XpenseAgentRuntime.create(
       ai: ai,
+      catalogJson: catalogJson,
       reader: demoReader('2026-11-22'),
       classifier: FakeEntryClassifier(),
       config: () async => RuntimeConfig.fromDocument(const {

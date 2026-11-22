@@ -18,7 +18,7 @@ void main() {
   "version": "1.0",
   "createSurface": {
     "surfaceId": "loc_cap_k3m9",
-    "catalogId": "https://familyxpense.app/a2ui/catalogs/xpense/v1/catalog.json",
+    "catalogId": "https://bitrelia.com/xpense/a2ui/catalogs/xpense/v1/catalog.json",
     "components": [
       {"id": "root", "component": "Column", "children": ["heard", "list"]},
       {"id": "heard", "component": "Transcript",

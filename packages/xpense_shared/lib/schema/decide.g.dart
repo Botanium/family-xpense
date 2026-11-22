@@ -104,16 +104,16 @@ base class DecideRequest {
     _json['ask'] = value;
   }
 
-  /// Deterministic duplicate candidates (same account and amount, date
-  /// within one day). The `duplicate` question is asked only with these.
+  /// Ignored by the server since WP-33: it finds duplicate candidates itself
+  /// among the saved entries the speaker can see. Kept for compatibility.
   List<DuplicateCandidate>? get candidates {
     return (_json['candidates'] as List?)
         ?.map((e) => DuplicateCandidate.fromJson(e as Map<String, dynamic>))
         .toList();
   }
 
-  /// Deterministic duplicate candidates (same account and amount, date
-  /// within one day). The `duplicate` question is asked only with these.
+  /// Ignored by the server since WP-33: it finds duplicate candidates itself
+  /// among the saved entries the speaker can see. Kept for compatibility.
   set candidates(List<DuplicateCandidate>? value) {
     if (value == null) {
       _json.remove('candidates');
@@ -431,6 +431,7 @@ base class DecideResponse {
     YesNoAnswer? needsFollowup,
     YesNoAnswer? isRecurring,
     YesNoAnswer? duplicate,
+    String? duplicateOf,
     bool? calibrated,
     bool? unavailable,
   }) {
@@ -446,6 +447,7 @@ base class DecideResponse {
       'needs_followup': ?needsFollowup?.toJson(),
       'is_recurring': ?isRecurring?.toJson(),
       'duplicate': ?duplicate?.toJson(),
+      'duplicate_of': ?duplicateOf,
       'calibrated': ?calibrated,
       'unavailable': ?unavailable,
     };
@@ -639,6 +641,24 @@ base class DecideResponse {
     }
   }
 
+  /// The transaction id of the nearest duplicate candidate, set whenever
+  /// [duplicate] is. The slip's "Looks like one you already saved" links to
+  /// it (`EntryDraft.duplicate.txnId`).
+  String? get duplicateOf {
+    return _json['duplicate_of'] as String?;
+  }
+
+  /// The transaction id of the nearest duplicate candidate, set whenever
+  /// [duplicate] is. The slip's "Looks like one you already saved" links to
+  /// it (`EntryDraft.duplicate.txnId`).
+  set duplicateOf(String? value) {
+    if (value == null) {
+      _json.remove('duplicate_of');
+    } else {
+      _json['duplicate_of'] = value;
+    }
+  }
+
   /// `false` when the answers came from the Flash-Lite fallback; the phone
   /// then caps confidences at `conf_on_device_cap`.
   bool? get calibrated {
@@ -708,6 +728,7 @@ base class _DecideResponseTypeFactory extends SchemanticType<DecideResponse> {
         'needs_followup': <String, Object?>{r'$ref': r'#/$defs/YesNoAnswer'},
         'is_recurring': <String, Object?>{r'$ref': r'#/$defs/YesNoAnswer'},
         'duplicate': <String, Object?>{r'$ref': r'#/$defs/YesNoAnswer'},
+        'duplicate_of': <String, Object?>{'type': 'string'},
         'calibrated': <String, Object?>{'type': 'boolean'},
         'unavailable': <String, Object?>{'type': 'boolean'},
       },

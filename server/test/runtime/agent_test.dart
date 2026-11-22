@@ -6,6 +6,7 @@ import 'package:genkit/genkit.dart';
 import 'package:genkit_a2ui/a2ui.dart';
 import 'package:test/test.dart';
 import 'package:xpense_agent/auth/xpense_context.dart';
+import 'package:xpense_agent/catalog/xpense_catalog_loader.dart';
 import 'package:xpense_agent/config/runtime_config.dart';
 import 'package:xpense_agent/decide/classifier.dart';
 import 'package:xpense_agent/runtime/agent.dart';
@@ -26,8 +27,9 @@ Future<({XpenseAgentRuntime rt, Genkit ai, List<String> turns})> _runtime({
   defineScripted(ai, 'test/lite', lite);
   defineScripted(ai, 'test/flash', flash ?? lite);
   final turns = <String>[];
-  final rt = await XpenseAgentRuntime.create(
+  final rt = XpenseAgentRuntime.create(
     ai: ai,
+    catalogJson: await readCatalogJson(),
     reader: demoReader('2026-11-22'),
     classifier: FakeEntryClassifier(),
     config: () async => RuntimeConfig.fromDocument(<String, Object?>{

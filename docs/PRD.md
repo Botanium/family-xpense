@@ -94,6 +94,7 @@ Priority: **M** = MVP (TestFlight for the two partners), **1** = v1 (App Store),
 | **MVP** (internal TestFlight) | Auth, household, accounts, manual entry, Activity, Home, hybrid text capture, voice, receipt total, loans, daily rate prompt, Smart and Cloud modes, Face ID; English only | M0 to M4, loans from M5 |
 | **v1** (App Store) | Goals, budgets, recurring, proactive nudges, monthly report and export, On-device only mode, quick capture (Siri, widgets, share sheet), account deletion and export, notifications centre, categories editor, duplicate detection, CSV import | M5 to M8 |
 | **Later** | Kurdish (Sorani) and Arabic (interface, voice, receipts, right-to-left, local digits), Android, partner settle-up, more than two members, automatic exchange-rate feed, more currencies, bank or SMS import, Hijri calendar display, iPad layout, Apple Watch | after v1 |
+| **Public** | The app goes public as a paid subscription after the owner and partner use it (D-42): subscriptions and paywall, production project, cost limits per subscriber. Planned in WP-P1. | after personal use |
 
 ### Out of scope for v1
 Bank connections, investment tracking, bill payment, shared households beyond one, web app, tax reports.

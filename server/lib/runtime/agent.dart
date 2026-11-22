@@ -115,14 +115,16 @@ final class XpenseAgentRuntime {
     required this.tryQuestion,
   });
 
-  /// Builds the runtime on [ai].
+  /// Builds the runtime on [ai]. [catalogJson] is the shared catalog
+  /// (`readCatalogJson`).
   ///
   /// [strict] selects `xpense_agent.strict.prompt` (`validate: 'strict',
   /// repair: false`). [modelName] maps `config/runtime` model ids to
   /// registered models (tests register a scripted model). [onTurn] observes
   /// each finished turn (usage counters).
-  static Future<XpenseAgentRuntime> create({
+  factory create({
     required Genkit ai,
+    required Map<String, dynamic> catalogJson,
     required HouseholdReader reader,
     required EntryClassifier classifier,
     required Future<RuntimeConfig> Function() config,
@@ -132,8 +134,8 @@ final class XpenseAgentRuntime {
     Clock clock = const Clock(),
     void Function(XpenseContext context, GenerateResult<dynamic> result)?
     onTurn,
-  }) async {
-    await registerXpenseCatalog(ai);
+  }) {
+    registerXpenseCatalog(ai, catalogJson);
     final snapshots = HouseholdSnapshots(reader, clock: clock);
     final deps = ToolDeps(
       reader: reader,

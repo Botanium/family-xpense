@@ -13,6 +13,7 @@ import 'package:google_cloud_firestore/google_cloud_firestore.dart' as fs;
 import 'package:http/http.dart' as http;
 import 'package:test/test.dart';
 import 'package:xpense_agent/admin/firebase_admin_gateway.dart';
+import 'package:xpense_agent/catalog/xpense_catalog_loader.dart';
 import 'package:xpense_agent/config/runtime_config.dart';
 import 'package:xpense_agent/decide/classifier.dart';
 import 'package:xpense_agent/runtime/agent.dart';
@@ -144,8 +145,9 @@ void _tests() {
     final ai = Genkit(plugins: [A2uiPlugin()], promptDir: 'prompts');
     final script = Script(entries: salaryRent, render: scriptedCapture);
     defineScripted(ai, 'test/lite', script);
-    final rt = await XpenseAgentRuntime.create(
+    final rt = XpenseAgentRuntime.create(
       ai: ai,
+      catalogJson: await readCatalogJson(),
       reader: FirestoreHouseholdReader(db),
       classifier: FakeEntryClassifier(),
       config: () async => RuntimeConfig.fromDocument(const {

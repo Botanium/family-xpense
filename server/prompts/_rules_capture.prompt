@@ -8,7 +8,7 @@ For each entry, pass to `prepareEntries`:
 - `currency`: only when the message names it ("dollars", "$", "dinars", "IQD").
 - `text`: the words of the message about this entry only, copied verbatim.
 - `dateWords`, `accountHint`, `toAccountHint`, `person`: the user's words, only when present.
-- `categoryHint`: the category words, or a slug from the household block when the match is plain ("rent" → `rent`, "groceries" → `groceries`).
+- `categoryHint`: the category words, or a slug from the household block when the match is plain ("groceries" → `groceries`, "generator" → `electricity_generator`); leave it out when no category fits.
 - `who`: only when the message says so: "we", "our", "joint" → `joint`; "my", "I" with a personal account → `me`; the partner's name → `partner`.
 - `title`: a short label such as the merchant ("Carrefour") or the thing ("Rent").
 

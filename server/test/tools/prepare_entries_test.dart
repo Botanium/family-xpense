@@ -53,7 +53,9 @@ void main() {
         expect(rent.id, 'd2');
         expect(rent.amountMinor, 140000);
         expect(rent.accountId, 'acc_chk');
-        expect(rent.missing, isNull);
+        // D-41 removed the `rent` category, so it is asked.
+        expect(rent.categoryId, isNull);
+        expect(rent.missing, ['categoryId']);
 
         expect(out.ask?.draftId, 'd1');
         expect(out.ask?.field, 'accountId');
@@ -376,14 +378,14 @@ void main() {
           _input([
             ProposedEntry(
               intent: 'expense',
-              amount: '1400',
-              text: 'rent 1400 from checking',
+              amount: '45',
+              text: 'groceries 45 from checking',
               accountHint: 'checking',
-              categoryHint: 'rent',
+              categoryHint: 'groceries',
             ),
           ]),
           dara,
-          demoDeps(texts: ['rent 1400 from checking']),
+          demoDeps(texts: ['groceries 45 from checking']),
         );
         final check = checkDraft(
           out.drafts.single.toJson(),

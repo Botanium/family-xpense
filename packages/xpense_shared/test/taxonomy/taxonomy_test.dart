@@ -67,17 +67,18 @@ void main() {
     const expenseTree = <String, List<String>>{
       'food': ['groceries', 'dining', 'bakery_tea'],
       'home': [
-        'rent',
         'electricity_generator',
         'water',
-        'internet_phone',
+        'apartment_gas',
+        'internet_fee',
+        'phone_mobile_credit',
         'household_goods',
         'repairs',
       ],
       'transport': ['fuel', 'taxi', 'car_maintenance', 'public_transport'],
       'family': ['kids_school', 'clothing', 'health', 'personal_care'],
       'social': ['gifts', 'family_support', 'charity', 'occasions'],
-      'leisure': ['entertainment', 'travel', 'subscriptions'],
+      'leisure': ['entertainment', 'travel', 'online_subscriptions'],
       'finance': ['fees', 'interest', 'taxes'],
       'other_expense': [],
     };
