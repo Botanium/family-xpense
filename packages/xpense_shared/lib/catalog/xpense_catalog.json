@@ -1,0 +1,1403 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://familyxpense.app/a2ui/catalogs/xpense/v1/catalog.json",
+  "protocolVersion": "1.0",
+  "title": "Family Xpense catalog",
+  "description": "Household money cards for Family Xpense: 8 basic components and 16 Xpense components (A2UI_CATALOG.md).",
+  "catalogId": "https://familyxpense.app/a2ui/catalogs/xpense/v1/catalog.json",
+  "components": {
+    "Column": {
+      "type": "object",
+      "description": "Arranges its children vertically.",
+      "properties": {
+        "component": {
+          "const": "Column"
+        },
+        "children": {
+          "$ref": "common_types.json#/$defs/ChildList",
+          "description": "Child ids, or a template {path, componentId} over a data list."
+        },
+        "justify": {
+          "type": "string",
+          "description": "Arrangement along the vertical axis.",
+          "enum": [
+            "start",
+            "center",
+            "end",
+            "spaceBetween",
+            "spaceAround",
+            "spaceEvenly",
+            "stretch"
+          ],
+          "default": "start"
+        },
+        "align": {
+          "type": "string",
+          "description": "Alignment across the horizontal axis.",
+          "enum": [
+            "center",
+            "end",
+            "start",
+            "stretch"
+          ],
+          "default": "stretch"
+        }
+      },
+      "required": [
+        "component",
+        "children"
+      ]
+    },
+    "Row": {
+      "type": "object",
+      "description": "Arranges its children horizontally.",
+      "properties": {
+        "component": {
+          "const": "Row"
+        },
+        "children": {
+          "$ref": "common_types.json#/$defs/ChildList",
+          "description": "Child ids, or a template {path, componentId} over a data list."
+        },
+        "justify": {
+          "type": "string",
+          "description": "Arrangement along the horizontal axis.",
+          "enum": [
+            "center",
+            "end",
+            "spaceAround",
+            "spaceBetween",
+            "spaceEvenly",
+            "start",
+            "stretch"
+          ],
+          "default": "start"
+        },
+        "align": {
+          "type": "string",
+          "description": "Alignment across the vertical axis.",
+          "enum": [
+            "start",
+            "center",
+            "end",
+            "stretch"
+          ],
+          "default": "stretch"
+        }
+      },
+      "required": [
+        "component",
+        "children"
+      ]
+    },
+    "List": {
+      "type": "object",
+      "description": "A list of children; use the template form {path, componentId} for rows from data.",
+      "properties": {
+        "component": {
+          "const": "List"
+        },
+        "children": {
+          "$ref": "common_types.json#/$defs/ChildList",
+          "description": "Child ids, or a template {path, componentId} over a data list."
+        },
+        "direction": {
+          "type": "string",
+          "description": "Direction of the items.",
+          "enum": [
+            "vertical",
+            "horizontal"
+          ],
+          "default": "vertical"
+        },
+        "align": {
+          "type": "string",
+          "description": "Alignment across the main axis.",
+          "enum": [
+            "start",
+            "center",
+            "end",
+            "stretch"
+          ],
+          "default": "stretch"
+        }
+      },
+      "required": [
+        "component",
+        "children"
+      ]
+    },
+    "Text": {
+      "type": "object",
+      "properties": {
+        "component": {
+          "const": "Text"
+        },
+        "text": {
+          "$ref": "common_types.json#/$defs/DynamicString",
+          "description": "Plain words; **bold**, *italic* and - lists only; a \"## \" line is a section label."
+        },
+        "variant": {
+          "type": "string",
+          "description": "A hint for the base text style.",
+          "enum": [
+            "caption",
+            "body"
+          ],
+          "default": "body"
+        }
+      },
+      "required": [
+        "component",
+        "text"
+      ]
+    },
+    "Divider": {
+      "type": "object",
+      "properties": {
+        "component": {
+          "const": "Divider"
+        },
+        "axis": {
+          "type": "string",
+          "description": "The orientation of the divider.",
+          "enum": [
+            "horizontal",
+            "vertical"
+          ],
+          "default": "horizontal"
+        }
+      },
+      "required": [
+        "component"
+      ]
+    },
+    "Button": {
+      "type": "object",
+      "allOf": [
+        {
+          "$ref": "common_types.json#/$defs/Checkable"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "component": {
+              "const": "Button"
+            },
+            "child": {
+              "$ref": "common_types.json#/$defs/Child",
+              "description": "The id of a Text child that labels the button."
+            },
+            "variant": {
+              "type": "string",
+              "description": "primary is the one main action; borderless reads as a link.",
+              "enum": [
+                "default",
+                "primary",
+                "borderless"
+              ],
+              "default": "default"
+            },
+            "action": {
+              "$ref": "common_types.json#/$defs/Action"
+            }
+          },
+          "required": [
+            "component",
+            "child",
+            "action"
+          ]
+        }
+      ]
+    },
+    "TextField": {
+      "type": "object",
+      "allOf": [
+        {
+          "$ref": "common_types.json#/$defs/Checkable"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "component": {
+              "const": "TextField"
+            },
+            "label": {
+              "$ref": "common_types.json#/$defs/DynamicString",
+              "description": "The text label for the input field."
+            },
+            "value": {
+              "$ref": "common_types.json#/$defs/DynamicString",
+              "description": "The value; bind it to a path such as $/answer/note."
+            },
+            "placeholder": {
+              "$ref": "common_types.json#/$defs/DynamicString",
+              "description": "The placeholder text for the input field."
+            },
+            "variant": {
+              "type": "string",
+              "description": "The type of input field to display.",
+              "enum": [
+                "longText",
+                "number",
+                "shortText"
+              ],
+              "default": "shortText"
+            }
+          },
+          "required": [
+            "component",
+            "label",
+            "value"
+          ]
+        }
+      ]
+    },
+    "DateTimeInput": {
+      "type": "object",
+      "allOf": [
+        {
+          "$ref": "common_types.json#/$defs/Checkable"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "component": {
+              "const": "DateTimeInput"
+            },
+            "value": {
+              "$ref": "common_types.json#/$defs/DynamicString",
+              "description": "The selected date and/or time in ISO 8601; bind it to a path."
+            },
+            "enableDate": {
+              "type": "boolean",
+              "description": "If true, allows the user to select a date.",
+              "default": false
+            },
+            "enableTime": {
+              "type": "boolean",
+              "description": "If true, allows the user to select a time.",
+              "default": false
+            },
+            "min": {
+              "allOf": [
+                {
+                  "$ref": "common_types.json#/$defs/DynamicString"
+                },
+                {
+                  "if": {
+                    "type": "string"
+                  },
+                  "then": {
+                    "oneOf": [
+                      {
+                        "format": "date"
+                      },
+                      {
+                        "format": "time"
+                      },
+                      {
+                        "format": "date-time"
+                      }
+                    ]
+                  }
+                }
+              ],
+              "description": "The minimum allowed date/time in ISO 8601 format."
+            },
+            "max": {
+              "allOf": [
+                {
+                  "$ref": "common_types.json#/$defs/DynamicString"
+                },
+                {
+                  "if": {
+                    "type": "string"
+                  },
+                  "then": {
+                    "oneOf": [
+                      {
+                        "format": "date"
+                      },
+                      {
+                        "format": "time"
+                      },
+                      {
+                        "format": "date-time"
+                      }
+                    ]
+                  }
+                }
+              ],
+              "description": "The maximum allowed date/time in ISO 8601 format."
+            },
+            "label": {
+              "$ref": "common_types.json#/$defs/DynamicString",
+              "description": "The text label for the input field."
+            }
+          },
+          "required": [
+            "component",
+            "value"
+          ]
+        }
+      ]
+    },
+    "EntryList": {
+      "type": "object",
+      "description": "Money entries to confirm, one slip per draft; the phone edits and saves them.",
+      "properties": {
+        "component": {
+          "const": "EntryList"
+        },
+        "drafts": {
+          "$ref": "common_types.json#/$defs/DynamicValue",
+          "description": "Array of EntryDraft; always bind to $/drafts."
+        },
+        "status": {
+          "type": "string",
+          "description": "review until saved; set once, the phone keeps its own state.",
+          "enum": [
+            "review",
+            "saved"
+          ],
+          "default": "review"
+        },
+        "title": {
+          "$ref": "common_types.json#/$defs/DynamicString",
+          "description": "Short heading, e.g. \"I found two things in that:\"."
+        }
+      },
+      "required": [
+        "component",
+        "drafts"
+      ]
+    },
+    "ChoicePrompt": {
+      "type": "object",
+      "description": "One question with 2 to 5 tappable answers; a pick writes value on the phone.",
+      "properties": {
+        "component": {
+          "const": "ChoicePrompt"
+        },
+        "question": {
+          "$ref": "common_types.json#/$defs/DynamicString",
+          "description": "The question, one sentence."
+        },
+        "options": {
+          "type": "array",
+          "description": "The answers.",
+          "minItems": 2,
+          "maxItems": 5,
+          "items": {
+            "type": "object",
+            "properties": {
+              "label": {
+                "type": "string"
+              },
+              "value": {
+                "type": "string"
+              },
+              "hint": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "label",
+              "value"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "value": {
+          "$ref": "common_types.json#/$defs/DynamicString",
+          "description": "Binding the pick is written to, e.g. $/drafts/0/intent."
+        },
+        "allowOther": {
+          "type": "boolean",
+          "description": "Adds \"Other...\" with a text field.",
+          "default": false
+        },
+        "action": {
+          "$ref": "common_types.json#/$defs/Action",
+          "description": "Optional; omit it unless you must react to the pick. Never Event(\"click\")."
+        }
+      },
+      "required": [
+        "component",
+        "question",
+        "options",
+        "value"
+      ]
+    },
+    "Transcript": {
+      "type": "object",
+      "description": "What the phone heard or read, quoted.",
+      "properties": {
+        "component": {
+          "const": "Transcript"
+        },
+        "text": {
+          "$ref": "common_types.json#/$defs/DynamicString",
+          "description": "The words, without quotation marks."
+        },
+        "seconds": {
+          "$ref": "common_types.json#/$defs/DynamicNumber",
+          "description": "Recording length in seconds, for voice."
+        }
+      },
+      "required": [
+        "component",
+        "text"
+      ]
+    },
+    "ReceiptSummary": {
+      "type": "object",
+      "description": "A scanned receipt with its entries; the phone splits, edits and saves them.",
+      "properties": {
+        "component": {
+          "const": "ReceiptSummary"
+        },
+        "receipt": {
+          "$ref": "common_types.json#/$defs/DynamicValue",
+          "description": "{merchant, occurredOn, occurredTime?, currency, totalMinor, lines[{text, amountMinor, categoryId?}]}; bind $/receipt."
+        },
+        "drafts": {
+          "$ref": "common_types.json#/$defs/DynamicValue",
+          "description": "Array of EntryDraft, one per category group or one in total; bind $/drafts."
+        },
+        "split": {
+          "$ref": "common_types.json#/$defs/DynamicBoolean",
+          "description": "The \"Split by category\" switch; bind $/ui/split."
+        },
+        "source": {
+          "type": "string",
+          "description": "Where the receipt was read.",
+          "enum": [
+            "device",
+            "cloud"
+          ]
+        }
+      },
+      "required": [
+        "component",
+        "receipt",
+        "drafts",
+        "split"
+      ]
+    },
+    "SavedNote": {
+      "type": "object",
+      "description": "A one-line confirmation.",
+      "properties": {
+        "component": {
+          "const": "SavedNote"
+        },
+        "text": {
+          "$ref": "common_types.json#/$defs/DynamicString",
+          "description": "The line."
+        },
+        "tone": {
+          "type": "string",
+          "description": "ok after a save, info for facts, warn for problems.",
+          "enum": [
+            "ok",
+            "info",
+            "warn"
+          ],
+          "default": "ok"
+        }
+      },
+      "required": [
+        "component",
+        "text"
+      ]
+    },
+    "MoneyText": {
+      "type": "object",
+      "description": "An amount; the phone formats it. Never write money as text.",
+      "properties": {
+        "component": {
+          "const": "MoneyText"
+        },
+        "amountMinor": {
+          "$ref": "common_types.json#/$defs/DynamicNumber",
+          "description": "Integer minor units (cents, whole dinars)."
+        },
+        "currency": {
+          "$ref": "common_types.json#/$defs/DynamicString",
+          "description": "USD or IQD."
+        },
+        "size": {
+          "type": "string",
+          "description": "Figure size.",
+          "enum": [
+            "hero",
+            "large",
+            "body",
+            "small"
+          ],
+          "default": "body"
+        },
+        "sign": {
+          "type": "string",
+          "description": "Sign shown before the figure.",
+          "enum": [
+            "none",
+            "plus",
+            "minus"
+          ],
+          "default": "none"
+        },
+        "tone": {
+          "type": "string",
+          "description": "Figure colour role.",
+          "enum": [
+            "ink",
+            "income",
+            "muted",
+            "loan",
+            "saving"
+          ],
+          "default": "ink"
+        },
+        "approx": {
+          "$ref": "common_types.json#/$defs/DynamicValue",
+          "description": "{amountMinor, currency}: the converted amount shown beneath."
+        }
+      },
+      "required": [
+        "component",
+        "amountMinor",
+        "currency"
+      ]
+    },
+    "LedgerRow": {
+      "type": "object",
+      "description": "Dot, label, dotted leader and amount.",
+      "properties": {
+        "component": {
+          "const": "LedgerRow"
+        },
+        "label": {
+          "$ref": "common_types.json#/$defs/DynamicString",
+          "description": "The label."
+        },
+        "amountMinor": {
+          "$ref": "common_types.json#/$defs/DynamicNumber",
+          "description": "Integer minor units."
+        },
+        "currency": {
+          "$ref": "common_types.json#/$defs/DynamicString",
+          "description": "USD or IQD."
+        },
+        "dot": {
+          "type": "string",
+          "description": "Colour role of the dot; omit for none.",
+          "enum": [
+            "income",
+            "spent",
+            "saved",
+            "loan",
+            "neutral"
+          ]
+        }
+      },
+      "required": [
+        "component",
+        "label",
+        "amountMinor",
+        "currency"
+      ]
+    },
+    "MiniBars": {
+      "type": "object",
+      "description": "The thin daily bar chart.",
+      "properties": {
+        "component": {
+          "const": "MiniBars"
+        },
+        "values": {
+          "$ref": "common_types.json#/$defs/DynamicValue",
+          "description": "List of non-negative integers, oldest first."
+        },
+        "caption": {
+          "$ref": "common_types.json#/$defs/DynamicString",
+          "description": "Short caption, e.g. \"avg 210/day\"."
+        },
+        "highlight": {
+          "type": "string",
+          "description": "Which bar uses the accent.",
+          "enum": [
+            "last",
+            "max",
+            "none"
+          ],
+          "default": "last"
+        },
+        "description": {
+          "$ref": "common_types.json#/$defs/DynamicString",
+          "description": "Required spoken summary of the chart."
+        }
+      },
+      "required": [
+        "component",
+        "values",
+        "description"
+      ]
+    },
+    "BreakdownList": {
+      "type": "object",
+      "description": "Totals by category, account or person.",
+      "properties": {
+        "component": {
+          "const": "BreakdownList"
+        },
+        "items": {
+          "$ref": "common_types.json#/$defs/DynamicValue",
+          "description": "Array of {label, amountMinor, share (0 to 1), colorKey?}."
+        },
+        "currency": {
+          "$ref": "common_types.json#/$defs/DynamicString",
+          "description": "USD or IQD."
+        },
+        "totalLabel": {
+          "$ref": "common_types.json#/$defs/DynamicString",
+          "description": "Label of the total row; omit to hide it."
+        }
+      },
+      "required": [
+        "component",
+        "items",
+        "currency"
+      ]
+    },
+    "TransactionList": {
+      "type": "object",
+      "description": "Saved transactions; tapping a row opens it on the phone.",
+      "properties": {
+        "component": {
+          "const": "TransactionList"
+        },
+        "items": {
+          "$ref": "common_types.json#/$defs/DynamicValue",
+          "description": "Array (at most 20) of {txnId, title, subtitle, amountMinor, currency, type, occurredOn}."
+        },
+        "emptyText": {
+          "$ref": "common_types.json#/$defs/DynamicString",
+          "description": "Shown when there are no items."
+        }
+      },
+      "required": [
+        "component",
+        "items"
+      ]
+    },
+    "BudgetMeter": {
+      "type": "object",
+      "description": "Spending against a budget limit.",
+      "properties": {
+        "component": {
+          "const": "BudgetMeter"
+        },
+        "label": {
+          "$ref": "common_types.json#/$defs/DynamicString",
+          "description": "The budget name."
+        },
+        "spentMinor": {
+          "$ref": "common_types.json#/$defs/DynamicNumber",
+          "description": "Integer minor units spent."
+        },
+        "limitMinor": {
+          "$ref": "common_types.json#/$defs/DynamicNumber",
+          "description": "Integer minor units allowed."
+        },
+        "currency": {
+          "$ref": "common_types.json#/$defs/DynamicString",
+          "description": "USD or IQD."
+        }
+      },
+      "required": [
+        "component",
+        "label",
+        "spentMinor",
+        "limitMinor",
+        "currency"
+      ]
+    },
+    "LoanCard": {
+      "type": "object",
+      "description": "A loan or debt with its outstanding amount.",
+      "properties": {
+        "component": {
+          "const": "LoanCard"
+        },
+        "personName": {
+          "$ref": "common_types.json#/$defs/DynamicString",
+          "description": "The other person."
+        },
+        "direction": {
+          "type": "string",
+          "description": "given: they owe us; taken: we owe them.",
+          "enum": [
+            "given",
+            "taken"
+          ]
+        },
+        "outstandingMinor": {
+          "$ref": "common_types.json#/$defs/DynamicNumber",
+          "description": "Integer minor units still owed."
+        },
+        "principalMinor": {
+          "$ref": "common_types.json#/$defs/DynamicNumber",
+          "description": "Integer minor units lent or borrowed."
+        },
+        "currency": {
+          "$ref": "common_types.json#/$defs/DynamicString",
+          "description": "USD or IQD."
+        },
+        "dueOn": {
+          "$ref": "common_types.json#/$defs/DynamicString",
+          "description": "Due date, YYYY-MM-DD."
+        },
+        "loanId": {
+          "$ref": "common_types.json#/$defs/DynamicString",
+          "description": "Enables opening the loan and recording a repayment."
+        }
+      },
+      "required": [
+        "component",
+        "personName",
+        "direction",
+        "outstandingMinor",
+        "principalMinor",
+        "currency"
+      ]
+    },
+    "GoalCard": {
+      "type": "object",
+      "description": "A savings goal with its progress.",
+      "properties": {
+        "component": {
+          "const": "GoalCard"
+        },
+        "name": {
+          "$ref": "common_types.json#/$defs/DynamicString",
+          "description": "The goal name."
+        },
+        "savedMinor": {
+          "$ref": "common_types.json#/$defs/DynamicNumber",
+          "description": "Integer minor units saved."
+        },
+        "targetMinor": {
+          "$ref": "common_types.json#/$defs/DynamicNumber",
+          "description": "Integer minor units targeted."
+        },
+        "currency": {
+          "$ref": "common_types.json#/$defs/DynamicString",
+          "description": "USD or IQD."
+        },
+        "pace": {
+          "$ref": "common_types.json#/$defs/DynamicString",
+          "description": "Pace line, e.g. \"On track, 120/mo\"."
+        },
+        "goalId": {
+          "$ref": "common_types.json#/$defs/DynamicString",
+          "description": "Enables opening the goal."
+        }
+      },
+      "required": [
+        "component",
+        "name",
+        "savedMinor",
+        "targetMinor",
+        "currency"
+      ]
+    },
+    "Nudge": {
+      "type": "object",
+      "description": "A proactive line with at most one action.",
+      "properties": {
+        "component": {
+          "const": "Nudge"
+        },
+        "text": {
+          "$ref": "common_types.json#/$defs/DynamicString",
+          "description": "One line."
+        },
+        "kind": {
+          "type": "string",
+          "description": "What the nudge is about.",
+          "enum": [
+            "bill",
+            "budget",
+            "loan",
+            "rate",
+            "report",
+            "info"
+          ]
+        },
+        "actionLabel": {
+          "$ref": "common_types.json#/$defs/DynamicString",
+          "description": "Label of the action."
+        },
+        "action": {
+          "$ref": "common_types.json#/$defs/Action",
+          "description": "Optional; omit it when there is nothing to do. Never Event(\"click\")."
+        }
+      },
+      "required": [
+        "component",
+        "text",
+        "kind"
+      ]
+    },
+    "SuggestionChips": {
+      "type": "object",
+      "description": "Follow-up suggestions; a tap sends message as the next user text.",
+      "properties": {
+        "component": {
+          "const": "SuggestionChips"
+        },
+        "options": {
+          "type": "array",
+          "description": "At most 4.",
+          "minItems": 1,
+          "maxItems": 4,
+          "items": {
+            "type": "object",
+            "properties": {
+              "label": {
+                "type": "string"
+              },
+              "message": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "label",
+              "message"
+            ],
+            "additionalProperties": false
+          }
+        }
+      },
+      "required": [
+        "component",
+        "options"
+      ]
+    },
+    "Notice": {
+      "type": "object",
+      "description": "An error or limit in plain words.",
+      "properties": {
+        "component": {
+          "const": "Notice"
+        },
+        "text": {
+          "$ref": "common_types.json#/$defs/DynamicString",
+          "description": "One or two sentences."
+        },
+        "kind": {
+          "type": "string",
+          "description": "What went wrong.",
+          "enum": [
+            "offline",
+            "limit",
+            "privacy",
+            "error"
+          ]
+        },
+        "actionLabel": {
+          "$ref": "common_types.json#/$defs/DynamicString",
+          "description": "Label of the action."
+        },
+        "action": {
+          "$ref": "common_types.json#/$defs/Action",
+          "description": "Optional; omit it when there is nothing to do. Never Event(\"click\")."
+        }
+      },
+      "required": [
+        "component",
+        "text",
+        "kind"
+      ]
+    }
+  },
+  "functions": {
+    "formatNumber": {
+      "type": "object",
+      "description": "Formats a number with the specified grouping and decimal precision.",
+      "returnType": "string",
+      "properties": {
+        "@call": {
+          "const": "formatNumber"
+        },
+        "args": {
+          "type": "object",
+          "properties": {
+            "value": {
+              "$ref": "common_types.json#/$defs/DynamicNumber",
+              "description": "The number to format."
+            },
+            "decimals": {
+              "$ref": "common_types.json#/$defs/DynamicNumber",
+              "description": "Optional. Decimal places to show."
+            },
+            "grouping": {
+              "$ref": "common_types.json#/$defs/DynamicBoolean",
+              "description": "Optional. Whether to group thousands (default true)."
+            }
+          },
+          "required": [
+            "value"
+          ],
+          "unevaluatedProperties": false
+        }
+      },
+      "required": [
+        "@call",
+        "args"
+      ]
+    },
+    "formatDate": {
+      "type": "object",
+      "description": "Formats a timestamp into a string using a pattern.",
+      "returnType": "string",
+      "properties": {
+        "@call": {
+          "const": "formatDate"
+        },
+        "args": {
+          "type": "object",
+          "properties": {
+            "value": {
+              "$ref": "common_types.json#/$defs/DynamicValue",
+              "description": "The date to format."
+            },
+            "format": {
+              "$ref": "common_types.json#/$defs/DynamicString",
+              "description": "A Unicode TR35 date pattern, e.g. 'MMM d, yyyy' or 'HH:mm'."
+            }
+          },
+          "required": [
+            "format",
+            "value"
+          ],
+          "unevaluatedProperties": false
+        }
+      },
+      "required": [
+        "@call",
+        "args"
+      ]
+    },
+    "pluralize": {
+      "type": "object",
+      "description": "Picks a string by the CLDR plural category of value; English needs 'one' and 'other'.",
+      "returnType": "string",
+      "properties": {
+        "@call": {
+          "const": "pluralize"
+        },
+        "args": {
+          "type": "object",
+          "properties": {
+            "value": {
+              "$ref": "common_types.json#/$defs/DynamicNumber",
+              "description": "The numeric value used to determine the plural category."
+            },
+            "zero": {
+              "$ref": "common_types.json#/$defs/DynamicString",
+              "description": "String for the 'zero' category (e.g., 0 items)."
+            },
+            "one": {
+              "$ref": "common_types.json#/$defs/DynamicString",
+              "description": "String for the 'one' category (e.g., 1 item)."
+            },
+            "two": {
+              "$ref": "common_types.json#/$defs/DynamicString",
+              "description": "String for the 'two' category (used in Arabic, Welsh, etc.)."
+            },
+            "few": {
+              "$ref": "common_types.json#/$defs/DynamicString",
+              "description": "String for the 'few' category (e.g., small groups in Slavic languages)."
+            },
+            "many": {
+              "$ref": "common_types.json#/$defs/DynamicString",
+              "description": "String for the 'many' category (e.g., large groups in various languages)."
+            },
+            "other": {
+              "$ref": "common_types.json#/$defs/DynamicString",
+              "description": "The default/fallback string (used for general plural cases)."
+            }
+          },
+          "required": [
+            "value",
+            "other"
+          ],
+          "unevaluatedProperties": false
+        }
+      },
+      "required": [
+        "@call",
+        "args"
+      ]
+    },
+    "required": {
+      "type": "object",
+      "description": "Checks that the value is not null, undefined, or empty.",
+      "returnType": "validationResult",
+      "properties": {
+        "@call": {
+          "const": "required"
+        },
+        "args": {
+          "type": "object",
+          "properties": {
+            "value": {
+              "description": "The value to check."
+            }
+          },
+          "required": [
+            "value"
+          ],
+          "unevaluatedProperties": false
+        }
+      },
+      "required": [
+        "@call",
+        "args"
+      ]
+    },
+    "regex": {
+      "type": "object",
+      "description": "Checks that the value matches a regular expression string.",
+      "returnType": "validationResult",
+      "properties": {
+        "@call": {
+          "const": "regex"
+        },
+        "args": {
+          "type": "object",
+          "properties": {
+            "value": {
+              "$ref": "common_types.json#/$defs/DynamicString"
+            },
+            "pattern": {
+              "type": "string",
+              "description": "A portable ECMAScript-subset pattern, matched against the whole value; no flags."
+            }
+          },
+          "required": [
+            "value",
+            "pattern"
+          ],
+          "unevaluatedProperties": false
+        }
+      },
+      "required": [
+        "@call",
+        "args"
+      ]
+    },
+    "length": {
+      "type": "object",
+      "description": "Checks string length constraints.",
+      "returnType": "validationResult",
+      "properties": {
+        "@call": {
+          "const": "length"
+        },
+        "args": {
+          "type": "object",
+          "properties": {
+            "value": {
+              "$ref": "common_types.json#/$defs/DynamicString"
+            },
+            "min": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "The minimum allowed length."
+            },
+            "max": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "The maximum allowed length."
+            }
+          },
+          "required": [
+            "value"
+          ],
+          "anyOf": [
+            {
+              "required": [
+                "min"
+              ]
+            },
+            {
+              "required": [
+                "max"
+              ]
+            }
+          ],
+          "unevaluatedProperties": false
+        }
+      },
+      "required": [
+        "@call",
+        "args"
+      ]
+    },
+    "numeric": {
+      "type": "object",
+      "description": "Checks numeric range constraints.",
+      "returnType": "validationResult",
+      "properties": {
+        "@call": {
+          "const": "numeric"
+        },
+        "args": {
+          "type": "object",
+          "properties": {
+            "value": {
+              "$ref": "common_types.json#/$defs/DynamicNumber"
+            },
+            "min": {
+              "type": "number",
+              "description": "The minimum allowed value."
+            },
+            "max": {
+              "type": "number",
+              "description": "The maximum allowed value."
+            }
+          },
+          "required": [
+            "value"
+          ],
+          "anyOf": [
+            {
+              "required": [
+                "min"
+              ]
+            },
+            {
+              "required": [
+                "max"
+              ]
+            }
+          ],
+          "unevaluatedProperties": false
+        }
+      },
+      "required": [
+        "@call",
+        "args"
+      ]
+    },
+    "and": {
+      "type": "object",
+      "description": "Performs a logical AND operation on a list of boolean values.",
+      "returnType": "boolean",
+      "properties": {
+        "@call": {
+          "const": "and"
+        },
+        "args": {
+          "type": "object",
+          "properties": {
+            "values": {
+              "type": "array",
+              "description": "The list of boolean values to evaluate.",
+              "items": {
+                "$ref": "common_types.json#/$defs/DynamicBoolean"
+              },
+              "minItems": 2
+            }
+          },
+          "required": [
+            "values"
+          ],
+          "unevaluatedProperties": false
+        }
+      },
+      "required": [
+        "@call",
+        "args"
+      ]
+    },
+    "or": {
+      "type": "object",
+      "description": "Performs a logical OR operation on a list of boolean values.",
+      "returnType": "boolean",
+      "properties": {
+        "@call": {
+          "const": "or"
+        },
+        "args": {
+          "type": "object",
+          "properties": {
+            "values": {
+              "type": "array",
+              "description": "The list of boolean values to evaluate.",
+              "items": {
+                "$ref": "common_types.json#/$defs/DynamicBoolean"
+              },
+              "minItems": 2
+            }
+          },
+          "required": [
+            "values"
+          ],
+          "unevaluatedProperties": false
+        }
+      },
+      "required": [
+        "@call",
+        "args"
+      ]
+    },
+    "not": {
+      "type": "object",
+      "description": "Performs a logical NOT operation on a boolean value.",
+      "returnType": "boolean",
+      "properties": {
+        "@call": {
+          "const": "not"
+        },
+        "args": {
+          "type": "object",
+          "properties": {
+            "value": {
+              "$ref": "common_types.json#/$defs/DynamicBoolean",
+              "description": "The boolean value to negate."
+            }
+          },
+          "required": [
+            "value"
+          ],
+          "unevaluatedProperties": false
+        }
+      },
+      "required": [
+        "@call",
+        "args"
+      ]
+    }
+  },
+  "$defs": {
+    "anyComponent": {
+      "oneOf": [
+        {
+          "$ref": "#/components/Column"
+        },
+        {
+          "$ref": "#/components/Row"
+        },
+        {
+          "$ref": "#/components/List"
+        },
+        {
+          "$ref": "#/components/Text"
+        },
+        {
+          "$ref": "#/components/Divider"
+        },
+        {
+          "$ref": "#/components/Button"
+        },
+        {
+          "$ref": "#/components/TextField"
+        },
+        {
+          "$ref": "#/components/DateTimeInput"
+        },
+        {
+          "$ref": "#/components/EntryList"
+        },
+        {
+          "$ref": "#/components/ChoicePrompt"
+        },
+        {
+          "$ref": "#/components/Transcript"
+        },
+        {
+          "$ref": "#/components/ReceiptSummary"
+        },
+        {
+          "$ref": "#/components/SavedNote"
+        },
+        {
+          "$ref": "#/components/MoneyText"
+        },
+        {
+          "$ref": "#/components/LedgerRow"
+        },
+        {
+          "$ref": "#/components/MiniBars"
+        },
+        {
+          "$ref": "#/components/BreakdownList"
+        },
+        {
+          "$ref": "#/components/TransactionList"
+        },
+        {
+          "$ref": "#/components/BudgetMeter"
+        },
+        {
+          "$ref": "#/components/LoanCard"
+        },
+        {
+          "$ref": "#/components/GoalCard"
+        },
+        {
+          "$ref": "#/components/Nudge"
+        },
+        {
+          "$ref": "#/components/SuggestionChips"
+        },
+        {
+          "$ref": "#/components/Notice"
+        }
+      ],
+      "discriminator": {
+        "propertyName": "component"
+      }
+    },
+    "anyFunction": {
+      "oneOf": [
+        {
+          "$ref": "#/functions/formatNumber"
+        },
+        {
+          "$ref": "#/functions/formatDate"
+        },
+        {
+          "$ref": "#/functions/pluralize"
+        },
+        {
+          "$ref": "#/functions/required"
+        },
+        {
+          "$ref": "#/functions/regex"
+        },
+        {
+          "$ref": "#/functions/length"
+        },
+        {
+          "$ref": "#/functions/numeric"
+        },
+        {
+          "$ref": "#/functions/and"
+        },
+        {
+          "$ref": "#/functions/or"
+        },
+        {
+          "$ref": "#/functions/not"
+        }
+      ]
+    }
+  }
+}

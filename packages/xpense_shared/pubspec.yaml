@@ -17,6 +17,11 @@ dependencies:
 
 dev_dependencies:
   build_runner: ^2.16.2
+  # Catalog parity on the server side (WP-31): the catalog JSON must load
+  # with genkit_a2ui's loadCatalog and compile Express. Dev only, so the app
+  # (a2ui_core 0.8) and the server (0.7) keep their own resolution (D-05).
+  genkit: ^1.0.3
+  genkit_a2ui: 0.6.0
   schemantic_builder: ^1.0.0
   test: ^1.33.0
   very_good_analysis: ^11.0.0
