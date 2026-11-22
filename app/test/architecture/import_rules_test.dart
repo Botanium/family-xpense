@@ -190,6 +190,63 @@ import 'package:flutter_edge_ai_litertlm/flutter_edge_ai_litertlm.dart';
       ]);
     });
 
+    test('features import service interfaces, not implementations', () {
+      const adapter = "import 'package:local_auth/local_auth.dart';";
+      const interface =
+          "import 'package:flutter_riverpod/flutter_riverpod.dart';";
+      expect(
+        isServiceImplementation('services/lock_local_auth.dart', adapter),
+        isTrue,
+      );
+      expect(isServiceImplementation('services/lock.dart', interface), isFalse);
+      expect(isServiceImplementation('services/lock_fake.dart', ''), isTrue);
+      expect(isServiceImplementation('core/lock_fake.dart', adapter), isFalse);
+
+      const reason =
+          'features may import service interfaces only, not '
+          'implementations or fakes';
+      expect(
+        reasons(
+          'features/ask/a.dart',
+          "import 'package:xpense_app/services/agent_client_fake.dart';",
+        ),
+        [reason],
+      );
+      expect(
+        checkFile(
+          'features/ask/a.dart',
+          "import '../../services/lock_local_auth.dart';",
+          serviceImplementations: {'services/lock_local_auth.dart'},
+        ).map((v) => v.reason),
+        [reason],
+      );
+      expect(
+        reasons(
+          'features/ask/a.dart',
+          "import 'package:xpense_app/services/agent_client.dart';",
+        ),
+        isEmpty,
+      );
+      // The composition root wires implementations.
+      expect(
+        reasons(
+          'bootstrap.dart',
+          "import 'package:xpense_app/services/agent_client_fake.dart';",
+        ),
+        isEmpty,
+      );
+    });
+
+    test('shared_preferences stays in services/', () {
+      expect(
+        reasons(
+          'features/settings_privacy/s.dart',
+          "import 'package:shared_preferences/shared_preferences.dart';",
+        ),
+        ['shared_preferences may only be imported in: services'],
+      );
+    });
+
     test('pre-1.0 and native packages stay in their adapter layer', () {
       expect(
         reasons(

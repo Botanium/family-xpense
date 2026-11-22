@@ -1,17 +1,29 @@
-import 'package:material_ui/material_ui.dart';
+import 'package:flutter/widgets.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-/// Placeholder entry point.
+import 'package:xpense_app/app.dart';
+import 'package:xpense_app/bootstrap.dart';
+
+/// Starts the app in the order of ARCHITECTURE 3.3: error handlers, then
+/// Firebase and App Check (dev and prod only), then settings, theme and
+/// glass restore, then `runApp`. Post-frame work starts in `XpenseApp`.
 ///
-/// The real startup order (ARCHITECTURE 3.3: error handlers, Firebase,
-/// App Check, theme restore, then `runApp`) is built in WP-10.
-void main() => runApp(const XpenseApp());
+/// `--dart-define=XPENSE_ENV=dev|prod` picks the backend; without it the
+/// app runs on fakes and needs no Firebase config.
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  final errors = ErrorLog();
+  installErrorHandlers(errors);
 
-/// Root widget placeholder until WP-10 builds the app shell.
-class XpenseApp extends StatelessWidget {
-  /// Creates the placeholder root widget.
-  const new({super.key});
+  final app = await bootstrap(environment: AppEnvironment.compiled);
 
-  @override
-  Widget build(BuildContext context) =>
-      const MaterialApp(home: SizedBox.shrink());
+  runApp(
+    ProviderScope(
+      // Every provider here fails for a local reason (a bug, a missing
+      // wiring), so fail at once instead of retrying behind a spinner.
+      retry: (_, _) => null,
+      overrides: app.overrides,
+      child: const XpenseApp(),
+    ),
+  );
 }
