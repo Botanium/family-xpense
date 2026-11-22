@@ -10,6 +10,7 @@ import 'package:google_cloud_firestore/google_cloud_firestore.dart' as fs;
 import 'package:logging/logging.dart';
 
 import 'package:xpense_agent/tools/household_reader.dart';
+import 'package:xpense_agent/tools/local_day.dart';
 
 final _log = Logger('xpense.runtime.reader');
 
@@ -22,6 +23,9 @@ final class FirestoreHouseholdReader implements HouseholdReader {
 
   /// Upper bound on transactions read per query.
   final int maxTransactions;
+
+  /// How far back a missing day's rate is looked for.
+  static const rateLookbackDays = 60;
 
   String _h(String hid) => 'households/$hid';
 
@@ -228,20 +232,26 @@ final class FirestoreHouseholdReader implements HouseholdReader {
         final col = _db.collection('${_h(hid)}/fxRates');
         final day = await col.doc(date).get();
         if (day.data() case final d?) return _fx(date, d);
-        // The most recent earlier day (document ids are YYYY-MM-DD).
+        // The most recent earlier day. Document ids are YYYY-MM-DD, but
+        // Firestore cannot scan ids descending, so read the previous
+        // [rateLookbackDays] days in order and take the last.
         final earlier =
             (await col
+                    .whereFieldPath(
+                      fs.FieldPath.documentId,
+                      fs.WhereFilter.greaterThanOrEqual,
+                      col.doc(addDays(date, -rateLookbackDays)),
+                    )
                     .whereFieldPath(
                       fs.FieldPath.documentId,
                       fs.WhereFilter.lessThan,
                       col.doc(date),
                     )
-                    .orderByFieldPath(fs.FieldPath.documentId, descending: true)
-                    .limit(1)
+                    .orderByFieldPath(fs.FieldPath.documentId)
                     .get())
                 .docs;
         if (earlier.isEmpty) return null;
-        return _fx(earlier.first.id, earlier.first.data());
+        return _fx(earlier.last.id, earlier.last.data());
       });
 
   static FxDay? _fx(String date, Map<String, Object?> d) {

@@ -69,7 +69,10 @@ final class OutputGuardMiddleware extends GenerateMiddleware {
     if (result.violations.isEmpty) return response;
     return ModelResponse.fromJson({
       ...json,
-      'message': {...message, 'content': result.parts},
+      'message': <String, dynamic>{
+        ...message.cast<String, dynamic>(),
+        'content': result.parts,
+      },
     });
   }
 

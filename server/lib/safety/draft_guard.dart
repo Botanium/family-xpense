@@ -29,8 +29,8 @@ const a2uiExpressKey = 'a2uiExpress';
 /// The tool whose drafts are authoritative.
 const prepareEntriesTool = 'prepareEntries';
 
-/// What backs the amounts of one model call.
-@immutable
+/// What backs the amounts of one model call. Built once per model call;
+/// its fields are never changed after construction.
 final class GuardFacts {
   /// Creates the facts.
   const new({
@@ -42,7 +42,7 @@ final class GuardFacts {
   /// Reads the facts from a model request's messages (JSON form).
   factory fromMessages(List<Map<String, dynamic>> messages) {
     final prepared = <String, Map<String, dynamic>>{};
-    final values = <Decimal>{};
+    final values = <({Decimal value, String? currency})>{};
     final toolAmounts = <int>{};
     const context = ParseContext(clock: Clock());
     for (final m in messages) {
@@ -50,12 +50,18 @@ final class GuardFacts {
       for (final part in _parts(m['content'])) {
         if (role == 'user' && part['text'] is String) {
           for (final a in parseText(part['text'] as String, context).amounts) {
-            values.add(a.value);
+            // A currency the parser only guessed does not constrain.
+            values.add((
+              value: a.value,
+              currency: a.guessed ? null : a.currency?.code,
+            ));
           }
         }
         final response = part['toolResponse'];
         if (response is Map) {
-          final output = response['output'];
+          // In process a tool's output is still its Dart object; its JSON
+          // is what the model saw.
+          final output = _plain(response['output']);
           if (response['name'] == prepareEntriesTool && output is Map) {
             // The latest call replaces the whole set.
             prepared.clear();
@@ -80,8 +86,9 @@ final class GuardFacts {
   /// Drafts of the latest `prepareEntries` result, by id.
   final Map<String, Map<String, dynamic>> preparedDrafts;
 
-  /// Amounts the parser found in user messages, in major units.
-  final Set<Decimal> messageValues;
+  /// Amounts the parser found in user messages, in major units, with the
+  /// currency the words named (null when none).
+  final Set<({Decimal value, String? currency})> messageValues;
 
   /// Minor-unit figures in other tool results.
   final Set<int> toolMinorAmounts;
@@ -103,7 +110,12 @@ final class GuardFacts {
     final currency = Currency.tryParse(draft.currency ?? '');
     if (currency != null) {
       final major = Decimal.parse(Money(amount, currency).toMajorString());
-      if (messageValues.contains(major)) return null;
+      final backed = messageValues.any(
+        (m) =>
+            m.value == major &&
+            (m.currency == null || m.currency == currency.code),
+      );
+      if (backed) return null;
     }
     return 'unbacked_amount';
   }
@@ -182,10 +194,16 @@ guardParts(List<Map<String, dynamic>> parts, GuardFacts facts) {
         );
       }
     }
-    out.add({
+    out.add(<String, dynamic>{
       ...part,
-      'data': {...data, 'messages': messages},
-      'metadata': {...metadata, a2uiExpressKey: ?express},
+      'data': <String, dynamic>{
+        ...data.cast<String, dynamic>(),
+        'messages': messages,
+      },
+      'metadata': <String, dynamic>{
+        ...metadata.cast<String, dynamic>(),
+        a2uiExpressKey: ?express,
+      },
     });
   }
   return (parts: out, violations: violations);
@@ -214,11 +232,14 @@ _guardMessage(
         return (message: message, keptDrafts: null, draftsPath: null);
       }
       return (
-        message: {
-          ...message,
-          'createSurface': {
-            ...create,
-            'dataModel': {...model, 'drafts': kept},
+        message: <String, dynamic>{
+          ...message.cast<String, dynamic>(),
+          'createSurface': <String, dynamic>{
+            ...create.cast<String, dynamic>(),
+            'dataModel': <String, dynamic>{
+              ...model.cast<String, dynamic>(),
+              'drafts': kept,
+            },
           },
         },
         keptDrafts: kept,
@@ -237,9 +258,12 @@ _guardMessage(
         return (message: message, keptDrafts: null, draftsPath: null);
       }
       return (
-        message: {
-          ...message,
-          'updateDataModel': {...update, 'value': kept},
+        message: <String, dynamic>{
+          ...message.cast<String, dynamic>(),
+          'updateDataModel': <String, dynamic>{
+            ...update.cast<String, dynamic>(),
+            'value': kept,
+          },
         },
         keptDrafts: kept,
         draftsPath: '/drafts',
@@ -345,6 +369,11 @@ int _valueEnd(String s, int from) {
   }
   return s.length;
 }
+
+Object? _plain(Object? value) =>
+    value == null || value is num || value is String || value is bool
+    ? value
+    : jsonDecode(jsonEncode(value));
 
 Iterable<Map<String, dynamic>> _parts(Object? content) sync* {
   for (final p in _list(content)) {

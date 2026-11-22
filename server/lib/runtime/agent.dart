@@ -79,6 +79,32 @@ final class MemorySessions extends AgentSessions {
   const new();
 }
 
+/// In-memory sessions kept apart per `{hid}_{uid}`, like the Firestore
+/// layout: `InMemorySessionStore` alone ignores the context, so one member
+/// could load another's snapshot by id.
+final class TenantMemorySessionStore implements SessionStore {
+  final _stores = <String, InMemorySessionStore>{};
+
+  InMemorySessionStore _for(Map<String, dynamic>? context) =>
+      _stores.putIfAbsent(sessionPrefix(context), InMemorySessionStore.new);
+
+  @override
+  Future<SessionSnapshot?> getSnapshot({
+    String? snapshotId,
+    String? sessionId,
+    Map<String, dynamic>? context,
+  }) => _for(
+    context,
+  ).getSnapshot(snapshotId: snapshotId, sessionId: sessionId, context: context);
+
+  @override
+  Future<String?> saveSnapshot(
+    String? snapshotId,
+    SnapshotMutator mutator, {
+    Map<String, dynamic>? context,
+  }) => _for(context).saveSnapshot(snapshotId, mutator, context: context);
+}
+
 /// The assembled agent and its collaborators.
 final class XpenseAgentRuntime {
   new _({
@@ -135,7 +161,7 @@ final class XpenseAgentRuntime {
         collection: agentSessionsCollection,
         snapshotPathPrefix: sessionPrefix,
       ) as SessionStore,
-      MemorySessions() => InMemorySessionStore(),
+      MemorySessions() => TenantMemorySessionStore(),
     };
     final agent = ai.definePromptAgent<void>(
       promptName: strict ? '$agentPromptName.strict' : agentPromptName,
