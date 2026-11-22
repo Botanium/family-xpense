@@ -145,6 +145,22 @@ service cloud.firestore {
       }
 
       match /accounts/{id} {
+        // The server's record of what the history was rewritten for
+        // (`visibilityAppliedTo`) and its running rewrite
+        // (`visibilitySync`). The visibility job decides from them, so the
+        // phone never writes them; a new account has no history yet, so it
+        // may start with the record equal to its own visibleTo (WP-13,
+        // security review of PR #33).
+        function visibilitySyncFresh() {
+          let d = request.resource.data;
+          return d.get('visibilitySync', null) == null
+            && (d.get('visibilityAppliedTo', null) == null
+                || d.visibilityAppliedTo == d.visibleTo);
+        }
+        function visibilitySyncUntouched() {
+          return !changed().hasAny(['visibilityAppliedTo', 'visibilitySync']);
+        }
+
         allow read: if canReadVisible(hid);
         allow create: if canCreateVisible(hid)
           && request.resource.data.currency in ['USD', 'IQD']
@@ -152,10 +168,12 @@ service cloud.firestore {
           && (request.resource.data.scope == 'joint'
               || request.resource.data.ownerUid == uid())
           && ownerKeepsAccess()
-          && jointIsEveryone(hid);
+          && jointIsEveryone(hid)
+          && visibilitySyncFresh();
         allow update: if canUpdateVisible(hid)
           && request.resource.data.currency == resource.data.currency
-          && ownedUpdateOk(hid);
+          && ownedUpdateOk(hid)
+          && visibilitySyncUntouched();
         allow delete: if false;                       // archive instead
       }
 

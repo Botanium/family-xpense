@@ -207,7 +207,7 @@ final class FakeAccountsRepository implements AccountsRepository {
   void finishSharing(String id) {
     final a = _all[id];
     if (a == null) return;
-    _all[id] = _copy(a, visibilitySyncedRev: a.visibilityRev);
+    _all[id] = _copy(a, appliedVisibleTo: a.visibleTo);
     _changes.add(null);
   }
 
@@ -275,11 +275,14 @@ final class FakeAccountsRepository implements AccountsRepository {
     final failed = _fail<String>('create');
     if (failed != null) return failed;
     final opening = draft.openingBalanceMinor;
-    if (opening != 0 && draft.currency != baseCurrency) {
-      final rate = draft.openingRate ?? _rate;
-      if (rate == null) return const Err(AccountsRateNeeded());
-      if (draft.openingRate != null) _rate = draft.openingRate;
-    }
+    final needed = openingBaseAmount(
+      amountMinor: opening,
+      currency: draft.currency,
+      base: baseCurrency,
+      rate: draft.openingRate ?? _rate,
+    );
+    if (needed == null) return const Err(AccountsRateNeeded());
+    if (opening != 0 && draft.openingRate != null) _rate = draft.openingRate;
     created.add(draft);
     final id = 'acc-new-${_nextId++}';
     final ownerUid = draft.scope == AccountScope.personal ? viewerUid : null;
@@ -372,7 +375,7 @@ final class FakeAccountsRepository implements AccountsRepository {
         sharedWithPartner: shared,
         memberIds: [for (final m in _members) m.uid],
       ),
-      visibilityRev: a.visibilityRev + 1,
+      appliedVisibleTo: a.appliedVisibleTo ?? a.visibleTo,
     );
     _changes.add(null);
     final delay = sharingDelay;
@@ -405,14 +408,20 @@ Account _copy(
   bool? archived,
   bool? sharedWithPartner,
   List<String>? visibleTo,
-  int? visibilityRev,
-  int? visibilitySyncedRev,
+  List<String>? appliedVisibleTo,
   int? sharingDone,
   int? sharingTotal,
 }) {
-  final rev = visibilityRev ?? a.visibilityRev;
-  final synced = visibilitySyncedRev ?? a.visibilitySyncedRev;
-  final running = rev > synced;
+  final next = Account(
+    id: a.id,
+    name: a.name,
+    kind: a.kind,
+    currency: a.currency,
+    scope: a.scope,
+    visibleTo: visibleTo ?? a.visibleTo,
+    appliedVisibleTo: appliedVisibleTo ?? a.appliedVisibleTo,
+  );
+  final running = next.sharingInProgress;
   return Account(
     id: a.id,
     name: name ?? a.name,
@@ -425,8 +434,7 @@ Account _copy(
     balanceMinor: a.balanceMinor,
     archived: archived ?? a.archived,
     order: a.order,
-    visibilityRev: rev,
-    visibilitySyncedRev: synced,
+    appliedVisibleTo: next.appliedVisibleTo,
     sharingDone: running ? sharingDone ?? a.sharingDone : null,
     sharingTotal: running ? sharingTotal ?? a.sharingTotal : null,
   );

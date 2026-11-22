@@ -62,8 +62,12 @@ final class XpenseServer {
     final entryClassifier =
         classifier?.call(config, usage) ?? FakeEntryClassifier();
     final decide = defineDecideFlow(ai, entryClassifier);
-    final household = HouseholdService(gateway.documents, clock: clock);
     final visibility = AccountVisibilityJob(gateway.documents, clock: clock);
+    final household = HouseholdService(
+      gateway.documents,
+      clock: clock,
+      onJoin: visibility.prepareJoinWidening,
+    );
     final handler = buildHandler(
       role: role,
       public: buildPublicRouter(
@@ -75,7 +79,7 @@ final class XpenseServer {
           ai,
           household,
           members,
-          afterJoin: visibility.widenForMembers,
+          afterJoin: visibility.syncAfterJoin,
         ),
       ),
       jobs: buildJobsRouter(),

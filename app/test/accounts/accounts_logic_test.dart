@@ -182,6 +182,47 @@ void main() {
     });
   });
 
+  group('openingBaseAmount', () {
+    test('a zero balance needs no rate (Codex review, PR #33)', () {
+      expect(
+        openingBaseAmount(
+          amountMinor: 0,
+          currency: Currency.iqd,
+          base: Currency.usd,
+        ),
+        0,
+      );
+    });
+
+    test('converts a non-zero balance, unsigned, or asks for a rate', () {
+      expect(
+        openingBaseAmount(
+          amountMinor: -250000,
+          currency: Currency.iqd,
+          base: Currency.usd,
+          rate: rate,
+        ),
+        14663,
+      );
+      expect(
+        openingBaseAmount(
+          amountMinor: 250000,
+          currency: Currency.iqd,
+          base: Currency.usd,
+        ),
+        isNull,
+      );
+      expect(
+        openingBaseAmount(
+          amountMinor: 61200,
+          currency: Currency.usd,
+          base: Currency.usd,
+        ),
+        61200,
+      );
+    });
+  });
+
   group('balanceEffect (DATA_MODEL 3)', () {
     Map<String, Object?> txn(String type, {int sign = 1, String? to}) => {
       'type': type,
@@ -303,12 +344,12 @@ void main() {
         'sharedWithPartner': true,
         'visibleTo': ['u', 'p'],
         'balanceMinor': 250000,
-        'visibilityRev': 2,
-        'visibilitySyncedRev': 1,
+        'visibilityAppliedTo': ['u'],
         'visibilitySync': {'done': 18, 'total': 42},
       })!;
       expect(account.currency, Currency.iqd);
       expect(account.sharingInProgress, isTrue);
+      expect(account.appliedVisibleTo, ['u']);
       expect(account.sharingDone, 18);
       expect(account.sharingTotal, 42);
     });

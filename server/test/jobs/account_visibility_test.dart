@@ -1,10 +1,15 @@
 import 'dart:convert';
 
+import 'dart:math';
+
 import 'package:clock/clock.dart';
 import 'package:genkit/genkit.dart';
 import 'package:shelf/shelf.dart';
 import 'package:test/test.dart';
+import 'package:xpense_agent/admin/admin_gateway.dart';
 import 'package:xpense_agent/config/server_env.dart';
+import 'package:xpense_agent/household/household_failure.dart';
+import 'package:xpense_agent/household/household_service.dart';
 import 'package:xpense_agent/jobs/account_visibility.dart';
 import 'package:xpense_agent/xpense_server.dart';
 
@@ -27,8 +32,7 @@ void main() {
     required List<String> visibleTo,
     String scope = 'personal',
     bool shared = false,
-    int rev = 0,
-    int synced = 0,
+    List<String>? applied,
     Map<String, Object?>? sync,
   }) {
     docs.docs['$accounts/$id'] = {
@@ -37,8 +41,7 @@ void main() {
       if (scope == 'personal') 'ownerUid': owner,
       'sharedWithPartner': shared,
       'visibleTo': visibleTo,
-      'visibilityRev': rev,
-      'visibilitySyncedRev': synced,
+      'visibilityAppliedTo': ?applied,
       'visibilitySync': ?sync,
     };
   }
@@ -72,7 +75,12 @@ void main() {
 
   group('sync', () {
     test('sharing an account shows its whole history to the partner', () async {
-      seedAccount('chk', visibleTo: [owner, partner], shared: true, rev: 1);
+      seedAccount(
+        'chk',
+        visibleTo: [owner, partner],
+        shared: true,
+        applied: [owner],
+      );
       seedAccount('joint', visibleTo: [owner, partner], scope: 'joint');
       for (var i = 0; i < 5; i++) {
         seedTxn('t$i', 'chk', visibleTo: [owner]);
@@ -90,13 +98,13 @@ void main() {
         expect(docs.docs['$txns/t$i']!['rev'], 3);
       }
       final account = docs.docs['$accounts/chk']!;
-      expect(account['visibilitySyncedRev'], 1);
+      expect(account['visibilityAppliedTo'], [owner, partner]);
       expect(account['visibilitySync'], isNull);
     });
 
     test('making it private again hides it, but not a transfer into a '
         'joint account', () async {
-      seedAccount('chk', visibleTo: [owner], rev: 2, synced: 1);
+      seedAccount('chk', visibleTo: [owner], applied: [owner, partner]);
       seedAccount('joint', visibleTo: [owner, partner], scope: 'joint');
       seedTxn('own', 'chk', visibleTo: [owner, partner]);
       seedTxn('out', 'chk', to: 'joint', visibleTo: [owner, partner]);
@@ -106,11 +114,16 @@ void main() {
       expect(result.rewritten, 1);
       expect(visibleOf('$txns/own'), [owner]);
       expect(visibleOf('$txns/out'), [owner, partner]);
-      expect(docs.docs['$accounts/chk']!['visibilitySyncedRev'], 2);
+      expect(docs.docs['$accounts/chk']!['visibilityAppliedTo'], [owner]);
     });
 
     test('pages through the history and records progress', () async {
-      seedAccount('chk', visibleTo: [owner, partner], shared: true, rev: 1);
+      seedAccount(
+        'chk',
+        visibleTo: [owner, partner],
+        shared: true,
+        applied: [owner],
+      );
       for (var i = 0; i < 5; i++) {
         seedTxn('t$i', 'chk', visibleTo: [owner]);
       }
@@ -130,7 +143,12 @@ void main() {
     test(
       'a flip during the run gets another pass with the new state',
       () async {
-        seedAccount('chk', visibleTo: [owner, partner], shared: true, rev: 1);
+        seedAccount(
+          'chk',
+          visibleTo: [owner, partner],
+          shared: true,
+          applied: [owner],
+        );
         for (var i = 0; i < 5; i++) {
           seedTxn('t$i', 'chk', visibleTo: [owner]);
         }
@@ -139,8 +157,7 @@ void main() {
           // The owner turns sharing off again while the first page is done.
           docs.docs['$accounts/chk']!
             ..['visibleTo'] = [owner]
-            ..['sharedWithPartner'] = false
-            ..['visibilityRev'] = 2;
+            ..['sharedWithPartner'] = false;
         };
 
         final result = await job.sync(hid, 'chk');
@@ -149,13 +166,13 @@ void main() {
         for (var i = 0; i < 5; i++) {
           expect(visibleOf('$txns/t$i'), [owner], reason: 't$i');
         }
-        expect(docs.docs['$accounts/chk']!['visibilitySyncedRev'], 2);
+        expect(docs.docs['$accounts/chk']!['visibilityAppliedTo'], [owner]);
         expect(docs.docs['$accounts/chk']!['visibilitySync'], isNull);
       },
     );
 
-    test('nothing to do when the history matches the rev', () async {
-      seedAccount('chk', visibleTo: [owner], rev: 3, synced: 3);
+    test('nothing to do when the history matches the account', () async {
+      seedAccount('chk', visibleTo: [owner], applied: [owner]);
       seedTxn('t', 'chk', visibleTo: [owner]);
 
       final result = await job.sync(hid, 'chk');
@@ -169,10 +186,10 @@ void main() {
       seedAccount(
         'chk',
         visibleTo: [owner, partner],
-        rev: 1,
+        applied: [owner],
         sync: {
           'runId': 'other',
-          'rev': 1,
+          'target': [owner, partner],
           'leaseUntil': now.add(const Duration(seconds: 30)),
           'done': 0,
           'total': 4,
@@ -189,10 +206,10 @@ void main() {
       seedAccount(
         'chk',
         visibleTo: [owner, partner],
-        rev: 1,
+        applied: [owner],
         sync: {
           'runId': 'crashed',
-          'rev': 1,
+          'target': [owner, partner],
           'leaseUntil': now.subtract(const Duration(seconds: 1)),
           'done': 2,
           'total': 4,
@@ -206,6 +223,65 @@ void main() {
       expect(visibleOf('$txns/t'), [owner, partner]);
     });
 
+    test(
+      'revoking sharing: the partner keeps nothing of the history',
+      () async {
+        seedAccount(
+          'chk',
+          visibleTo: [owner, partner],
+          shared: true,
+          applied: [owner],
+        );
+        for (var i = 0; i < 3; i++) {
+          seedTxn('t$i', 'chk', visibleTo: [owner]);
+        }
+        await job.sync(hid, 'chk');
+        int partnerSees() => [
+          for (final e in docs.docs.entries)
+            if (e.key.startsWith('$txns/') &&
+                (e.value['visibleTo']! as List).contains(partner))
+              e.key,
+        ].length;
+        expect(partnerSees(), 3);
+
+        // The owner turns sharing off (the phone writes only these two).
+        docs.docs['$accounts/chk']!
+          ..['sharedWithPartner'] = false
+          ..['visibleTo'] = [owner];
+        final result = await job.sync(hid, 'chk');
+
+        expect(result.outcome, VisibilityOutcome.synced);
+        expect(partnerSees(), 0);
+        expect(docs.docs['$accounts/chk']!['visibilityAppliedTo'], [owner]);
+      },
+    );
+
+    test('phone-writable counters and a forged lease cannot stop a revoke '
+        '(security review, PR #33)', () async {
+      seedAccount(
+        'chk',
+        visibleTo: [owner],
+        applied: [owner, partner],
+        sync: {
+          'runId': 'forged',
+          'target': [owner, partner],
+          'leaseUntil': DateTime.utc(9999),
+          'done': 0,
+          'total': 0,
+        },
+      );
+      // The old design's markers, set as high as a partner could.
+      docs.docs['$accounts/chk']!
+        ..['visibilityRev'] = 0
+        ..['visibilitySyncedRev'] = 9007199254740991;
+      seedTxn('t', 'chk', visibleTo: [owner, partner]);
+
+      final result = await job.sync(hid, 'chk');
+
+      expect(result.outcome, VisibilityOutcome.synced);
+      expect(visibleOf('$txns/t'), [owner]);
+    });
+
     test('a missing account is reported, not created', () async {
       final result = await job.sync(hid, 'gone');
       expect(result.outcome, VisibilityOutcome.missing);
@@ -213,27 +289,127 @@ void main() {
     });
   });
 
-  group('widenForMembers', () {
-    test('joint and shared accounts and their history reach the new member, '
-        'private ones do not', () async {
+  group('joining widens joint and shared accounts', () {
+    late HouseholdService households;
+
+    setUp(() {
+      // A household of one, as before the partner joins.
+      docs.seedMember(uid: owner, hid: hid);
+      households = HouseholdService(
+        docs,
+        clock: Clock.fixed(now),
+        random: Random(7),
+        onJoin: job.prepareJoinWidening,
+      );
+    });
+
+    Future<void> join() async {
+      final invite = await households.createInvite(uid: owner, hid: hid);
+      await households.join(
+        uid: partner,
+        code: invite.code,
+        displayName: 'Sam',
+      );
+    }
+
+    test(
+      'in the join transaction itself, with nothing run afterwards',
+      () async {
+        seedAccount(
+          'joint',
+          visibleTo: [owner],
+          scope: 'joint',
+          applied: [owner],
+        );
+        seedAccount(
+          'shared',
+          visibleTo: [owner],
+          shared: true,
+          applied: [owner],
+        );
+        seedAccount('private', visibleTo: [owner], applied: [owner]);
+
+        await join();
+
+        // Committed with the join: no after-join hook needed (Codex review).
+        expect(visibleOf('$accounts/joint'), [owner, partner]);
+        expect(visibleOf('$accounts/shared'), [owner, partner]);
+        expect(visibleOf('$accounts/private'), [owner]);
+        // visibleTo is now ahead of what the history was rewritten for, so
+        // the account event rewrites it.
+        expect(docs.docs['$accounts/joint']!['visibilityAppliedTo'], [owner]);
+      },
+    );
+
+    test('a failed join widens nothing', () async {
       seedAccount('joint', visibleTo: [owner], scope: 'joint');
-      seedAccount('shared', visibleTo: [owner], shared: true);
-      seedAccount('private', visibleTo: [owner]);
+      final invite = await households.createInvite(uid: owner, hid: hid);
+      // Already a member of another household: the join is refused.
+      docs.docs['households/h9'] = {
+        'memberIds': [partner],
+      };
+
+      await expectLater(
+        households.join(uid: partner, code: invite.code, displayName: 'Sam'),
+        throwsA(isA<HouseholdRejection>()),
+      );
+      expect(visibleOf('$accounts/joint'), [owner]);
+    });
+
+    test('syncAfterJoin then brings the history along', () async {
+      seedAccount(
+        'joint',
+        visibleTo: [owner],
+        scope: 'joint',
+        applied: [owner],
+      );
+      seedAccount('private', visibleTo: [owner], applied: [owner]);
       seedTxn('j', 'joint', visibleTo: [owner]);
-      seedTxn('s', 'shared', visibleTo: [owner]);
       seedTxn('p', 'private', visibleTo: [owner]);
 
-      final widened = await job.widenForMembers(hid);
+      await join();
+      final synced = await job.syncAfterJoin(hid);
 
-      expect(widened, 2);
-      expect(visibleOf('$accounts/joint'), [owner, partner]);
-      expect(visibleOf('$accounts/shared'), [owner, partner]);
-      expect(visibleOf('$accounts/private'), [owner]);
-      expect(docs.docs['$accounts/joint']!['visibilityRev'], 1);
-      expect(docs.docs['$accounts/joint']!['visibilitySyncedRev'], 1);
+      expect(synced, 1);
       expect(visibleOf('$txns/j'), [owner, partner]);
-      expect(visibleOf('$txns/s'), [owner, partner]);
       expect(visibleOf('$txns/p'), [owner]);
+      expect(docs.docs['$accounts/joint']!['visibilityAppliedTo'], [
+        owner,
+        partner,
+      ]);
+    });
+  });
+
+  group('a run that fails', () {
+    test('releases its lease, so the retried delivery does the work', () async {
+      seedAccount(
+        'chk',
+        visibleTo: [owner, partner],
+        shared: true,
+        applied: [owner],
+      );
+      for (var i = 0; i < 5; i++) {
+        seedTxn('t$i', 'chk', visibleTo: [owner]);
+      }
+      docs.onPage = (page) async {
+        if (page == 1) throw const GatewayUnavailable('pageWhereEquals');
+      };
+
+      await expectLater(
+        job.sync(hid, 'chk'),
+        throwsA(isA<GatewayUnavailable>()),
+      );
+      final account = docs.docs['$accounts/chk']!;
+      expect(account['visibilitySync'], isNull);
+      expect(account['visibilityAppliedTo'], [owner], reason: 'still pending');
+
+      // Eventarc retries at once, well inside the old lease.
+      docs.onPage = null;
+      final retry = await job.sync(hid, 'chk');
+      expect(retry.outcome, VisibilityOutcome.synced);
+      for (var i = 0; i < 5; i++) {
+        expect(visibleOf('$txns/t$i'), [owner, partner]);
+      }
     });
   });
 
@@ -302,7 +478,12 @@ void main() {
     );
 
     test('runs the backfill for the event account', () async {
-      seedAccount('chk', visibleTo: [owner, partner], shared: true, rev: 1);
+      seedAccount(
+        'chk',
+        visibleTo: [owner, partner],
+        shared: true,
+        applied: [owner],
+      );
       seedTxn('t', 'chk', visibleTo: [owner]);
 
       final response = await post({'ce-document': '$accounts/chk'});
@@ -313,6 +494,48 @@ void main() {
         'rewritten': 1,
         'passes': 1,
       });
+      expect(visibleOf('$txns/t'), [owner, partner]);
+    });
+
+    test('hands a busy delivery back for a later retry', () async {
+      seedAccount(
+        'chk',
+        visibleTo: [owner, partner],
+        applied: [owner],
+        sync: {
+          'runId': 'other',
+          'target': [owner, partner],
+          'leaseUntil': now.add(const Duration(seconds: 30)),
+          'done': 0,
+          'total': 4,
+        },
+      );
+
+      final response = await post({'ce-document': '$accounts/chk'});
+
+      // Not 200: an acknowledged busy delivery could be lost for good if
+      // the run holding the lease has died (Codex review, PR #33).
+      expect(response.statusCode, 429);
+      expect(response.headers['retry-after'], '30');
+    });
+
+    test('a failed run answers 503 and its retry finishes the work', () async {
+      seedAccount(
+        'chk',
+        visibleTo: [owner, partner],
+        shared: true,
+        applied: [owner],
+      );
+      seedTxn('t', 'chk', visibleTo: [owner]);
+      docs.onPage = (_) async =>
+          throw const GatewayUnavailable('pageWhereEquals');
+
+      final failed = await post({'ce-document': '$accounts/chk'});
+      expect(failed.statusCode, 503);
+
+      docs.onPage = null;
+      final retried = await post({'ce-document': '$accounts/chk'});
+      expect(retried.statusCode, 200);
       expect(visibleOf('$txns/t'), [owner, partner]);
     });
 

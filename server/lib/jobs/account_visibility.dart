@@ -7,23 +7,27 @@
 /// trigger may send protobuf or JSON and a late or repeated event is
 /// harmless.
 ///
-/// Account fields (DATA_MODEL 2.4, added by WP-13):
+/// Account fields (DATA_MODEL 2.4, added by WP-13), both written only by
+/// the server (the rules refuse them from the phone):
 ///
-/// - `visibilityRev` (int): the phone adds 1 whenever it changes the
-///   account's `visibleTo` (the sharing switch); the server does the same
-///   when a partner joins.
-/// - `visibilitySyncedRev` (int, server only): the last rev whose history
-///   rewrite finished. The app shows "Sharing…" while `visibilityRev` is
-///   ahead of it.
-/// - `visibilitySync` (map, server only, null when done): the running
-///   rewrite, `{runId, rev, leaseUntil, done, total}`. `done` of `total`
-///   is the progress line on screen 11.
+/// - `visibilityAppliedTo` (string list): the `visibleTo` the account's
+///   history was last rewritten for. The job works whenever the account's
+///   actual `visibleTo` differs from it (or it is missing), so the decision
+///   rests on the account's own state, never on a counter the phone could
+///   move (security review, PR #33). The app shows "Sharing…" while the two
+///   differ.
+/// - `visibilitySync` (map, null when done): the running rewrite,
+///   `{runId, target, leaseUntil, done, total}`. `done` of `total` is the
+///   progress line on screen 11.
 ///
 /// Every event also fires for the job's own progress writes. A run holds a
-/// short lease on the account, so those events find it busy and return at
-/// once; a run that sees the rev move under it starts another pass with the
-/// new state, and only finishes, in a transaction, when the rev it rewrote
-/// for is still the account's rev.
+/// short lease on the account, so those events find it busy and are handed
+/// back unacknowledged (429), to be delivered again later. A run rewrites
+/// for the `visibleTo` it read when it started, and finishes, in a
+/// transaction, only when that is still the account's `visibleTo`;
+/// otherwise it starts another pass for the new one. A run that fails
+/// releases its lease and its delivery gets a 503, so no sharing change
+/// waits on a lease nobody holds.
 library;
 
 import 'dart:async';
@@ -49,13 +53,13 @@ enum VisibilityOutcome {
   synced,
 
   /// Nothing to do: the account's history was already rewritten for its
-  /// current rev.
+  /// current `visibleTo`.
   upToDate,
 
   /// Another run holds the account's lease and will finish the work.
   busy,
 
-  /// No such account.
+  /// No such account, or one with no readers.
   missing,
 }
 
@@ -120,26 +124,36 @@ final class AccountVisibilityJob {
     final accountPath = 'households/$hid/accounts/$accountId';
     final runId = _newRunId();
     final claim = await _claim(accountPath, runId);
-    if (claim is! int) return VisibilityResult(claim as VisibilityOutcome);
+    if (claim is! List<String>) {
+      return VisibilityResult(claim as VisibilityOutcome);
+    }
 
-    var rev = claim;
+    var target = claim;
     var rewritten = 0;
     var passes = 0;
-    while (true) {
-      passes++;
-      final pass = await _pass(hid, accountPath, runId, rev);
-      if (pass == null) {
-        // Another run took the lease over (this one stalled past it).
-        return VisibilityResult(
-          VisibilityOutcome.busy,
-          rewritten: rewritten,
-          passes: passes,
-        );
+    try {
+      while (true) {
+        passes++;
+        final pass = await _pass(hid, accountPath, runId, target);
+        if (pass == null) {
+          // Another run took the lease over (this one stalled past it).
+          return VisibilityResult(
+            VisibilityOutcome.busy,
+            rewritten: rewritten,
+            passes: passes,
+          );
+        }
+        rewritten += pass;
+        final next = await _finish(accountPath, runId, target);
+        if (next == null) break;
+        target = next;
       }
-      rewritten += pass;
-      final next = await _finish(accountPath, runId, rev);
-      if (next == null) break;
-      rev = next;
+    } on Object {
+      // Give the account back at once, so the retried delivery of this
+      // event (the handler answers 503) can claim it instead of finding a
+      // lease nobody is working under.
+      await _release(accountPath, runId);
+      rethrow;
     }
     _log.info({
       'message': 'visibility synced',
@@ -154,83 +168,108 @@ final class AccountVisibilityJob {
     );
   }
 
-  /// After a partner joins [hid]: every joint account, and every personal
-  /// account its owner shares, becomes visible to all members, and its
-  /// history follows. Returns the accounts it widened.
-  Future<int> widenForMembers(String hid) async {
-    final household = await _store.read('households/$hid');
-    final members = _stringList(household?['memberIds'])..sort();
-    if (members.isEmpty) return 0;
+  /// Inside the join transaction (a `JoinTransactionHook`): reads every
+  /// joint account and every shared personal one of [hid] and returns the
+  /// writes that make them visible to all of [memberIds]. They commit with
+  /// the join or not at all, and each account update fires
+  /// `/events/account-visibility`, whose retries rewrite the history
+  /// durably until it matches (Codex review, PR #33).
+  Future<void Function()> prepareJoinWidening(
+    DocumentTransaction tx,
+    String hid,
+    List<String> memberIds,
+    DateTime now,
+  ) async {
+    final members = [...memberIds]..sort();
+    final candidates = await _sharedAccounts(hid, tx: tx);
+    return () {
+      for (final MapEntry(key: path, value: account) in candidates.entries) {
+        if (_sameSet(_stringList(account['visibleTo']), members)) continue;
+        tx.write(path, {
+          'visibleTo': members,
+          'updatedAt': now,
+          'updatedBy': 'system',
+        }, merge: true);
+      }
+    };
+  }
+
+  /// After a join to [hid] has committed: rewrites the history of every
+  /// joint and shared account whose history does not match its
+  /// `visibleTo` yet, so the partner's first look is complete without
+  /// waiting for Eventarc. Best effort; the account events repair anything
+  /// this leaves. Returns the accounts it synced.
+  Future<int> syncAfterJoin(String hid) async {
+    var synced = 0;
+    for (final MapEntry(key: path, value: data) in (await _sharedAccounts(
+      hid,
+    )).entries) {
+      if (_applied(data)) continue;
+      final result = await sync(hid, path.split('/').last);
+      if (result.outcome == VisibilityOutcome.synced) synced++;
+    }
+    return synced;
+  }
+
+  /// Joint accounts and shared personal accounts of [hid], by path.
+  Future<Map<String, Map<String, Object?>>> _sharedAccounts(
+    String hid, {
+    DocumentTransaction? tx,
+  }) async {
     final accounts = 'households/$hid/accounts';
-    final candidates = {
+    Future<List<StoredDocument>> where(String field, Object value) => tx != null
+        ? tx.whereEquals(accounts, field, value, limit: 500)
+        : _store.pageWhereEquals(accounts, field, value, limit: 500);
+    return {
       for (final doc in [
-        ...await _store.pageWhereEquals(accounts, 'scope', 'joint', limit: 500),
-        ...await _store.pageWhereEquals(
-          accounts,
-          'sharedWithPartner',
-          true,
-          limit: 500,
-        ),
+        ...await where('scope', 'joint'),
+        ...await where('sharedWithPartner', true),
       ])
         doc.path: doc.data,
     };
-    final widened = <String>[];
-    for (final MapEntry(key: path, value: data) in candidates.entries) {
-      if (_sameSet(_stringList(data['visibleTo']), members)) continue;
-      await _store.transaction((tx) async {
-        final fresh = await tx.read(path);
-        if (fresh == null) return;
-        final isJoint = fresh['scope'] == 'joint';
-        if (!isJoint && fresh['sharedWithPartner'] != true) return;
-        if (_sameSet(_stringList(fresh['visibleTo']), members)) return;
-        tx.write(path, {
-          'visibleTo': members,
-          'visibilityRev': _int(fresh['visibilityRev']) + 1,
-          'updatedAt': _clock.now().toUtc(),
-          'updatedBy': 'system',
-        }, merge: true);
-      });
-      widened.add(path.split('/').last);
-    }
-    // Eventarc would start these too; running them here makes the partner's
-    // first look complete without waiting for the trigger.
-    for (final id in widened) {
-      await sync(hid, id);
-    }
-    return widened.length;
   }
 
   // ------------------------------------------------------------- the run
 
-  /// Claims the account for [runId]. Returns the rev to rewrite for, or the
-  /// outcome when there is nothing for this run to do.
+  /// Claims the account for [runId]. Returns the `visibleTo` to rewrite
+  /// for, or the outcome when there is nothing for this run to do.
   Future<Object> _claim(String accountPath, String runId) =>
       _store.transaction<Object>((tx) async {
         final account = await tx.read(accountPath);
         if (account == null) return VisibilityOutcome.missing;
-        final rev = _int(account['visibilityRev']);
-        final synced = _int(account['visibilitySyncedRev']);
+        final target = _stringList(account['visibleTo'])..sort();
+        // An account always has a reader; none would hide its history from
+        // everyone, so it is left alone.
+        if (target.isEmpty) return VisibilityOutcome.missing;
         final running = _map(account['visibilitySync']);
         final now = _clock.now().toUtc();
         if (running != null && _leaseLive(running, now)) {
           return VisibilityOutcome.busy;
         }
-        // Rev 0 is an account whose sharing never changed: its history was
-        // written with the right visibleTo, unless a run left work behind.
-        if (rev <= synced && running == null) return VisibilityOutcome.upToDate;
+        if (running == null && _applied(account)) {
+          return VisibilityOutcome.upToDate;
+        }
         tx.write(accountPath, {
-          'visibilitySync': _syncMap(runId, rev, now, done: 0, total: null),
+          'visibilitySync': _syncMap(runId, target, now, done: 0, total: null),
         }, merge: true);
-        return rev;
+        return target;
       });
 
-  /// One pass over the history for [rev]. Returns the transactions changed,
-  /// or null when the lease was lost.
+  /// Whether the history of [account] was last rewritten for exactly its
+  /// current `visibleTo`.
+  static bool _applied(Map<String, Object?> account) {
+    final applied = account['visibilityAppliedTo'];
+    return applied is List &&
+        _sameSet(_stringList(applied), _stringList(account['visibleTo']));
+  }
+
+  /// One pass over the history for the account's [target] `visibleTo`.
+  /// Returns the transactions changed, or null when the lease was lost.
   Future<int?> _pass(
     String hid,
     String accountPath,
     String runId,
-    int rev,
+    List<String> target,
   ) async {
     final transactions = 'households/$hid/transactions';
     final accountId = accountPath.split('/').last;
@@ -240,7 +279,7 @@ final class AccountVisibilityJob {
     }
     var done = 0;
     var rewritten = 0;
-    if (!await _progress(accountPath, runId, rev, done, total)) return null;
+    if (!await _progress(accountPath, runId, target, done, total)) return null;
 
     for (final field in _accountFields) {
       String? after;
@@ -253,9 +292,10 @@ final class AccountVisibilityJob {
           startAfterId: after,
         );
         if (page.isEmpty) break;
-        // Fresh account state for every page: a flip during the run is
-        // picked up by the next page and by the next pass.
-        final visibleTo = <String, List<String>?>{};
+        // This account counts with the visibleTo the pass is for (a change
+        // during the run gets its own pass); the other account of a
+        // transfer is read fresh for every page.
+        final visibleTo = <String, List<String>?>{accountId: target};
         Future<List<String>?> visibilityOf(String id) async {
           if (visibleTo.containsKey(id)) return visibleTo[id];
           final doc = await _store.read('households/$hid/accounts/$id');
@@ -288,7 +328,7 @@ final class AccountVisibilityJob {
         await _store.writeAll(writes);
         rewritten += writes.length;
         done += page.length;
-        if (!await _progress(accountPath, runId, rev, done, total)) {
+        if (!await _progress(accountPath, runId, target, done, total)) {
           return null;
         }
         if (page.length < pageSize) break;
@@ -303,7 +343,7 @@ final class AccountVisibilityJob {
   Future<bool> _progress(
     String accountPath,
     String runId,
-    int rev,
+    List<String> target,
     int done,
     int total,
   ) => _store.transaction((tx) async {
@@ -314,7 +354,7 @@ final class AccountVisibilityJob {
     tx.write(accountPath, {
       'visibilitySync': _syncMap(
         runId,
-        rev,
+        target,
         _clock.now().toUtc(),
         done: done,
         total: total < done ? done : total,
@@ -323,53 +363,74 @@ final class AccountVisibilityJob {
     return true;
   });
 
-  /// Marks [rev] done when it is still the account's rev and releases the
-  /// lease. Returns null when finished, or the newer rev to rewrite for.
-  Future<int?> _finish(String accountPath, String runId, int rev) =>
-      _store.transaction((tx) async {
+  /// Records [target] as applied when it is still the account's
+  /// `visibleTo` and releases the lease. Returns null when finished, or the
+  /// account's new `visibleTo` to rewrite for.
+  Future<List<String>?> _finish(
+    String accountPath,
+    String runId,
+    List<String> target,
+  ) => _store.transaction((tx) async {
+    final account = await tx.read(accountPath);
+    if (account == null) return null;
+    final current = _stringList(account['visibleTo'])..sort();
+    final now = _clock.now().toUtc();
+    if (current.isNotEmpty && !_sameSet(current, target)) {
+      tx.write(accountPath, {
+        'visibilitySync': _syncMap(runId, current, now, done: 0, total: null),
+      }, merge: true);
+      return current;
+    }
+    // A whole-document write (safe inside the transaction): a merge write
+    // does not clear a map field set to null.
+    tx.write(accountPath, {
+      ...account,
+      'visibilityAppliedTo': target,
+      'visibilitySync': null,
+    });
+    return null;
+  });
+
+  /// Drops [runId]'s claim on the account, keeping what was applied, so the
+  /// work stays pending for the next delivery. Best effort: when this fails
+  /// too, the lease simply runs out.
+  Future<void> _release(String accountPath, String runId) async {
+    try {
+      await _store.transaction((tx) async {
         final account = await tx.read(accountPath);
-        if (account == null) return null;
-        final current = _int(account['visibilityRev']);
-        final now = _clock.now().toUtc();
-        if (current != rev) {
-          tx.write(accountPath, {
-            'visibilitySync': _syncMap(
-              runId,
-              current,
-              now,
-              done: 0,
-              total: null,
-            ),
-          }, merge: true);
-          return current;
-        }
-        // A whole-document write (safe inside the transaction): a merge
-        // write does not clear a map field set to null.
-        tx.write(accountPath, {
-          ...account,
-          'visibilitySyncedRev': rev,
-          'visibilitySync': null,
-        });
-        return null;
+        if (account == null) return;
+        final running = _map(account['visibilitySync']);
+        if (running == null || running['runId'] != runId) return;
+        tx.write(accountPath, {...account, 'visibilitySync': null});
       });
+    } on Object catch (e) {
+      _log.warning('could not release the visibility lease', e);
+    }
+  }
 
   Map<String, Object?> _syncMap(
     String runId,
-    int rev,
+    List<String> target,
     DateTime now, {
     required int done,
     required int? total,
   }) => {
     'runId': runId,
-    'rev': rev,
+    'target': target,
     'leaseUntil': now.add(lease),
     'done': done,
     'total': total,
   };
 
+  /// A lease counts only while it runs and only as far as this job ever
+  /// sets one: a `leaseUntil` beyond `now + lease` was not written by a run
+  /// and is ignored (defence in depth; the rules refuse the field from the
+  /// phone).
   bool _leaseLive(Map<String, Object?> running, DateTime now) {
     final until = running['leaseUntil'];
-    return until is DateTime && until.isAfter(now);
+    return until is DateTime &&
+        until.isAfter(now) &&
+        !until.isAfter(now.add(lease));
   }
 
   String _newRunId() => List.generate(
@@ -382,9 +443,10 @@ final class AccountVisibilityJob {
 
 /// The Shelf handler for [accountVisibilityPath].
 ///
-/// Answers 200 with the [VisibilityResult], 204 for an event that names no
-/// account (dropped: a retry would not help), 405 for a non-POST, and 503
-/// when Firestore is unavailable, so Eventarc retries.
+/// Answers 200 with the [VisibilityResult]; 429 when another run holds the
+/// account, so Eventarc delivers the event again later; 204 for an event
+/// that names no account (dropped: a retry would not help); 405 for a
+/// non-POST; and 503 when Firestore is unavailable, so Eventarc retries.
 Handler accountVisibilityHandler(AccountVisibilityJob job) => (request) async {
   if (request.method != 'POST') {
     return Response(405, headers: {'allow': 'POST'});
@@ -400,6 +462,16 @@ Handler accountVisibilityHandler(AccountVisibilityJob job) => (request) async {
   }
   try {
     final result = await job.sync(target.hid, target.accountId);
+    if (result.outcome == VisibilityOutcome.busy) {
+      // Not acknowledged: if the run holding the lease dies, this delivery
+      // is what brings the work back once the lease runs out. A retry
+      // after the run finishes answers `upToDate` (Codex review, PR #33).
+      return Response(
+        429,
+        body: jsonEncode(result.toJson()),
+        headers: {'content-type': 'application/json', 'retry-after': '30'},
+      );
+    }
     return Response.ok(
       jsonEncode(result.toJson()),
       headers: {'content-type': 'application/json'},
@@ -450,8 +522,6 @@ final _accountPath = RegExp(
 }
 
 // ---------------------------------------------------------------- helpers
-
-int _int(Object? value) => value is int ? value : 0;
 
 Map<String, Object?>? _map(Object? value) =>
     value is Map<String, Object?> ? value : null;

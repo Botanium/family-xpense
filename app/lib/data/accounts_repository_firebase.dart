@@ -294,18 +294,19 @@ final class FirebaseAccountsRepository implements AccountsRepository {
     final opening = draft.openingBalanceMinor;
 
     // The base amount of the opening entry is fixed now, so a missing rate
-    // stops the whole add before anything is written.
+    // stops the whole add before anything is written. No opening entry, no
+    // conversion (Codex review, PR #33).
     FxRate? rate;
     if (opening != 0 && draft.currency != base) {
       rate = draft.openingRate ?? await _latestRate(hid);
-      if (rate == null) return const Err(AccountsRateNeeded());
     }
-    final baseAmount = toBaseAmount(
-      Money(opening.abs(), draft.currency),
-      base,
+    final baseAmountMinor = openingBaseAmount(
+      amountMinor: opening,
+      currency: draft.currency,
+      base: base,
       rate: rate,
     );
-    if (baseAmount case Err()) return const Err(AccountsRateNeeded());
+    if (baseAmountMinor == null) return const Err(AccountsRateNeeded());
 
     try {
       final household = await _collectionDoc(hid).get();
@@ -353,8 +354,8 @@ final class FirebaseAccountsRepository implements AccountsRepository {
           'balanceCheckedAt': null,
           'archived': false,
           'order': order,
-          'visibilityRev': 0,
-          'visibilitySyncedRev': 0,
+          // No history yet: it already matches (the rules allow only this).
+          'visibilityAppliedTo': visibleTo,
           ..._createStamps(uid),
         });
       _flagPrivate(first, hid, uid, [..._accounts, account]);
@@ -367,7 +368,7 @@ final class FirebaseAccountsRepository implements AccountsRepository {
             uid: uid,
             account: account,
             amountMinor: opening,
-            baseAmountMinor: baseAmount.valueOrNull!.minorUnits,
+            baseAmountMinor: baseAmountMinor,
             rate: rate,
             rateKind: rateKind,
             saveRate: draft.openingRate != null,
@@ -490,8 +491,8 @@ final class FirebaseAccountsRepository implements AccountsRepository {
       batch.update(ref, {
         'sharedWithPartner': shared,
         'visibleTo': visibleTo,
-        // The server's history rewrite runs until it has caught up.
-        'visibilityRev': FieldValue.increment(1),
+        // The server's history rewrite follows (`/events/account-visibility`
+        // compares visibleTo with the server-only visibilityAppliedTo).
         ..._updateStamps(uid),
       });
       _flagPrivate(batch, hid, uid, [
@@ -640,8 +641,7 @@ Account _with(Account a, {bool? archived, bool? sharedWithPartner}) => Account(
   balanceMinor: a.balanceMinor,
   archived: archived ?? a.archived,
   order: a.order,
-  visibilityRev: a.visibilityRev,
-  visibilitySyncedRev: a.visibilitySyncedRev,
+  appliedVisibleTo: a.appliedVisibleTo,
 );
 
 List<String> _strings(Object? value) =>
@@ -720,8 +720,9 @@ Account? accountFromFirestore(String id, Map<String, dynamic> data) {
     balanceMinor: intOf('balanceMinor'),
     archived: data['archived'] == true,
     order: intOf('order'),
-    visibilityRev: intOf('visibilityRev'),
-    visibilitySyncedRev: intOf('visibilitySyncedRev'),
+    appliedVisibleTo: data['visibilityAppliedTo'] is List
+        ? _strings(data['visibilityAppliedTo'])
+        : null,
     sharingDone: syncInt('done'),
     sharingTotal: syncInt('total'),
   );

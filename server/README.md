@@ -123,20 +123,27 @@ curl -X POST localhost:8081/events/account-visibility \
 # 200 {"outcome":"synced","rewritten":12,"passes":1}
 ```
 
-Account fields it uses: the phone bumps `visibilityRev` with every change of
-`visibleTo`; the job pages through the account's transactions (400 per page
-and batch, both `accountId` and `toAccountId`), writes progress to
-`visibilitySync {runId, rev, leaseUntil, done, total}`, and finishes, in a
-transaction, by setting `visibilitySyncedRev` and clearing `visibilitySync`.
-The app shows "Sharing past entries… done of total" until then. A run holds
-a 90-second lease, so the events its own progress writes cause return
-`busy` at once; a flip during a run gets another pass. Answers: 200 with
-`outcome` (`synced`, `upToDate`, `busy`, `missing`), 204 for an event that
-names no account, 503 when Firestore is unreachable (Eventarc retries).
+Account fields it uses, both server-only (the rules refuse them from the
+phone): `visibilityAppliedTo`, the `visibleTo` the history was last rewritten
+for, and `visibilitySync {runId, target, leaseUntil, done, total}` for a
+running rewrite. The job works whenever the account's actual `visibleTo`
+differs from `visibilityAppliedTo` (or it is missing), so no phone-writable
+marker can make it skip a revoke. It pages through the account's
+transactions (400 per page and batch, both `accountId` and `toAccountId`),
+sets each `visibleTo` to the union of its accounts', and finishes, in a
+transaction, by recording `visibilityAppliedTo` once it still equals the
+account's `visibleTo` (another pass otherwise). The app shows "Sharing past
+entries… done of total" while the two differ. A run holds a 90-second lease
+(a `leaseUntil` further out is ignored); the events its own progress writes
+cause get 429 and are delivered again later, and a run that fails releases
+its lease and answers 503. Answers: 200 with `outcome` (`synced`,
+`upToDate`, `missing`), 429 `busy`, 204 for an event that names no
+account, 503 when Firestore is unreachable (Eventarc retries).
 
-After a join, `/v1/household/join` also widens every joint and shared
-account (and its history) to the new member, so the partner's first look is
-complete.
+A join widens every joint and shared account to the new member inside the
+join's own transaction, so it is never half done; each widened account then
+fires the event above, and `/v1/household/join` also rewrites their history
+right away, so the partner's first look is complete.
 
 ## Adding a route
 

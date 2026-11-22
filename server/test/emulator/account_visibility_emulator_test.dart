@@ -96,7 +96,7 @@ void _tests() {
       'ownerUid': 'a',
       'sharedWithPartner': true,
       'visibleTo': ['a', 'b'],
-      'visibilityRev': 1,
+      'visibilityAppliedTo': ['a'],
     });
     await docs.write('households/$hid/accounts/joint', {
       'scope': 'joint',
@@ -125,14 +125,13 @@ void _tests() {
       expect(sorted(t!['visibleTo']), ['a', 'b']);
     }
     final account = await docs.read('households/$hid/accounts/chk');
-    expect(account!['visibilitySyncedRev'], 1);
+    expect(account!['visibilityAppliedTo'], ['a', 'b']);
     expect(account['visibilitySync'], isNull);
 
     // The owner turns it off.
     await docs.write('households/$hid/accounts/chk', {
       'sharedWithPartner': false,
       'visibleTo': ['a'],
-      'visibilityRev': 2,
     }, merge: true);
     final private = await job.sync(hid, 'chk');
     expect(private.rewritten, 7);

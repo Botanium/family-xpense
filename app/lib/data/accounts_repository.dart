@@ -69,8 +69,7 @@ final class Account {
     this.balanceMinor = 0,
     this.archived = false,
     this.order = 0,
-    this.visibilityRev = 0,
-    this.visibilitySyncedRev = 0,
+    this.appliedVisibleTo,
     this.sharingDone,
     this.sharingTotal,
   });
@@ -108,12 +107,9 @@ final class Account {
   /// List order.
   final int order;
 
-  /// Bumped by every change of [visibleTo]; the server's history rewrite
-  /// catches up to it.
-  final int visibilityRev;
-
-  /// The last [visibilityRev] whose history rewrite finished.
-  final int visibilitySyncedRev;
+  /// The [visibleTo] the account's history was last rewritten for, written
+  /// by the server only (`visibilityAppliedTo`); null when not recorded.
+  final List<String>? appliedVisibleTo;
 
   /// Entries rewritten so far by the running history rewrite, if any.
   final int? sharingDone;
@@ -125,7 +121,10 @@ final class Account {
   Money get balance => Money(balanceMinor, currency);
 
   /// Whether the history is still being shared or unshared ("Sharing…").
-  bool get sharingInProgress => visibilityRev > visibilitySyncedRev;
+  bool get sharingInProgress {
+    final applied = appliedVisibleTo;
+    return applied != null && !setEquals(applied.toSet(), visibleTo.toSet());
+  }
 
   /// Whether [uid] owns it.
   bool isOwnedBy(String uid) =>
@@ -148,8 +147,7 @@ final class Account {
       other.balanceMinor == balanceMinor &&
       other.archived == archived &&
       other.order == order &&
-      other.visibilityRev == visibilityRev &&
-      other.visibilitySyncedRev == visibilitySyncedRev &&
+      listEquals(other.appliedVisibleTo, appliedVisibleTo) &&
       other.sharingDone == sharingDone &&
       other.sharingTotal == sharingTotal;
 
@@ -166,8 +164,7 @@ final class Account {
     balanceMinor,
     archived,
     order,
-    visibilityRev,
-    visibilitySyncedRev,
+    appliedVisibleTo == null ? null : Object.hashAll(appliedVisibleTo!),
     sharingDone,
     sharingTotal,
   );
@@ -407,6 +404,24 @@ List<String> accountVisibleTo({
       ? {...memberIds, ?ownerUid}.toList()
       : [ownerUid];
   return result..sort();
+}
+
+/// The base-currency amount of an opening balance of [amountMinor] (signed)
+/// in [currency], unsigned as `baseAmountMinor` is stored; null when it
+/// needs a [rate] and has none. A zero balance writes no entry and needs no
+/// rate, so an empty account in the other currency can always be added.
+int? openingBaseAmount({
+  required int amountMinor,
+  required Currency currency,
+  required Currency base,
+  FxRate? rate,
+}) {
+  if (amountMinor == 0) return 0;
+  return toBaseAmount(
+    Money(amountMinor.abs(), currency),
+    base,
+    rate: rate,
+  ).valueOrNull?.minorUnits;
 }
 
 /// The effect of a stored transaction on account [accountId], signed, in

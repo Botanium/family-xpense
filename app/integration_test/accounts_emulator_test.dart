@@ -180,11 +180,15 @@ Future<void> _addAccount(
   await tapText(tester, kind);
   await tapText(tester, joint ? 'Joint' : 'Just me');
   await typeInto(tester, 'Name', name);
-  if (dinars) {
-    await tester.tap(find.bySemanticsLabel('Currency, USD'));
+  // The toggle keeps its currency between adds.
+  final other = find.bySemanticsLabel(
+    dinars ? 'Currency, USD' : 'Currency, IQD',
+  );
+  if (other.evaluate().isNotEmpty) {
+    await tester.tap(other);
     await tester.pumpAndSettle();
   }
-  await tester.enterText(_amount(), amount);
+  if (amount.isNotEmpty) await tester.enterText(_amount(), amount);
   await tester.pumpAndSettle();
   if (rate != null) {
     await typeInto(tester, "Today's dollar rate, in dinars", rate);
@@ -239,6 +243,15 @@ void main() {
         amount: '612',
         joint: true,
       );
+      // An empty dinar account before the household has any rate: no
+      // opening entry, so no rate is needed (Codex review, PR #33).
+      await _addAccount(
+        tester,
+        kind: 'Savings',
+        name: 'Dinar savings',
+        amount: '',
+        dinars: true,
+      );
       await _addAccount(
         tester,
         kind: 'Cash',
@@ -268,7 +281,7 @@ void main() {
       final accounts = await container
           .read(accountsRepositoryProvider)
           .watchAccounts()
-          .firstWhere((list) => list.length == 3);
+          .firstWhere((list) => list.length == 4);
       String idOf(String name) => accounts.firstWhere((a) => a.name == name).id;
       final checking = idOf('My checking');
       final visa = idOf('Joint Visa');
@@ -333,6 +346,109 @@ void main() {
         await _partnerEntries(hid, partner.uid, partner.token, checking),
         1,
       );
+
+      // The review's attack: while it is shared, the partner tries to mark
+      // the history as already private, so a later revoke would be
+      // skipped. The rules refuse it; the same write to the name passes,
+      // so the stamps are right and only the field is refused.
+      final account = 'households/$hid/accounts/$checking';
+      expect(
+        await _partnerCommit(partner, account, 'visibilityAppliedTo', {
+          'arrayValue': {
+            'values': [
+              {'stringValue': partner.uid},
+            ],
+          },
+        }),
+        403,
+      );
+      expect(
+        // A lease far in the future would make every delivery "busy".
+        await _partnerCommit(partner, account, 'visibilitySync', {
+          'mapValue': {
+            'fields': {
+              'runId': {'stringValue': 'forged'},
+              'leaseUntil': {'timestampValue': '9999-01-01T00:00:00Z'},
+            },
+          },
+        }),
+        403,
+      );
+      expect(
+        await _partnerCommit(partner, account, 'name', {
+          'stringValue': 'My checking',
+        }),
+        200,
+      );
+
+      // Revoke: the owner turns sharing off; the partner loses the account
+      // at once and its history once the job has run.
+      await tester.tap(find.byType(XpSwitch));
+      await _waitFor(
+        tester,
+        () => find
+            .textContaining('Making past entries private')
+            .evaluate()
+            .isNotEmpty,
+        'the unsharing line',
+      );
+      expect(await _get(partner.token, '$accountsUrl/$checking'), 403);
+      final (revokeStatus, revokeBody) = await _send(
+        'POST',
+        Uri.parse(_jobs).resolve('events/account-visibility'),
+        headers: {'ce-document': account},
+      );
+      expect(revokeStatus, 200, reason: '$revokeBody');
+      expect((revokeBody! as Map)['rewritten'], 1);
+      await _waitFor(
+        tester,
+        () => find
+            .textContaining('Making past entries private')
+            .evaluate()
+            .isEmpty,
+        'the unsharing line to go',
+      );
+      expect(
+        await _partnerEntries(hid, partner.uid, partner.token, checking),
+        0,
+      );
     },
   );
+}
+
+/// One field write by the partner through Firestore REST, with the audit
+/// stamps the rules require; returns the HTTP status.
+Future<int> _partnerCommit(
+  ({String uid, String token}) partner,
+  String documentPath,
+  String field,
+  Map<String, Object?> value,
+) async {
+  const database = 'projects/$emulatorProjectId/databases/(default)';
+  final (status, _) = await _send(
+    'POST',
+    Uri.parse('http://$_firestore/v1/$database/documents:commit'),
+    headers: _bearer(partner.token),
+    body: {
+      'writes': [
+        {
+          'update': {
+            'name': '$database/documents/$documentPath',
+            'fields': {
+              field: value,
+              'updatedBy': {'stringValue': partner.uid},
+            },
+          },
+          'updateMask': {
+            'fieldPaths': [field, 'updatedBy'],
+          },
+          'updateTransforms': [
+            {'fieldPath': 'updatedAt', 'setToServerValue': 'REQUEST_TIME'},
+          ],
+          'currentDocument': {'exists': true},
+        },
+      ],
+    },
+  );
+  return status;
 }

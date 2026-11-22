@@ -206,6 +206,32 @@ void main() {
       expect(find.text('Bank account · You, shared'), findsOneWidget);
     });
 
+    testWidgets('revoking: "Making past entries private…", then the partner '
+        'has nothing of it', (tester) async {
+      final (_, accounts) = await pumpAt(tester, AppRoutes.account('acc-cash'));
+      expect(find.text('Sam sees this account and its entries.'), findsOne);
+
+      await tester.tap(find.byType(XpSwitch));
+      await tester.pump();
+      await tester.pump();
+      expect(find.text('Making past entries private…'), findsOneWidget);
+      expect(find.text('Only you see this account and its entries.'), findsOne);
+
+      accounts.finishSharing('acc-cash');
+      await tester.pumpAndSettle();
+      expect(find.text('Making past entries private…'), findsNothing);
+      final cash = accounts.allAccounts.singleWhere((a) => a.id == 'acc-cash');
+      expect(cash.visibleTo, [FakeAccountsRepository.sampleViewer]);
+      expect(cash.appliedVisibleTo, [FakeAccountsRepository.sampleViewer]);
+      // What the partner's phone can read now.
+      expect(
+        accounts.allAccounts.where(
+          (a) => a.visibleTo.contains(FakeAccountsRepository.samplePartner),
+        ),
+        isNot(contains(cash)),
+      );
+    });
+
     testWidgets('the progress line counts entries while the server works', (
       tester,
     ) async {
@@ -223,7 +249,7 @@ void main() {
           visibleTo: cash.visibleTo,
           balanceMinor: cash.balanceMinor,
           order: cash.order,
-          visibilityRev: 1,
+          appliedVisibleTo: cash.visibleTo.take(1).toList(),
           sharingDone: 18,
           sharingTotal: 42,
         ),

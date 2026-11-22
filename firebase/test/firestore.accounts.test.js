@@ -53,9 +53,10 @@ describe('a partner sees nothing of a private account', () => {
 });
 
 describe('the app\'s account writes', () => {
-  const newAccount = (uid, overrides) => accountDoc({
-    balanceCheckedAt: null, visibilityRev: 0, visibilitySyncedRev: 0, ...overrides, ...createdBy(uid),
-  });
+  const newAccount = (uid, overrides) => {
+    const doc = accountDoc({ balanceCheckedAt: null, ...overrides, ...createdBy(uid) });
+    return { ...doc, visibilityAppliedTo: doc.visibleTo };
+  };
 
   it('adding a private account, then its opening balance as an adjustment', async () => {
     const d = db(ALICE);
@@ -116,20 +117,19 @@ describe('the app\'s account writes', () => {
     const h = hh(d);
     const batch = d.batch();
     batch.update(h.collection('accounts').doc('aPriv'), {
-      sharedWithPartner: true, visibleTo: [ALICE, BOB], visibilityRev: inc(1), ...updatedBy(ALICE),
+      sharedWithPartner: true, visibleTo: [ALICE, BOB], ...updatedBy(ALICE),
     });
     batch.update(h.collection('members').doc(ALICE), { hasPrivateAccounts: false });
     await assertSucceeds(batch.commit());
 
-    const shared = await assertSucceeds(hh(db(BOB)).collection('accounts').doc('aPriv').get());
-    assert.equal(shared.data().visibilityRev, 1);
+    await assertSucceeds(hh(db(BOB)).collection('accounts').doc('aPriv').get());
     // Its history follows only once the server's job rewrites visibleTo.
     await assertFails(hh(db(BOB)).collection('transactions').doc('tPriv').get());
   });
 
   it('the partner cannot share the owner\'s account, nor archive a private one', async () => {
     const acc = hh(db(BOB)).collection('accounts');
-    await assertFails(acc.doc('aPriv').update({ sharedWithPartner: true, visibleTo: [ALICE, BOB], visibilityRev: inc(1), ...updatedBy(BOB) }));
+    await assertFails(acc.doc('aPriv').update({ sharedWithPartner: true, visibleTo: [ALICE, BOB], ...updatedBy(BOB) }));
     await assertFails(acc.doc('aPriv').update({ archived: true, ...updatedBy(BOB) }));
   });
 
@@ -137,5 +137,56 @@ describe('the app\'s account writes', () => {
     const acc = hh(db(BOB)).collection('accounts');
     await assertSucceeds(acc.doc('joint').update({ name: 'Family', kind: 'bank', ...updatedBy(BOB) }));
     await assertSucceeds(acc.doc('joint').update({ archived: true, ...updatedBy(BOB) }));
+  });
+});
+
+describe('the visibility job\'s fields are the server\'s alone (security review, PR #33)', () => {
+  const acc = (uid) => hh(db(uid)).collection('accounts');
+  const sync = { runId: 'x', target: [ALICE], leaseUntil: new Date('9999-01-01'), done: 0, total: 0 };
+
+  it('no member can set what the history was rewritten for, or a running rewrite', async () => {
+    // The partner, on the owner's shared account: the attack in the review.
+    await assertFails(acc(BOB).doc('aShared').update({ visibilityAppliedTo: [ALICE], ...updatedBy(BOB) }));
+    await assertFails(acc(BOB).doc('aShared').update({ visibilitySync: sync, ...updatedBy(BOB) }));
+    // Not the owner either, nor anyone on a joint account.
+    await assertFails(acc(ALICE).doc('aShared').update({ visibilityAppliedTo: [ALICE], ...updatedBy(ALICE) }));
+    await assertFails(acc(ALICE).doc('aPriv').update({ visibilitySync: null, visibilityAppliedTo: [ALICE, BOB], ...updatedBy(ALICE) }));
+    await assertFails(acc(BOB).doc('joint').update({ visibilityAppliedTo: [BOB], ...updatedBy(BOB) }));
+  });
+
+  it('a new account may only start with its own visibleTo as applied, and no running rewrite', async () => {
+    const base = { scope: 'personal', ownerUid: ALICE, visibleTo: [ALICE], ...createdBy(ALICE) };
+    await assertFails(acc(ALICE).doc('n1').set(accountDoc({ ...base, visibilityAppliedTo: [ALICE, BOB] })));
+    await assertFails(acc(ALICE).doc('n2').set(accountDoc({ ...base, visibilityAppliedTo: [ALICE], visibilitySync: sync })));
+    await assertSucceeds(acc(ALICE).doc('n3').set(accountDoc({ ...base, visibilityAppliedTo: [ALICE] })));
+    await assertSucceeds(acc(ALICE).doc('n4').set(accountDoc(base)));
+  });
+
+  it('after the owner revokes sharing and the job runs, the partner reads nothing of it', async () => {
+    // Shared history, as the job leaves it.
+    await env.withSecurityRulesDisabled(async (ctx) => {
+      const h = hh(ctx.firestore());
+      await h.collection('accounts').doc('aShared').update({ visibilityAppliedTo: [ALICE, BOB] });
+      await h.collection('transactions').doc('tShared').set({
+        type: 'expense', amountMinor: 500, currency: 'USD', accountId: 'aShared', baseAmountMinor: 500,
+        visibleTo: [ALICE, BOB], deletedAt: null, rev: 0, title: 'Dinner',
+      });
+    });
+    await assertSucceeds(hh(db(BOB)).collection('transactions').doc('tShared').get());
+
+    // The owner turns sharing off; the phone writes only these fields.
+    await assertSucceeds(acc(ALICE).doc('aShared').update({ sharedWithPartner: false, visibleTo: [ALICE], ...updatedBy(ALICE) }));
+    await assertFails(acc(BOB).doc('aShared').get());
+
+    // The server job rewrites the history (admin, no rules).
+    await env.withSecurityRulesDisabled(async (ctx) => {
+      const h = hh(ctx.firestore());
+      await h.collection('transactions').doc('tShared').update({ visibleTo: [ALICE] });
+      await h.collection('accounts').doc('aShared').update({ visibilityAppliedTo: [ALICE] });
+    });
+    const tx = hh(db(BOB)).collection('transactions');
+    await assertFails(tx.doc('tShared').get());
+    const list = await assertSucceeds(tx.where('visibleTo', 'array-contains', BOB).get());
+    assert.ok(!list.docs.some((d) => d.id === 'tShared'));
   });
 });

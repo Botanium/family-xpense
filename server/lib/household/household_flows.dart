@@ -51,10 +51,13 @@ HouseholdFlow defineHouseholdInviteFlow(Genkit ai, HouseholdService service) =>
 /// Defines `householdJoin` on [ai]. The caller is any signed-in user;
 /// [members] forgets its cached refusal for them once they join.
 ///
-/// [afterJoin] runs once the join is committed, with the household id:
-/// joint and shared accounts (and their history) become visible to the new
-/// member (WP-13). Its failure is logged and never fails the join; the
-/// Eventarc trigger and a retry of the job repair it.
+/// [afterJoin] runs once the join is committed, with the household id: it
+/// rewrites the history of the joint and shared accounts the join widened
+/// (WP-13), so the partner's first look is complete. The widening itself
+/// commits inside the join transaction (`HouseholdService` `onJoin`), and
+/// every widened account fires `/events/account-visibility`, which Eventarc
+/// retries until the history follows; so a failure here is logged and never
+/// fails the join.
 HouseholdFlow defineHouseholdJoinFlow(
   Genkit ai,
   HouseholdService service,
