@@ -250,17 +250,36 @@ String? _unbackedFigures(List<Object?> messages, GuardFacts facts) {
         if (!_draftKeys.contains(key)) _figures(value, figures);
       }
     }
-    final allowed = {
-      0,
-      ...facts.toolMinorAmounts,
-      for (final d in facts.preparedDrafts.values)
-        if (d['amountMinor'] case final int a) a,
-    };
-    if (figures.any((f) => !allowed.contains(f))) {
-      return '${body['surfaceId']}';
-    }
+    if (!_figuresBacked(figures, facts)) return '${body['surfaceId']}';
   }
   return null;
+}
+
+/// Whether every figure in [figures] came from a tool result (or a
+/// prepared draft); 0 is always allowed.
+bool _figuresBacked(List<int> figures, GuardFacts facts) {
+  final allowed = {
+    0,
+    ...facts.toolMinorAmounts,
+    for (final d in facts.preparedDrafts.values)
+      if (d['amountMinor'] case final int a) a,
+  };
+  return figures.every(allowed.contains);
+}
+
+/// The literal money figures an `updateDataModel` outside the drafts and
+/// receipt writes: a scalar takes its money-field name from the last path
+/// segment (`/result/totalMinor`), a map or list is searched as in a
+/// `createSurface` data model.
+List<int> _updateFigures(String path, Object? value) {
+  final segments = [
+    for (final s in path.split('/'))
+      if (s.isNotEmpty) s,
+  ];
+  if (segments.isEmpty || _draftKeys.contains(segments.first)) return const [];
+  final figures = <int>[];
+  _figures(value, figures, segments.last);
+  return figures;
 }
 
 void _figures(Object? value, List<int> out, [String? key]) {
@@ -337,6 +356,14 @@ _guardMessage(
         keptDrafts: kept,
         draftsPath: '/drafts',
       );
+    }
+    // Any other path (an answer's `/result/…`): its money figures must come
+    // from a tool, as in a createSurface.
+    if (!_figuresBacked(_updateFigures(path, update['value']), facts)) {
+      violations.add(
+        GuardViolation(surfaceId: surfaceId, reason: 'unbacked_figure'),
+      );
+      return null;
     }
     final element = _elementPath.firstMatch(path);
     if (element != null) {

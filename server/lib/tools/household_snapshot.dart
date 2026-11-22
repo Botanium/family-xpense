@@ -38,8 +38,16 @@ final class HouseholdSnapshot {
   /// Accounts visible to [uid], archived ones excluded.
   final List<HouseholdAccount> accounts;
 
-  /// Categories, archived ones excluded.
+  /// Every category, archived ones included: past entries keep their
+  /// category, so totals, budgets and labels must still find it. New
+  /// entries choose from [activeCategories].
   final List<HouseholdCategory> categories;
+
+  /// The categories a new entry may use (archived ones left out).
+  List<HouseholdCategory> get activeCategories => [
+    for (final c in categories)
+      if (!c.archived) c,
+  ];
 
   /// People visible to [uid].
   final List<HouseholdPerson> people;
@@ -71,13 +79,23 @@ final class HouseholdSnapshot {
     return null;
   }
 
-  /// The category with [idOrSlug] as its id or slug, or null.
-  HouseholdCategory? category(String? idOrSlug) {
+  /// The category with [idOrSlug] as its id or slug, archived or not, or
+  /// null (read side: totals and labels).
+  HouseholdCategory? category(String? idOrSlug) => _find(categories, idOrSlug);
+
+  /// The active category with [idOrSlug], or null (new entries).
+  HouseholdCategory? activeCategory(String? idOrSlug) =>
+      _find(activeCategories, idOrSlug);
+
+  static HouseholdCategory? _find(
+    List<HouseholdCategory> list,
+    String? idOrSlug,
+  ) {
     if (idOrSlug == null) return null;
-    for (final c in categories) {
+    for (final c in list) {
       if (c.id == idOrSlug) return c;
     }
-    for (final c in categories) {
+    for (final c in list) {
       if (c.slug == idOrSlug) return c;
     }
     return null;
@@ -94,7 +112,7 @@ final class HouseholdSnapshot {
   /// The ids the phone would check drafts against.
   HouseholdRefs get refs => HouseholdRefs(
     accountCurrencies: {for (final a in accounts) a.id: a.currency},
-    categoryIds: {for (final c in categories) c.id},
+    categoryIds: {for (final c in activeCategories) c.id},
     personIds: {for (final p in people) p.id},
   );
 
@@ -113,7 +131,7 @@ final class HouseholdSnapshot {
 
   /// The fast parser's view of the categories.
   List<ParserCategory> get parserCategories => [
-    for (final c in categories)
+    for (final c in activeCategories)
       ParserCategory(id: c.id, names: {'en': c.name}, kind: c.kind),
   ];
 }
@@ -184,10 +202,7 @@ final class HouseholdSnapshots {
         for (final a in accounts)
           if (!a.archived) a,
       ]..sort((a, b) => a.order.compareTo(b.order)),
-      categories: [
-        for (final c in categories)
-          if (!c.archived) c,
-      ],
+      categories: categories,
       people: people,
     );
   }

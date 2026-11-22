@@ -323,7 +323,7 @@ final class _DraftBuilder {
     final kind = intent == CaptureIntent.income ? 'income' : 'expense';
     final h = _norm(hint).replaceAll(' ', '_');
     final candidates = [
-      for (final c in snap.categories)
+      for (final c in snap.activeCategories)
         if (c.kind == kind) c,
     ];
     for (final c in candidates) {
@@ -475,7 +475,9 @@ final class _DraftBuilder {
       }
     }
     if (_hasCategory && categoryId == null) {
-      final c = snap.category(pick(answer.category, 'categoryId', 'category'));
+      final c = snap.activeCategory(
+        pick(answer.category, 'categoryId', 'category'),
+      );
       if (c != null) {
         categoryId = c.id;
       } else {

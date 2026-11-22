@@ -240,13 +240,13 @@ String householdBlock(
     b.writeln('- ${a.id} | ${a.name} | ${a.currency} | ${a.scope}');
   }
   final groups = [
-    for (final c in snap.categories)
+    for (final c in snap.activeCategories)
       if (c.parentId == null) c,
   ];
   b.writeln('categories (group: sub-categories), by slug:');
   for (final g in groups) {
     final children = [
-      for (final c in snap.categories)
+      for (final c in snap.activeCategories)
         if (c.parentId == g.id) c.slug,
     ];
     b.writeln(

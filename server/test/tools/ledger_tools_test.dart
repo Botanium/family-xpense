@@ -4,6 +4,7 @@ import 'package:xpense_agent/runtime/demo_household.dart';
 import 'package:xpense_agent/tools/household_reader.dart';
 import 'package:xpense_agent/tools/in_memory_reader.dart';
 import 'package:xpense_agent/tools/ledger_tools.dart';
+import 'package:xpense_agent/tools/prepare_entries.dart';
 import 'package:xpense_agent/tools/schemas.dart';
 import 'package:xpense_agent/tools/xpense_tools.dart';
 
@@ -222,6 +223,81 @@ void main() {
       // The partner does not see Dara's personal budget at all.
       final hers = await getBudgets(BudgetsQuery(), shilan, demoDeps());
       expect(hers.budgets.map((b) => b.budgetId), ['b_food']);
+    });
+  });
+
+  group('archived categories (PR #30 review)', () {
+    // Dining out archived after this month's 96.00 lunch was saved.
+    InMemoryHouseholdReader archivedDining() {
+      final h = demoHousehold('2026-11-22');
+      return InMemoryHouseholdReader({
+        demoHid: InMemoryHousehold(
+          profile: h.profile,
+          members: h.members,
+          accounts: h.accounts,
+          people: h.people,
+          budgets: h.budgets,
+          transactions: h.transactions,
+          fxRates: h.fxRates,
+          categories: [
+            for (final c in h.categories)
+              if (c.slug == 'dining')
+                HouseholdCategory(
+                  id: c.id,
+                  slug: c.slug,
+                  name: c.name,
+                  kind: c.kind,
+                  parentId: c.parentId,
+                  archived: true,
+                )
+              else
+                c,
+          ],
+        ),
+      });
+    }
+
+    test('past spending in an archived category still counts', () async {
+      final deps = demoDeps(reader: archivedDining());
+      final food = await queryLedger(
+        LedgerQuery(categories: ['food'], groupBy: 'category'),
+        dara,
+        deps,
+      );
+      expect(food.totalMinor, 32515);
+      expect(
+        food.rows.map((r) => r.label),
+        containsAll(['Groceries', 'Dining out']),
+      );
+      final dining = await queryLedger(
+        LedgerQuery(categories: ['dining']),
+        dara,
+        deps,
+      );
+      expect(dining.totalMinor, 9600);
+      final budgets = await getBudgets(BudgetsQuery(), dara, deps);
+      expect(
+        budgets.budgets.firstWhere((b) => b.budgetId == 'b_food').spentMinor,
+        32515,
+      );
+    });
+
+    test('new entries cannot pick an archived category', () async {
+      final out = await prepareEntries(
+        PrepareEntriesInput(
+          entries: [
+            ProposedEntry(
+              intent: 'expense',
+              amount: '12',
+              text: 'dining 12',
+              categoryHint: 'dining',
+            ),
+          ],
+        ),
+        dara,
+        demoDeps(reader: archivedDining(), texts: ['dining 12']),
+      );
+      expect(out.drafts.single.categoryId, isNull);
     });
   });
 

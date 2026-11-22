@@ -322,6 +322,58 @@ void main() {
         {'text': 'Your total:'},
       ]);
     });
+
+    // PR #30 review: figures written by updateDataModel get the same check.
+    Map<String, dynamic> update(String path, Object? value, String express) =>
+        _part([
+          {
+            'version': '1.0',
+            'updateDataModel': {
+              'surfaceId': 'ans_bal',
+              'path': path,
+              'value': value,
+            },
+          },
+        ], express);
+
+    test('an invented scalar figure in an update is dropped', () {
+      const express =
+          'surface("ans_bal")\n'
+          r'$/result/totalMinor = 999999';
+      final result = guardParts([
+        update('/result/totalMinor', 999999, express),
+      ], facts);
+      expect(result.violations.single.reason, 'unbacked_figure');
+      expect(result.changed, isTrue);
+      final part = result.parts.single;
+      expect((part['data'] as Map)['messages'], isEmpty);
+      expect(
+        (part['metadata'] as Map)[a2uiExpressKey],
+        isNot(contains('999999')),
+      );
+    });
+
+    test('an invented figure inside an updated map is dropped', () {
+      final result = guardParts([
+        update('/result', {
+          'rows': [
+            {'label': 'Food', 'amountMinor': 4242},
+          ],
+        }, 'x'),
+      ], facts);
+      expect(result.violations.single.reason, 'unbacked_figure');
+    });
+
+    test("a tool's figure and non-money values pass in updates", () {
+      final result = guardParts([
+        update('/result/totalMinor', 373410, 'x'),
+        update('/result/rows/0/amountMinor', -38640, 'x'),
+        update('/result/title', 'Food', 'x'),
+        update('/ui/split', true, 'x'),
+      ], facts);
+      expect(result.violations, isEmpty);
+      expect(result.changed, isFalse);
+    });
   });
 
   group('rewriteAssignment', () {
