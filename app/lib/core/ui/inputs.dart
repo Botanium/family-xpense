@@ -167,7 +167,11 @@ class _XpTextFieldState extends State<XpTextField> {
         Semantics(
           label: widget.label,
           textField: true,
-          child: CupertinoTextField.borderless(
+          // Not `.borderless`: with no decoration, a disabled Cupertino field
+          // paints its own grey-white fill. An empty decoration keeps the
+          // underline look when [enabled] is false.
+          child: CupertinoTextField(
+            decoration: const BoxDecoration(),
             controller: widget.controller,
             focusNode: _focus,
             onChanged: widget.onChanged,
