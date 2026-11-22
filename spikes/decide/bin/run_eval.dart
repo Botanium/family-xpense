@@ -28,6 +28,26 @@ Future<void> main(List<String> args) async {
   final only = opts['only']?.split(',').toSet();
 
   final cases = loadCases('data/utterances.json');
+  if (opts.containsKey('rescore')) {
+    // Rebuild the report from the saved responses: no API calls.
+    final (results, keysAsked) = _loadSaved(tag);
+    File('evidence/${tag}_report.md').writeAsStringSync(
+      _report(
+        tag: tag,
+        cases: cases,
+        results: results,
+        keysAsked: keysAsked,
+        retries: 0,
+        catOptions: catOptions,
+        keySummary:
+            'Re-scored from evidence/raw/${tag}_responses.jsonl with no API '
+            'calls. The calls themselves used secret version 2 (see '
+            'docs/spikes/WP-S4.md, "Secret versions used").',
+      ),
+    );
+    stdout.writeln('re-scored evidence/${tag}_report.md');
+    return;
+  }
   final client = await DecisionsClient.open();
   stdout.writeln('secret version ${client.keyVersion}');
   final ctx = parseContext();
@@ -101,6 +121,27 @@ Future<void> main(List<String> args) async {
   );
   File('evidence/${tag}_report.md').writeAsStringSync(report);
   stdout.writeln('wrote evidence/${tag}_report.md');
+}
+
+/// Saved outcomes by pass and case, and the keys asked per case.
+(Map<int, Map<String, DecisionOutcome>>, Map<String, List<String>>) _loadSaved(
+  String tag,
+) {
+  final results = <int, Map<String, DecisionOutcome>>{};
+  final keysAsked = <String, List<String>>{};
+  for (final line in File(
+    'evidence/raw/${tag}_responses.jsonl',
+  ).readAsLinesSync().where((l) => l.trim().isNotEmpty)) {
+    final r = (jsonDecode(line) as Map).cast<String, Object?>();
+    final id = r['case']! as String;
+    keysAsked[id] = (r['keys']! as List).cast<String>();
+    (results[r['pass']! as int] ??= {})[id] = classify(
+      r['status']! as int,
+      jsonEncode(r['body']),
+      Duration(milliseconds: r['latencyMs']! as int),
+    );
+  }
+  return (results, keysAsked);
 }
 
 Map<String, String> _args(List<String> args) {
@@ -279,8 +320,9 @@ String _report({
     ..writeln('## Confidence policy simulation (pass 1, choice questions)')
     ..writeln()
     ..writeln(
-      'Defaults: prefill at ≥ 0.85 (intent: asks below 0.90), "Guessed" '
-      'from 0.55, ask below 0.55.',
+      'Defaults (AI_PIPELINE 9): prefill at ≥ 0.85, "Guessed" from 0.55, '
+      'ask below 0.55. Intent has no "Guessed" state: it is prefilled at '
+      '≥ 0.90 (`conf_intent_min`) and always asked below.',
     )
     ..writeln()
     ..writeln(
@@ -290,15 +332,18 @@ String _report({
     ..writeln('|---|---|---|---|---|---|---|');
   for (final key in choiceKeys) {
     final xs = choice.where((s) => s.key == key).toList();
-    final high = key == 'intent' ? 0.90 : 0.85;
+    // Intent below conf_intent_min always asks, so it has no guessed band.
+    final isIntent = key == 'intent';
+    final high = isIntent ? 0.90 : 0.85;
+    final low = isIntent ? 0.90 : 0.55;
     final pre = xs.where((s) => s.confidence >= high);
-    final guess = xs.where((s) => s.confidence >= 0.55 && s.confidence < high);
-    final ask = xs.where((s) => s.confidence < 0.55);
+    final guess = xs.where((s) => s.confidence >= low && s.confidence < high);
+    final ask = xs.where((s) => s.confidence < low);
     b.writeln(
       '| `$key` | ${xs.length} | ${pct(pre.length, xs.length)} '
       '| ${pct(pre.where((s) => !s.correct).length, pre.length)} '
-      '| ${pct(guess.length, xs.length)} '
-      '| ${pct(guess.where((s) => !s.correct).length, guess.length)} '
+      '| ${isIntent ? 'n/a' : pct(guess.length, xs.length)} '
+      '| ${isIntent ? 'n/a' : pct(guess.where((s) => !s.correct).length, guess.length)} '
       '| ${pct(ask.length, xs.length)} |',
     );
   }

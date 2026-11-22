@@ -33,4 +33,4 @@ cd spikes/decide && dart pub get
 dart run bin/run_eval.dart --passes 2 --tag main
 ```
 
-`run_eval.dart` also takes `--category-options all` (45 options instead of 36) and `--only <keys>`. `bin/key_check.dart` tests the re-read path: it starts with an invalid key and should end with one re-read and an answer.
+`run_eval.dart` also takes `--category-options all` (45 options instead of 36), `--only <keys>`, and `--rescore 1`, which rebuilds `evidence/<tag>_report.md` from `evidence/raw/<tag>_responses.jsonl` with no API calls. `bin/key_check.dart` tests the re-read path: it starts with an invalid key and should end with one re-read and an answer.

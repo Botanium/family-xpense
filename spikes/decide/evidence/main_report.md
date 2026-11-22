@@ -1,6 +1,8 @@
 # WP-S4 run `main`
 
-Category options: `leaves` (36). Passes: 2. Retries used: 0. Generated 2026-11-22 18:40:55.646850Z UTC.
+Category options: `leaves` (36). Passes: 2. Retries used: 0. Generated 2026-11-22 18:52:50.599783Z UTC.
+
+Re-scored from evidence/raw/main_responses.jsonl with no API calls. The calls themselves used secret version 2 (see docs/spikes/WP-S4.md, "Secret versions used").
 
 ## Accuracy per question
 
@@ -100,11 +102,11 @@ N = 287, ECE = 0.055, Brier = 0.029
 
 ## Confidence policy simulation (pass 1, choice questions)
 
-Defaults: prefill at ≥ 0.85 (intent: asks below 0.90), "Guessed" from 0.55, ask below 0.55.
+Defaults (AI_PIPELINE 9): prefill at ≥ 0.85, "Guessed" from 0.55, ask below 0.55. Intent has no "Guessed" state: it is prefilled at ≥ 0.90 (`conf_intent_min`) and always asked below.
 
 | question | n | prefilled | wrong when prefilled | guessed | wrong when guessed | asked |
 |---|---|---|---|---|---|---|
-| `intent` | 53 | 83.0% (44/53) | 0.0% (0/44) | 13.2% (7/53) | 0.0% (0/7) | 3.8% (2/53) |
+| `intent` | 53 | 83.0% (44/53) | 0.0% (0/44) | n/a | n/a | 17.0% (9/53) |
 | `category` | 27 | 100.0% (27/27) | 0.0% (0/27) | 0.0% (0/27) | n/a | 0.0% (0/27) |
 | `account` | 46 | 54.3% (25/46) | 4.0% (1/25) | 39.1% (18/46) | 0.0% (0/18) | 6.5% (3/46) |
 | `who` | 13 | 53.8% (7/13) | 0.0% (0/7) | 23.1% (3/13) | 0.0% (0/3) | 23.1% (3/13) |

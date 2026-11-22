@@ -151,7 +151,7 @@ Reading: the choice answers are **under-confident**, not over-confident. `accoun
 | `account` | 54% (25/46) | 1 (the exchange) | 39% | 7% |
 | `who` | 54% (7/13) | 0 | 23% | 23% |
 
-Five of the 9 intents that would be asked are from the ambiguous slice, which is the intended behaviour. Over all choice answers, wrong prefills are 0.7% (1/139) at `conf_high` 0.85 and 0% at 0.90. The data would allow 0.80 (81% prefilled, still 1 wrong), but keep the defaults until WP-35 has more data.
+Five of the 9 intents that would be asked are from the ambiguous slice, which is the intended behaviour. (The first version of `run_eval.dart` used the general 0.55 ask threshold for intent too, so `evidence/main_report.md` showed 2/53 asked and 7/53 guessed. It now applies `conf_intent_min` and was re-scored from the saved responses with no new API calls. Only that row changed.) Over all choice answers, wrong prefills are 0.7% (1/139) at `conf_high` 0.85 and 0% at 0.90. The data would allow 0.80 (81% prefilled, still 1 wrong), but keep the defaults until WP-35 has more data.
 
 ### Tokens and cost
 
@@ -323,4 +323,4 @@ cd spikes/decide && dart pub get
 dart run bin/run_eval.dart --passes 2 --tag main && dart run bin/run_eval.dart --passes 1 --tag cat_all --category-options all --only category && dart run bin/token_breakdown.dart && dart run bin/duplicate_variant.dart && dart run bin/probe_errors.dart && dart run bin/catalog_tokens.dart
 ```
 
-Each script reads the newest enabled version of `GEMINI_API_KEY` itself when it starts, so gcloud must be signed in with access to the secret. Nothing is exported, and the version number goes into each report. About 300 calls in all, costing under USD 0.10.
+To rebuild a report from the saved responses with no API calls, use `dart run bin/run_eval.dart --rescore 1 --tag main` (add `--category-options all` for `cat_all`). Each script reads the newest enabled version of `GEMINI_API_KEY` itself when it starts, so gcloud must be signed in with access to the secret. Nothing is exported, and the version number goes into each report. About 300 calls in all, costing under USD 0.10.

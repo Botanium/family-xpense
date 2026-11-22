@@ -1,6 +1,8 @@
 # WP-S4 run `cat_all`
 
-Category options: `all` (45). Passes: 1. Retries used: 0. Generated 2026-11-22 18:43:06.137354Z UTC.
+Category options: `all` (45). Passes: 1. Retries used: 0. Generated 2026-11-22 18:52:51.366671Z UTC.
+
+Re-scored from evidence/raw/cat_all_responses.jsonl with no API calls. The calls themselves used secret version 2 (see docs/spikes/WP-S4.md, "Secret versions used").
 
 ## Accuracy per question
 
@@ -69,7 +71,7 @@ N = 27, ECE = 0.030, Brier = 0.006
 
 ## Confidence policy simulation (pass 1, choice questions)
 
-Defaults: prefill at ≥ 0.85 (intent: asks below 0.90), "Guessed" from 0.55, ask below 0.55.
+Defaults (AI_PIPELINE 9): prefill at ≥ 0.85, "Guessed" from 0.55, ask below 0.55. Intent has no "Guessed" state: it is prefilled at ≥ 0.90 (`conf_intent_min`) and always asked below.
 
 | question | n | prefilled | wrong when prefilled | guessed | wrong when guessed | asked |
 |---|---|---|---|---|---|---|
