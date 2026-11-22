@@ -59,9 +59,10 @@ class GlassSurface extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scopeTier = GlassScope.tierOf(context);
-    final tier =
-        (variant == GlassVariant.overMedia || overMedia) &&
-            scopeTier.index > GlassTier.blur.index
+    // Over camera media either way: the overMedia variant always is, and any
+    // other variant is when the caller says so.
+    final onMedia = variant == GlassVariant.overMedia || overMedia;
+    final tier = onMedia && scopeTier.index > GlassTier.blur.index
         ? GlassTier.blur
         : scopeTier;
     final colors = XpColors.of(context);
@@ -120,7 +121,7 @@ class GlassSurface extends StatelessWidget {
           },
           shape: _liquidShape(shape, direction),
           clipBehavior: Clip.antiAlias,
-          platformViewBackdrop: tier == GlassTier.blur && overMedia,
+          platformViewBackdrop: tier == GlassTier.blur && onMedia,
           settings: LiquidGlassSettings(
             glassColor: recipe.tint,
             blur: recipe.blur,
