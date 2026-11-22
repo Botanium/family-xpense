@@ -30,10 +30,10 @@ All three tiers include both partners and every money feature that makes the led
 |---|---|---|---|
 | Members | 2 (you and your partner) | 2 | up to 6 (needs "more than two members", see risk R-4) |
 | Capture on the phone (typing, on-device voice, rules, parser, on-device model) | unlimited | unlimited | unlimited |
-| Category and account suggestions (Decisions API) per month, then on-phone suggestions | 1,000 | 1,500 | 3,000 |
+| Category and account suggestions (Decisions API) per month, then on-phone suggestions | 1,000 | 1,000 | 2,000 |
 | **Cloud AI captures** per month (multi-entry messages, cloud voice, receipt photos, commands) | 50 | 150 | 300 |
 | of which receipt scans | 15, total only | 75, with line-item split | 150, with line-item split |
-| **Questions to the AI** per month | 15 | 40 | 75 |
+| **Questions to the AI** per month | 15 | 40 | 70 |
 | Privacy modes (On-device only, Smart, Cloud) | all three | all three | all three |
 | Budgets / savings goals | 5 / 2 | unlimited | unlimited |
 | Recurring bills | detect and remind | detect, remind or add automatically | same as Pro |
@@ -57,7 +57,7 @@ Cloud AI, suggestion and question limits never stop a money entry. A typical hou
 - **No weekly plan.** Budgeting is a habit measured in months. Weekly plans keep only 3.4% of subscribers after a year, and no budgeting leader sells one (section 6).
 - **Free trial: 1 month on yearly plans, 2 weeks on monthly plans,** one trial per household. Longer trials convert and renew better, and a budgeting app shows its value at the end of the first month.
 - **No free tier.** After a trial or a lapse the household keeps read-only access and export. Data is never held hostage.
-- **Margins:** even if a household uses every allowance in full, every plan keeps at least 50% of proceeds in the US, EU and UK at Apple's 15% rate; the lowest are VIP yearly (50%) and Pro yearly (51%) in Germany. At the 30% rate the lowest is 40%. At typical use, every plan keeps 61% to 87% (section 3).
+- **Margins:** even if a household uses every allowance in full, every plan keeps at least 50% of proceeds in the US, the UK and every EU country at Apple's 15% rate. The floor is computed at 27% VAT (Hungary, the highest standard rate in the EU); the lowest cases are Pro and VIP yearly at 50.5% and 50.7%. At the 30% rate the lowest is 39.9%. At typical use, every plan keeps 58% to 87% (section 3).
 - **Positioning:** below the bank-sync apps (YNAB $109, Monarch $99.99 a year), at the top of the AI-capture trackers ($30 to $70 a year). Family Xpense has no bank sync but includes partners, AI capture, loans and multi-currency.
 
 ### Decisions for the owner
@@ -82,7 +82,7 @@ From [AI_PIPELINE.md](../AI_PIPELINE.md) section 12, updated with the measured v
 
 What this means for tiers:
 
-- **Decisions calls are cheap but not free at the limit.** A typical household makes about 150 a month (USD 0.03). ARCHITECTURE 4.5 allows 600 a day, which over 30 days would cost USD 3.60, more than Standard yearly earns a month. So each tier gets a **monthly cap** (Standard 1,000, Pro 1,500, VIP 3,000), counted on the server in a monthly usage document next to the daily one (`households/{hid}/usage/{month}`). Past the cap, `/decide` answers `{unavailable: true}` and the phone uses on-device classification or local pickers, the existing fallback step 3 in AI_PIPELINE 7, so the entry still saves.
+- **Decisions calls are cheap but not free at the limit.** A typical household makes about 150 a month (USD 0.03). ARCHITECTURE 4.5 allows 600 a day, which over 30 days would cost USD 3.60, more than Standard yearly earns a month. So each tier gets a **monthly cap** (Standard and Pro 1,000, VIP 2,000), counted on the server in a monthly usage document next to the daily one (`households/{hid}/usage/{month}`). Past the cap, `/decide` answers `{unavailable: true}` and the phone uses on-device classification or local pickers, the existing fallback step 3 in AI_PIPELINE 7, so the entry still saves.
 - **Audio seconds are almost free too.** The cost of cloud voice is the agent turn it triggers, not the audio. So voice is metered as a cloud AI capture, not in seconds.
 - **The real drivers are agent turns, receipts and questions.** These, plus the Decisions cap, are the metered allowances. Reports are capped too (VIP: monthly, yearly and up to 4 custom-range reports a month).
 - **The On-device only mode costs nothing to run.** Charging extra for it would make privacy a luxury and contradict principle 4 in the PRD. It is in every tier.
@@ -124,7 +124,7 @@ S = Standard, P = Pro, V = VIP. "All" means every tier, including during the tri
 | MO-8 | partner settle-up (Later) | P, V when built | a couples feature, so not VIP-only |
 | RE-1 | Home | all | |
 | RE-2 | Activity, search, filters | all | |
-| RE-3 | questions to the AI | S 15, P 40, V 75 a month; on-device basics unlimited | metered: USD 0.008 each |
+| RE-3 | questions to the AI | S 15, P 40, V 70 a month; on-device basics unlimited | metered: USD 0.008 each |
 | RE-4 | edit, undo, change history | all | |
 | RE-5 | monthly summary and export | S on-phone summary + CSV; P, V AI-written report + PDF and Excel; V yearly review and up to 4 custom-range reports a month | CSV export is a data right, so every tier has it |
 | RE-6 | notification centre and nudges | S essentials; P, V all | |
@@ -144,27 +144,28 @@ S = Standard, P = Pro, V = VIP. "All" means every tier, including during the tri
 | Tier | Captures | Questions | Decisions | Reports | Infra | **Worst case a month** | Typical a month |
 |---|---|---|---|---|---|---|---|
 | Standard | 50 × 0.0068 = 0.34 | 15 × 0.008 = 0.12 | 1,000 = 0.20 | 0 | 0.10 | **USD 0.76** | about USD 0.70 |
-| Pro | 150 = 1.02 | 40 = 0.32 | 1,500 = 0.30 | 0.016 | 0.10 | **USD 1.76** | about USD 0.85 |
-| VIP | 300 = 2.04 | 75 = 0.60 | 3,000 = 0.60 | 0.10 | 0.20 | **USD 3.54** | about USD 2.07 |
+| Pro | 150 = 1.02 | 40 = 0.32 | 1,000 = 0.20 | 0.016 | 0.10 | **USD 1.66** | about USD 0.85 |
+| VIP | 300 = 2.04 | 70 = 0.56 | 2,000 = 0.40 | 0.10 | 0.20 | **USD 3.30** | about USD 2.07 |
 
-Without the monthly Decisions cap, the daily limit alone (600 × 30 days) would add up to USD 3.60 to every tier and make Standard yearly lose money at worst case. The monthly cap is part of the recommendation, not an option.
+Without the monthly Decisions cap, the daily limit alone (600 × 30 days) would add up to USD 3.60 to every tier and make Standard yearly lose money at worst case. The monthly cap is part of the recommendation, not an option. A typical household makes about 150 Decisions calls a month, so 1,000 is still far above normal use.
 
-What the developer keeps a month, and the margin at worst case. Small Business Program (15%), and in brackets at the standard 30% for the first year. Germany (19% VAT, which Apple removes before its commission) is the lowest-net market; the UK at the proposed GBP prices nets more than Germany even with GBP taken at a conservative 1.20 USD. EUR is treated as worth 1 USD, which understates EU proceeds by about 9% (ECB rate of 2026-11-20).
+What the developer keeps a month, and the margin at worst case. Small Business Program (15%), and in brackets at the standard 30% for the first year. Apple removes VAT before its commission, so the lowest-net market is the one with the highest VAT. **The EU column uses 27%, Hungary's standard rate, the highest in the EU** (Your Europe VAT table, last checked 2026-07-13); Finland's 25.5% (vero.fi, page updated 2026-01-01) is the highest among euro-zone countries, and Croatia, Denmark and Sweden are at 25%. The 27% column therefore covers every EU storefront, provided storefronts outside the euro are priced at no less than the euro numbers' value (equalized prices from the US base meet this, since Apple adds local tax). EUR is treated as worth 1 USD, which understates EU proceeds by about 9% (ECB rate of 2026-11-20). The UK uses its proposed GBP prices with GBP taken at a conservative 1.20 USD.
 
-| Plan | US net / month | US worst-case margin | DE net / month | DE worst-case margin | UK worst-case margin | US typical margin |
+| Plan | US net / month | US worst-case margin | EU at 27% VAT net / month | EU at 27% VAT worst-case margin | UK worst-case margin | US typical margin |
 |---|---|---|---|---|---|---|
-| Standard monthly $3.99 | 3.39 | 78% (73%) | 2.85 | 73% (68%) | 74% (69%) | 79% |
-| Standard yearly $29.99 | 2.12 | 64% (57%) | 1.79 | 57% (48%) | 60% (52%) | 67% |
-| Pro monthly $7.99 | 6.79 | 74% (69%) | 5.71 | 69% (63%) | 70% (64%) | 87% |
-| **Pro yearly $59.99** | 4.25 | **59%** (50%) | 3.57 | **51%** (40%) | 55% (45%) | **80%** |
-| VIP monthly $14.99 | 12.74 | 72% (66%) | 10.71 | 67% (60%) | 68% (61%) | 84% |
-| VIP yearly $119.99 | 8.50 | 58% (49%) | 7.14 | **50%** (40%) | 55% (45%) | 76% |
+| Standard monthly $3.99 | 3.39 | 78% (73%) | 2.67 | 72% (65%) | 74% (69%) | 79% |
+| Standard yearly $29.99 | 2.12 | 64% (57%) | 1.67 | 55% (45%) | 60% (52%) | 67% |
+| Pro monthly $7.99 | 6.79 | 76% (70%) | 5.35 | 69% (62%) | 72% (66%) | 87% |
+| **Pro yearly $59.99** | 4.25 | **61%** (53%) | 3.35 | **50.5%** (39.9%) | 58% (48%) | **80%** |
+| VIP monthly $14.99 | 12.74 | 74% (69%) | 10.03 | 67% (60%) | 70% (64%) | 84% |
+| VIP yearly $119.99 | 8.50 | 61% (53%) | 6.69 | **50.7%** (40.1%) | 58% (49%) | 76% |
 
 Reading the table:
 
-- **The 50% worst-case floor holds for every plan in every launch market at the 15% rate**, which a new developer gets through the Small Business Program. The lowest-net cases are VIP yearly (50%) and Pro yearly (51%) in Germany.
-- **At the 30% rate the floor is 40%** (Pro and VIP yearly in Germany). Apple's EU terms since 2026-10-01 put the standard EU rate at 26% (R-12), between the two columns.
-- To get from the first draft to the floor, Pro went from 200 captures and 60 questions to 150 and 40, and VIP from 500 and 150 to 300 and 75. Both still exceed a typical household (about 60 captures and 30 questions; a 4-person VIP household about 120 and 60). The prices did not change.
+- **At Apple's 15% rate, the 50% worst-case floor holds for every plan in every launch market**, including the highest-VAT EU country. A new developer gets 15% through the Small Business Program. The lowest-net cases are Pro yearly (50.5%) and VIP yearly (50.7%) at 27% VAT; in Finland they are 51.1% and 51.3%.
+- **At the 30% rate the floor is 39.9%** (Pro yearly at 27% VAT), so the claim at that rate is "about 40%", not 50%. Apple's EU terms since 2026-10-01 put the standard EU rate at 26% (R-12), between the two columns.
+- To reach the floor, Pro went from the first draft's 200 captures and 60 questions to 150 and 40 with a 1,000 suggestion cap, and VIP from 500 and 150 to 300 and 70 with a 2,000 cap. Both still exceed a typical household (about 60 captures, 30 questions and 150 suggestion calls; a 4-person VIP household about 120 captures and 60 questions). The prices did not change.
+- At typical use, every plan keeps 58% to 87%; the lowest is Standard yearly at 27% VAT.
 - If real use shows the limits are too tight, raise them once WP-83 measures actual cost; the planned trim of the catalog instructions (section 1) lowers the capture cost by roughly a third, which would allow about 50% more captures at the same margin.
 - Not counted: support time, the Apple Developer fee (USD 99 a year), an EU/UK GDPR representative (about EUR 420 a year and up, section 8), income tax, and possible 30% US withholding for an individual seller (R-2).
 
@@ -217,7 +218,7 @@ Cancellation: a "Manage subscription" button on the plan page that opens Apple's
 ### Why VIP is worth it
 
 1. **The whole family:** up to 6 members (parents, adult children, relatives at home). This is the one thing a two-person household cannot get elsewhere in the plan list.
-2. **Room for a big household:** 300 cloud captures, 150 receipts, 75 questions.
+2. **Room for a big household:** 300 cloud captures, 150 receipts, 70 questions.
 3. **The yearly review** and reports for any date range.
 4. **Priority support and early access** to new features.
 
@@ -392,7 +393,7 @@ Paths that end with the company as seller:
 | ID | Risk or question | Effect | What to do |
 |---|---|---|---|
 | R-1 | **No way to receive Apple's payouts** from Iraq (bank not selectable, fintechs refuse Iraq residents) | no revenue at all | step 4 of the section 7 recommendation right after enrolling; Payoneer; a company bank account |
-| R-2 | **30% US withholding** on an individual with no treaty | US net drops by 30% of proceeds; Pro yearly worst-case margin in the US falls from 59% to 41%, VIP yearly from 58% to 40% | confirm with Apple Finance and a tax adviser; if it applies, sell through an entity that can claim a lower rate, or price up |
+| R-2 | **30% US withholding** on an individual with no treaty | US net drops by 30% of proceeds; Pro and VIP yearly worst-case margins in the US fall from 61% to 44% and 45% | confirm with Apple Finance and a tax adviser; if it applies, sell through an entity that can claim a lower rate, or price up |
 | R-3 | **Publishing a personal address and phone** on the EU App Store | privacy, harassment | P.O. box with proof; or use the company with its own address |
 | R-4 | **VIP's headline feature is not built** (more than two members is "Later") | VIP looks like a decoy | pull member expansion into the public release, or launch with two tiers |
 | R-5 | **US/EU users need USD, EUR and GBP** (today IQD and USD); "more currencies" is Later | EU users cannot use their own currency | add EUR and GBP before the public launch |
@@ -453,6 +454,8 @@ All read on 2026-11-22. Full research notes, with more detail, are in the shared
 - IRS tax treaties A to Z (no Iraq), reviewed 2026-01-03: https://www.irs.gov/businesses/international-businesses/united-states-income-tax-treaties-a-to-z
 - IRS NRA withholding (30%), reviewed 2026-03-14: https://www.irs.gov/individuals/international-taxpayers/nra-withholding
 - IRS W-9 instructions, rev. 03/2024: https://www.irs.gov/instructions/iw9
+- Your Europe, VAT rules and rates (standard rates; Hungary 27%, Finland 25.5%), last checked 2026-07-13: https://europa.eu/youreurope/business/taxation/vat/vat-rules-rates/index_en.htm
+- Finnish Tax Administration, rates of VAT (25.5%), page updated 2026-01-01: https://www.vero.fi/en/businesses-and-corporations/taxes-and-charges/vat/rates-of-vat/
 - EU adequacy decisions (no Qatar), newest item 2026-11-16: https://commission.europa.eu/law/law-topic/data-protection/international-dimension-data-protection/adequacy-decisions_en
 - EDPB Guidelines 05/2021 on Article 3 and transfers: https://www.edpb.europa.eu/our-work-tools/our-documents/guidelines/guidelines-052021-interplay-between-application-article-3_en
 - [3P] UK subscription regime brought forward to January 2027: Stephenson Harwood, 2026-08-24; DWF, 2026-10-22; Reed Smith, 2026-04-09
