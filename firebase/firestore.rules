@@ -82,6 +82,15 @@ service cloud.firestore {
       return request.resource.data.get('scope', null) != 'joint'
         || request.resource.data.visibleTo.hasAll(household(hid).memberIds);
     }
+    function ownerUnchanged() {
+      return request.resource.data.get('ownerUid', null) == resource.data.get('ownerUid', null);
+    }
+    // Update guard for documents that may be personal: the owner cannot be
+    // replaced, keeps access, and alone decides who else sees it.
+    function ownedUpdateOk(hid) {
+      return ownerUnchanged() && ownerKeepsAccess() && jointIsEveryone(hid)
+        && sharingChangedOnlyByOwner();
+    }
     function sharingChangedOnlyByOwner() {
       return !changed().hasAny(['visibleTo', 'sharedWithPartner', 'scope'])
         || resource.data.get('ownerUid', null) == null
@@ -146,10 +155,7 @@ service cloud.firestore {
           && jointIsEveryone(hid);
         allow update: if canUpdateVisible(hid)
           && request.resource.data.currency == resource.data.currency
-          && request.resource.data.get('ownerUid', null) == resource.data.get('ownerUid', null)
-          && ownerKeepsAccess()
-          && jointIsEveryone(hid)
-          && sharingChangedOnlyByOwner();
+          && ownedUpdateOk(hid);
         allow delete: if false;                       // archive instead
       }
 
@@ -172,15 +178,24 @@ service cloud.firestore {
             && d.visibleTo.hasOnly(from.concat(to));
         }
 
+        // Ledger invariants, checked on the resulting document of every
+        // create and edit.
+        function validTxnFields() {
+          let d = request.resource.data;
+          return d.amountMinor is int
+            && d.amountMinor > 0
+            && d.baseAmountMinor is int
+            && d.currency in ['USD', 'IQD']
+            && d.type in ['expense', 'income', 'transfer',
+                 'loan_given', 'loan_taken', 'repayment_received',
+                 'repayment_made', 'adjustment']
+            && d.accountId is string
+            && d.rev is int;
+        }
+
         allow read: if canReadVisible(hid);
         allow create: if canCreateVisible(hid)
-          && request.resource.data.amountMinor is int
-          && request.resource.data.amountMinor > 0
-          && request.resource.data.baseAmountMinor is int
-          && request.resource.data.currency in ['USD', 'IQD']
-          && request.resource.data.type in ['expense', 'income', 'transfer',
-               'loan_given', 'loan_taken', 'repayment_received',
-               'repayment_made', 'adjustment']
+          && validTxnFields()
           && request.resource.data.rev == 0
           && request.resource.data.get('deletedAt', null) == null
           && exists(accountPath(request.resource.data.accountId))
@@ -191,8 +206,7 @@ service cloud.firestore {
         // re-checks the accounts. Server jobs (visibility backfill) bypass rules.
         allow update: if canUpdateVisible(hid)
           && request.resource.data.rev == resource.data.rev + 1
-          && request.resource.data.amountMinor is int
-          && request.resource.data.amountMinor > 0
+          && validTxnFields()
           && (!changed().hasAny(['accountId', 'toAccountId', 'visibleTo', 'currency'])
               || (request.resource.data.currency
                     == get(accountPath(request.resource.data.accountId)).data.currency
@@ -218,38 +232,37 @@ service cloud.firestore {
         allow read: if canReadVisible(hid);
         allow create: if canCreateVisible(hid) && ownerKeepsAccess()
           && jointIsEveryone(hid);
-        allow update: if canUpdateVisible(hid) && ownerKeepsAccess()
-          && jointIsEveryone(hid) && sharingChangedOnlyByOwner();
+        allow update: if canUpdateVisible(hid) && ownedUpdateOk(hid);
         allow delete: if false;
       }
       match /goals/{id} {
         allow read: if canReadVisible(hid);
-        allow create: if canCreateVisible(hid);
-        allow update: if canUpdateVisible(hid);
+        allow create: if canCreateVisible(hid) && ownerKeepsAccess();
+        allow update: if canUpdateVisible(hid) && ownedUpdateOk(hid);
         allow delete: if false;                       // archive instead
       }
       match /people/{id} {
         allow read: if canReadVisible(hid);
-        allow create: if canCreateVisible(hid);
-        allow update: if canUpdateVisible(hid);
+        allow create: if canCreateVisible(hid) && ownerKeepsAccess();
+        allow update: if canUpdateVisible(hid) && ownedUpdateOk(hid);
         allow delete: if false;
       }
       match /budgets/{id} {
         allow read: if canReadVisible(hid);
-        allow create: if canCreateVisible(hid);
-        allow update: if canUpdateVisible(hid);
+        allow create: if canCreateVisible(hid) && ownerKeepsAccess();
+        allow update: if canUpdateVisible(hid) && ownedUpdateOk(hid);
         allow delete: if canReadVisible(hid);
       }
       match /recurring/{id} {
         allow read: if canReadVisible(hid);
-        allow create: if canCreateVisible(hid);
-        allow update: if canUpdateVisible(hid);
+        allow create: if canCreateVisible(hid) && ownerKeepsAccess();
+        allow update: if canUpdateVisible(hid) && ownedUpdateOk(hid);
         allow delete: if canReadVisible(hid);
       }
       match /rules/{id} {
         allow read: if canReadVisible(hid);
-        allow create: if canCreateVisible(hid);
-        allow update: if canUpdateVisible(hid);
+        allow create: if canCreateVisible(hid) && ownerKeepsAccess();
+        allow update: if canUpdateVisible(hid) && ownedUpdateOk(hid);
         allow delete: if canReadVisible(hid);
       }
 

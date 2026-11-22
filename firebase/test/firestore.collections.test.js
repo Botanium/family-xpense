@@ -2,6 +2,7 @@
 // collection-specific checks the rules add on top of the shared pattern.
 import { after, before, beforeEach, describe, it } from 'node:test';
 import { assertFails, assertSucceeds } from '@firebase/rules-unit-testing';
+import firebase from 'firebase/compat/app';
 import {
   ALICE, BOB, EVE, HID, TODAY, VISIBLE_COLLECTIONS,
   accountDoc, createEnv, createdBy, hh, seed, serverTime, txnDoc, updatedBy,
@@ -177,6 +178,18 @@ describe('transactions', () => {
     await assertSucceeds(tx(ALICE).doc('tJoint').update({ accountId: 'aPriv', visibleTo: [ALICE], rev: 4, ...updatedBy(ALICE) }));
   });
 
+  it('edits keep every ledger invariant (Codex review)', async () => {
+    const bad = [
+      { baseAmountMinor: '10000' }, { baseAmountMinor: firebase.firestore.FieldValue.delete() },
+      { baseAmountMinor: 1.5 }, { type: 'gift' }, { type: firebase.firestore.FieldValue.delete() },
+      { amountMinor: firebase.firestore.FieldValue.delete() }, { accountId: firebase.firestore.FieldValue.delete() },
+    ];
+    for (const fields of bad) {
+      await assertFails(tx(BOB).doc('tJoint').update({ ...fields, rev: 4, ...updatedBy(BOB) }));
+    }
+    await assertSucceeds(tx(BOB).doc('tJoint').update({ type: 'income', baseAmountMinor: 9000, rev: 4, ...updatedBy(BOB) }));
+  });
+
   it('a partner cannot edit or soft-delete a private transaction', async () => {
     await assertFails(tx(BOB).doc('tPriv').update({ deletedAt: new Date(), rev: 1, ...updatedBy(BOB) }));
   });
@@ -216,6 +229,19 @@ describe('loans, goals, budgets, recurring, rules, people', () => {
       await assertFails(c.doc('private').update({ ...updatedBy(BOB) }));
       await assertFails(c.doc('private').set({ ...body, visibleTo: [BOB], ...createdBy(BOB) }));
       await assertFails(c.doc('n3').set({ ...body, visibleTo: [ALICE], ...createdBy(BOB) }));
+    });
+  }
+
+  for (const coll of Object.keys(VISIBLE_COLLECTIONS)) {
+    it(`${coll}: a partner cannot take ownership of a shared personal document (Codex review)`, async () => {
+      await env.withSecurityRulesDisabled((ctx) => hh(ctx.firestore()).collection(coll).doc('alicesShared')
+        .set({ ...VISIBLE_COLLECTIONS[coll], scope: 'personal', ownerUid: ALICE, visibleTo: [ALICE, BOB] }));
+      const d = hh(db(BOB)).collection(coll).doc('alicesShared');
+      await assertFails(d.update({ ownerUid: BOB, ...updatedBy(BOB) }));
+      await assertFails(d.update({ visibleTo: [BOB], ...updatedBy(BOB) }));
+      await assertFails(d.update({ ownerUid: BOB, visibleTo: [BOB], ...updatedBy(BOB) }));
+      await assertSucceeds(d.update({ note: 'edited by bob', ...updatedBy(BOB) }));
+      await assertSucceeds(hh(db(ALICE)).collection(coll).doc('alicesShared').update({ visibleTo: [ALICE], ...updatedBy(ALICE) }));
     });
   }
 
