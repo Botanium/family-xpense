@@ -59,7 +59,7 @@ void main() {
         dara,
         demoDeps(),
       );
-      expect(joint.count, 3); // rent and two Carrefour trips
+      expect(joint.count, 3); // generator and two Carrefour trips
       final partner = await queryLedger(
         LedgerQuery(who: 'partner'),
         dara,

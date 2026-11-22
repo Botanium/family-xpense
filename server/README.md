@@ -65,7 +65,7 @@ into the process environment only; it is never printed or written.
 ```bash
 # The demo household from memory, no emulator:
 XPENSE_AGENT_DATA=demo tool/with_gemini_key.sh \
-  genkit flow:run tryCapture '"Salary came in 3200 and I paid rent 1400"' -- dart run bin/server.dart
+  genkit flow:run tryCapture '"Salary came in 3200 and groceries were 140"' -- dart run bin/server.dart
 genkit trace:get <traceId> --format json
 
 # The production path (Firestore reader and sessions, the /decide classifier):

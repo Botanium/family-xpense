@@ -41,7 +41,7 @@ abstract class $ProposedEntry {
   @StringField(
     description:
         'The words of the message about this entry only, copied verbatim, '
-        'e.g. "paid rent 1400".',
+        'e.g. "paid the generator 50".',
     maxLength: 300,
   )
   String? get text;
@@ -73,7 +73,7 @@ abstract class $ProposedEntry {
   String? get who;
 
   /// A merchant or short label.
-  @StringField(description: 'Merchant or short label, e.g. "Rent".')
+  @StringField(description: 'Merchant or short label, e.g. "Generator".')
   String? get title;
 }
 

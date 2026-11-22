@@ -260,7 +260,7 @@ final class _DraftBuilder {
       }
     }
     // Category words. Only words the member wrote settle the category; a
-    // slug the model picked ("rent" → `apartment_gas`) is its reading, kept
+    // slug the model picked (say "lunch" → `bakery_tea`) is its reading, kept
     // as a guess unless the classifier answers.
     if (_hasCategory) {
       final c = _matchCategory(entry.categoryHint);

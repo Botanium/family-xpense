@@ -30,7 +30,7 @@ void main() {
 
   setUp(() async {
     ai = Genkit(isDevEnv: false, plugins: [A2uiPlugin()], promptDir: 'prompts');
-    script = Script(entries: salaryRent, render: scriptedCapture);
+    script = Script(entries: salaryGroceries, render: scriptedCapture);
     defineScripted(ai, 'test/lite', script);
     docs = FakeDocumentStore()
       ..seedMember(uid: demoUid, hid: demoHid)
@@ -81,7 +81,7 @@ void main() {
     addTearDown(client.close);
     final chat = client.chat();
     final res = await chat.send(
-      text: 'Salary came in 3200 and I paid rent 1400',
+      text: 'Salary came in 3200 and groceries were 1400',
     );
     final parts = res.message?.content ?? const <Part>[];
     final a2ui = [

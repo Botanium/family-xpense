@@ -54,12 +54,12 @@ List<Map<String, dynamic>> _creates(Map<String, dynamic> summary) => [
 
 void main() {
   test('a two-entry capture produces one EntryList surface', () async {
-    final lite = Script(entries: salaryRent, render: scriptedCapture);
+    final lite = Script(entries: salaryGroceries, render: scriptedCapture);
     final (:rt, ai: _, :turns) = await _runtime(lite: lite);
     expect(rt.strict, isTrue);
 
     final summary = await rt.runTurn(
-      'Salary came in 3200 and I paid rent 1400',
+      'Salary came in 3200 and groceries were 1400',
       context: demoContext,
     );
     final create = _creates(summary).single;
@@ -104,7 +104,7 @@ void main() {
     () async {
       List<Object?>? toolDrafts;
       final lite = Script(
-        entries: salaryRent,
+        entries: salaryGroceries,
         render: (drafts) {
           toolDrafts = drafts;
           final first = {...(drafts[0]! as Map)}..remove('accountId');
@@ -117,7 +117,7 @@ void main() {
       );
       final (:rt, ai: _, turns: _) = await _runtime(lite: lite);
       final summary = await rt.runTurn(
-        'Salary came in 3200 and I paid rent 1400',
+        'Salary came in 3200 and groceries were 1400',
         context: demoContext,
       );
       final drafts =
@@ -129,7 +129,7 @@ void main() {
   test('fields the model drops while copying come back', () async {
     List<Object?>? toolDrafts;
     final lite = Script(
-      entries: salaryRent,
+      entries: salaryGroceries,
       render: (drafts) {
         toolDrafts = drafts;
         return scriptedCapture([
@@ -142,7 +142,7 @@ void main() {
     );
     final (:rt, ai: _, turns: _) = await _runtime(lite: lite);
     final summary = await rt.runTurn(
-      'Salary came in 3200 and I paid rent 1400',
+      'Salary came in 3200 and groceries were 1400',
       context: demoContext,
     );
     final drafts =
@@ -153,13 +153,13 @@ void main() {
 
   test('a failed turn is re-run once on the escalation model', () async {
     final lite = Script(
-      entries: salaryRent,
+      entries: salaryGroceries,
       render: (_) => '<a2ui>\nsurface("cap_bad")\nroot = Chart("x")\n</a2ui>',
     );
-    final flash = Script(entries: salaryRent, render: scriptedCapture);
+    final flash = Script(entries: salaryGroceries, render: scriptedCapture);
     final (:rt, ai: _, :turns) = await _runtime(lite: lite, flash: flash);
     final summary = await rt.runTurn(
-      'Salary came in 3200 and I paid rent 1400',
+      'Salary came in 3200 and groceries were 1400',
       context: demoContext,
     );
     expect(_creates(summary).single['surfaceId'], 'cap_test');
@@ -170,10 +170,10 @@ void main() {
 
   test('liteOnly stops escalation', () async {
     final lite = Script(
-      entries: salaryRent,
+      entries: salaryGroceries,
       render: (_) => '<a2ui>\nsurface("cap_bad")\nroot = Chart("x")\n</a2ui>',
     );
-    final flash = Script(entries: salaryRent, render: scriptedCapture);
+    final flash = Script(entries: salaryGroceries, render: scriptedCapture);
     final (:rt, ai: _, :turns) = await _runtime(
       lite: lite,
       flash: flash,
@@ -183,7 +183,7 @@ void main() {
     );
     await rt
         .runTurn(
-          'Salary came in 3200 and I paid rent 1400',
+          'Salary came in 3200 and groceries were 1400',
           context: demoContext,
         )
         .then((_) {}, onError: (_) {});
@@ -192,14 +192,14 @@ void main() {
   });
 
   test('a later turn resumes the session by snapshot id', () async {
-    final lite = Script(entries: salaryRent, render: scriptedCapture);
+    final lite = Script(entries: salaryGroceries, render: scriptedCapture);
     final (:rt, ai: _, turns: _) = await _runtime(lite: lite);
     final first = await rt.runTurn(
-      'Salary came in 3200 and I paid rent 1400',
+      'Salary came in 3200 and groceries were 1400',
       context: demoContext,
     );
     await rt.runTurn(
-      'Actually rent was 1400 too',
+      'Actually groceries were 1400 too',
       context: demoContext,
       snapshotId: first['snapshotId'] as String,
     );
@@ -212,11 +212,11 @@ void main() {
       for (final m in last)
         if (m.role == Role.user) m.content.map((p) => p.text).join(),
     ];
-    expect(texts.last, 'Actually rent was 1400 too');
+    expect(texts.last, 'Actually groceries were 1400 too');
   });
 
   test('a turn without the verified context is refused', () async {
-    final lite = Script(entries: salaryRent, render: scriptedCapture);
+    final lite = Script(entries: salaryGroceries, render: scriptedCapture);
     final (:rt, ai: _, turns: _) = await _runtime(lite: lite);
     await expectLater(
       rt.runTurn('hi', context: const {'uid': 'u1'}),
@@ -235,7 +235,7 @@ void main() {
       final texts = conversationTexts([
         Message(
           role: Role.user,
-          content: [TextPart(text: 'rent 1400')],
+          content: [TextPart(text: 'groceries 1400')],
         ),
         Message(
           role: Role.model,
@@ -261,7 +261,7 @@ void main() {
         ),
       ]);
       expect(texts, hasLength(2));
-      expect(texts.first, 'rent 1400');
+      expect(texts.first, 'groceries 1400');
       expect(texts.last, contains('1500'));
     });
 

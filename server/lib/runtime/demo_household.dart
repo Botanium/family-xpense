@@ -183,9 +183,8 @@ InMemoryHousehold demoHousehold(String today) {
         'expense',
         140000,
         early(1),
-        'Rent',
-        // D-41 removed the `rent` category; the household files it here.
-        categoryId: 'other_expense',
+        'Generator',
+        categoryId: 'electricity_generator',
         whoScope: 'joint',
       ),
       t(

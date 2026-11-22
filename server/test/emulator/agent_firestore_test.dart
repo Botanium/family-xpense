@@ -74,9 +74,9 @@ void _tests() {
       'ownerUid': 'u2',
       'visibleTo': ['u2'],
     });
-    await db.doc('$h/categories/rent').set({
-      'slug': 'rent',
-      'names': {'en': 'Rent'},
+    await db.doc('$h/categories/water').set({
+      'slug': 'water',
+      'names': {'en': 'Water'},
       'kind': 'expense',
     });
     await db.doc('$h/categories/salary').set({
@@ -125,7 +125,7 @@ void _tests() {
     expect(await reader.accounts('hh1', uid: 'u2'), hasLength(2));
     expect(
       (await reader.categories('hh1')).map((c) => c.name),
-      containsAll(['Rent', 'Salary']),
+      containsAll(['Water', 'Salary']),
     );
     final txns = await reader.transactions(
       'hh1',
@@ -143,7 +143,7 @@ void _tests() {
 
   test('sessions are stored under agentSessions/{hid}_{uid}', () async {
     final ai = Genkit(plugins: [A2uiPlugin()], promptDir: 'prompts');
-    final script = Script(entries: salaryRent, render: scriptedCapture);
+    final script = Script(entries: salaryGroceries, render: scriptedCapture);
     defineScripted(ai, 'test/lite', script);
     final rt = XpenseAgentRuntime.create(
       ai: ai,
@@ -165,7 +165,7 @@ void _tests() {
       'tz': 'Asia/Baghdad',
     };
     final res = await rt.runTurn(
-      'Salary came in 3200 and I paid rent 1400',
+      'Salary came in 3200 and groceries were 1400',
       context: context,
     );
     final snapshotId = res['snapshotId'] as String;

@@ -39,7 +39,7 @@ void main() {
         {
           'role': 'user',
           'content': [
-            {'text': 'Salary came in 3,200 and I paid rent 1400'},
+            {'text': 'Salary came in 3,200 and groceries were 1400'},
           ],
         },
         {
@@ -130,7 +130,7 @@ void main() {
       {
         'role': 'user',
         'content': [
-          {'text': 'rent 1400'},
+          {'text': 'groceries 1400'},
         ],
       },
     ]);

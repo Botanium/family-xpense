@@ -351,7 +351,7 @@ Core rules in the agent prompt:
 
 ### Local runs
 
-`genkit flow:run tryCapture '"Salary came in 3200 and I paid rent 1400"' -- dart run bin/server.dart` and `tryQuestion` run one turn as the demo member (`runtime/demo_household.dart`). With `XPENSE_AGENT_DATA=demo` the household comes from memory and nothing else is needed but a key; with the Firestore emulator, `tool/seed_demo_household.dart` seeds it and the production path runs (Firestore reader, Firestore sessions, the `/decide` classifier, usage counters). `tool/with_gemini_key.sh` reads the latest `GEMINI_API_KEY` version from Secret Manager into the process environment only. The try flows are throwaway and go when WP-35's evaluation flows arrive.
+`genkit flow:run tryCapture '"Salary came in 3200 and groceries were 140"' -- dart run bin/server.dart` and `tryQuestion` run one turn as the demo member (`runtime/demo_household.dart`). With `XPENSE_AGENT_DATA=demo` the household comes from memory and nothing else is needed but a key; with the Firestore emulator, `tool/seed_demo_household.dart` seeds it and the production path runs (Firestore reader, Firestore sessions, the `/decide` classifier, usage counters). `tool/with_gemini_key.sh` reads the latest `GEMINI_API_KEY` version from Secret Manager into the process environment only. The try flows are throwaway and go when WP-35's evaluation flows arrive.
 
 ### Schemas (schemantic, in `packages/xpense_shared/lib/schema/`; tool schemas in `server/lib/tools/schemas.dart`)
 

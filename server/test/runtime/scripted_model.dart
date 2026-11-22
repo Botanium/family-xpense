@@ -75,8 +75,8 @@ String scriptedCapture(List<Object?> drafts) =>
     '\$/drafts = ${jsonEncode(drafts)}\n'
     'root = EntryList(\$/drafts, "review", "Two entries")\n</a2ui>';
 
-/// The salary-and-rent entries.
-const salaryRent = [
+/// The salary-and-groceries entries.
+const salaryGroceries = [
   {
     'intent': 'income',
     'amount': '3200',
@@ -87,8 +87,8 @@ const salaryRent = [
   {
     'intent': 'expense',
     'amount': '1400',
-    'text': 'I paid rent 1400',
-    'categoryHint': 'rent',
+    'text': 'groceries were 1400',
+    'categoryHint': 'groceries',
     'accountHint': 'checking',
   },
 ];

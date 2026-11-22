@@ -254,7 +254,7 @@ base class _ProposedEntryTypeFactory extends SchemanticType<ProposedEntry> {
         },
         'text': <String, Object?>{
           'type': 'string',
-          'description': 'The words of the message about this entry only, copied verbatim, e.g. "paid rent 1400".',
+          'description': 'The words of the message about this entry only, copied verbatim, e.g. "paid the generator 50".',
           'maxLength': 300,
         },
         'dateWords': <String, Object?>{
@@ -284,7 +284,7 @@ base class _ProposedEntryTypeFactory extends SchemanticType<ProposedEntry> {
         },
         'title': <String, Object?>{
           'type': 'string',
-          'description': 'Merchant or short label, e.g. "Rent".',
+          'description': 'Merchant or short label, e.g. "Generator".',
         },
       },
     },

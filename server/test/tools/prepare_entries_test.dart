@@ -14,7 +14,7 @@ void main() {
     test(
       'two entries in one message become two drafts with fresh ids',
       () async {
-        const text = 'Salary came in 3200 and I paid rent 1400';
+        const text = 'Salary came in 3200 and groceries were 1400';
         final out = await prepareEntries(
           _input([
             ProposedEntry(
@@ -27,7 +27,7 @@ void main() {
             ProposedEntry(
               intent: 'expense',
               amount: '1400',
-              text: 'I paid rent 1400',
+              text: 'groceries were 1400',
               categoryHint: 'rent',
               accountHint: 'checking',
               title: 'Rent',
@@ -89,10 +89,10 @@ void main() {
       () async {
         final out = await prepareEntries(
           _input([
-            ProposedEntry(intent: 'expense', amount: '1500', text: 'rent'),
+            ProposedEntry(intent: 'expense', amount: '1500', text: 'generator'),
           ]),
           dara,
-          demoDeps(texts: ['I paid rent', 'it was 1,500 dollars']),
+          demoDeps(texts: ['I paid the generator', 'it was 1,500 dollars']),
         );
         expect(out.drafts.single.amountMinor, 150000);
         expect(
@@ -324,9 +324,9 @@ void main() {
           entries: [
             ProposedEntry(
               intent: 'expense',
-              amount: '1400',
-              text: 'I paid rent 1400',
-              categoryHint: 'apartment_gas',
+              amount: '14',
+              text: 'lunch 14',
+              categoryHint: 'bakery_tea',
             ),
             ProposedEntry(
               intent: 'expense',
@@ -337,12 +337,12 @@ void main() {
           ],
         ),
         dara,
-        demoDeps(texts: ['I paid rent 1400 and taxi 12']),
+        demoDeps(texts: ['lunch 14 and taxi 12']),
       );
-      final [rent, taxi] = out.drafts;
-      expect(rent.categoryId, 'apartment_gas');
-      expect(rent.guessed, contains('categoryId'));
-      expect(rent.confidence?.category, isNull);
+      final [lunch, taxi] = out.drafts;
+      expect(lunch.categoryId, 'bakery_tea');
+      expect(lunch.guessed, contains('categoryId'));
+      expect(lunch.confidence?.category, isNull);
       expect(taxi.categoryId, 'taxi');
       expect(taxi.confidence?.category, 1);
     });
