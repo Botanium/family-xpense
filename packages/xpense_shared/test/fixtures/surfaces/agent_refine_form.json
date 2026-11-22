@@ -1,0 +1,97 @@
+[
+  {
+    "version": "1.0",
+    "deleteSurface": {
+      "surfaceId": "ref_note"
+    }
+  },
+  {
+    "version": "1.0",
+    "createSurface": {
+      "surfaceId": "ref_note",
+      "catalogId": "https://familyxpense.app/a2ui/catalogs/xpense/v1/catalog.json",
+      "sendDataModel": false,
+      "components": [
+        {
+          "id": "root",
+          "component": "Column",
+          "children": [
+            "ask",
+            "note",
+            "day",
+            "send"
+          ]
+        },
+        {
+          "id": "ask",
+          "component": "Text",
+          "text": "What should I change?",
+          "variant": "caption"
+        },
+        {
+          "id": "note",
+          "component": "TextField",
+          "label": "Note",
+          "value": {
+            "@path": "/answer/note"
+          },
+          "placeholder": "e.g. it was split with my sister",
+          "variant": "longText"
+        },
+        {
+          "id": "day",
+          "component": "DateTimeInput",
+          "value": {
+            "@path": "/answer/day"
+          },
+          "enableDate": true,
+          "enableTime": false,
+          "label": "Day"
+        },
+        {
+          "id": "send",
+          "component": "Button",
+          "child": "sendLabel",
+          "variant": "primary",
+          "action": {
+            "event": {
+              "name": "xp.refine",
+              "context": {
+                "note": {
+                  "@path": "/answer/note"
+                },
+                "day": {
+                  "@path": "/answer/day"
+                }
+              }
+            }
+          },
+          "checks": [
+            {
+              "condition": {
+                "@call": "required",
+                "args": {
+                  "value": {
+                    "@path": "/answer/note"
+                  }
+                }
+              },
+              "message": "Say a few words"
+            }
+          ]
+        },
+        {
+          "id": "sendLabel",
+          "component": "Text",
+          "text": "Send"
+        }
+      ],
+      "dataModel": {
+        "answer": {
+          "note": "",
+          "day": "2026-11-22"
+        }
+      }
+    }
+  }
+]

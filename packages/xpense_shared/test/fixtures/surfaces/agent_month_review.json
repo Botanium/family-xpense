@@ -1,0 +1,118 @@
+[
+  {
+    "version": "1.0",
+    "deleteSurface": {
+      "surfaceId": "ans_month_nov"
+    }
+  },
+  {
+    "version": "1.0",
+    "createSurface": {
+      "surfaceId": "ans_month_nov",
+      "catalogId": "https://familyxpense.app/a2ui/catalogs/xpense/v1/catalog.json",
+      "sendDataModel": false,
+      "components": [
+        {
+          "id": "root",
+          "component": "Column",
+          "children": [
+            "intro",
+            "ledger",
+            "rule",
+            "chart",
+            "budget"
+          ]
+        },
+        {
+          "id": "intro",
+          "component": "Text",
+          "text": "## November so far\nYou spent **less** than October. Two things stood out:\n- Dining is *near* its limit\n- Rent is paid"
+        },
+        {
+          "id": "ledger",
+          "component": "Column",
+          "children": [
+            "inc",
+            "out",
+            "sav"
+          ]
+        },
+        {
+          "id": "inc",
+          "component": "LedgerRow",
+          "label": "Income",
+          "amountMinor": {
+            "@path": "/result/income"
+          },
+          "currency": "USD",
+          "dot": "income"
+        },
+        {
+          "id": "out",
+          "component": "LedgerRow",
+          "label": "Spent",
+          "amountMinor": {
+            "@path": "/result/spent"
+          },
+          "currency": "USD",
+          "dot": "spent"
+        },
+        {
+          "id": "sav",
+          "component": "LedgerRow",
+          "label": "Saved",
+          "amountMinor": {
+            "@path": "/result/saved"
+          },
+          "currency": "USD",
+          "dot": "saved"
+        },
+        {
+          "id": "rule",
+          "component": "Divider"
+        },
+        {
+          "id": "chart",
+          "component": "MiniBars",
+          "values": {
+            "@path": "/result/days"
+          },
+          "caption": "avg 202/day",
+          "highlight": "last",
+          "description": "Daily spending for November 1 to 14; today is the highest"
+        },
+        {
+          "id": "budget",
+          "component": "BudgetMeter",
+          "label": "Dining",
+          "spentMinor": 85000,
+          "limitMinor": 120000,
+          "currency": "IQD"
+        }
+      ],
+      "dataModel": {
+        "result": {
+          "days": [
+            120,
+            80,
+            0,
+            210,
+            340,
+            95,
+            180,
+            260,
+            150,
+            75,
+            300,
+            410,
+            220,
+            190
+          ],
+          "income": 565000,
+          "spent": 312040,
+          "saved": 60000
+        }
+      }
+    }
+  }
+]

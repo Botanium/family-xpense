@@ -232,5 +232,531 @@
   "lockFailed": "Couldn't unlock. Try again.",
   "@lockFailed": {
     "description": "Shown on the lock screen when authentication failed for another reason."
+  },
+
+  "a2uiApprox": "≈ {money}",
+  "@a2uiApprox": {
+    "description": "Converted amount under a figure on an agent card, such as \"≈ USD 5.87\".",
+    "placeholders": {
+      "money": {
+        "type": "String"
+      }
+    }
+  },
+  "a2uiAmountUnknown": "Amount in an unknown currency",
+  "@a2uiAmountUnknown": {
+    "description": "VoiceOver label of an amount whose currency the app does not know (shown as a dash)."
+  },
+  "a2uiAmountOutOfRange": "Check the amount; it looks too large or too small.",
+  "@a2uiAmountOutOfRange": {
+    "description": "Problem line on an entry slip when the amount is outside the allowed range."
+  },
+  "a2uiCurrencyMismatch": "This account is in {currency}.",
+  "@a2uiCurrencyMismatch": {
+    "description": "Problem line on an entry slip when the entry currency differs from its account.",
+    "placeholders": {
+      "currency": {
+        "type": "String"
+      }
+    }
+  },
+  "a2uiUnknownAccount": "That account isn't in your household.",
+  "@a2uiUnknownAccount": {
+    "description": "Problem line on an entry slip when the account id is not known."
+  },
+  "a2uiUnknownCategory": "That category isn't in your household.",
+  "@a2uiUnknownCategory": {
+    "description": "Problem line on an entry slip when the category id is not known."
+  },
+  "a2uiUnknownReference": "Something this entry points to isn't in your household.",
+  "@a2uiUnknownReference": {
+    "description": "Problem line on an entry slip when a person, loan or goal id is not known."
+  },
+  "a2uiTooManyDrafts": "Save at most {count} entries at a time.",
+  "@a2uiTooManyDrafts": {
+    "description": "Shown above an entry list with too many entries to save at once.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "a2uiAnswerAbove": "Answer the question above to save.",
+  "@a2uiAnswerAbove": {
+    "description": "Hint under the disabled Save button while the kind of entry is still being asked."
+  },
+  "a2uiSaveEntries": "{count, plural, =1{Save} other{Save {count} entries}}",
+  "@a2uiSaveEntries": {
+    "description": "Primary button on an entry list that saves its entries (two entries use a2uiSaveBoth).",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "a2uiSaveBoth": "Save both",
+  "@a2uiSaveBoth": {
+    "description": "Primary button on an entry list with exactly two entries."
+  },
+  "a2uiSaving": "Saving…",
+  "@a2uiSaving": {
+    "description": "Primary button label while entries are being saved."
+  },
+  "a2uiSavedEntries": "{count, plural, =1{Saved.} other{Saved {count} entries.}}",
+  "@a2uiSavedEntries": {
+    "description": "Confirmation after saving entries from a card; also announced by VoiceOver.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "a2uiSavedLabel": "Saved",
+  "@a2uiSavedLabel": {
+    "description": "First word of the mono line on a saved entry slip, as in \"SAVED · DINING\"."
+  },
+  "a2uiSaveFailed": "Couldn't save. Your entries are still here.",
+  "@a2uiSaveFailed": {
+    "description": "Shown under the Save button when saving failed."
+  },
+  "a2uiUndo": "Undo",
+  "@a2uiUndo": {
+    "description": "Text button that undoes a save, shown for ten seconds."
+  },
+  "a2uiUndoFailed": "Couldn't undo. The entries are still saved; try again.",
+  "@a2uiUndoFailed": {
+    "description": "Shown when undoing a save failed; Undo stays available to retry."
+  },
+  "a2uiGuessed": "Guessed",
+  "@a2uiGuessed": {
+    "description": "Badge on a field the app guessed; shown upper-case."
+  },
+  "a2uiChangeField": "{field}. Change",
+  "@a2uiChangeField": {
+    "description": "VoiceOver label of a tappable field on an entry slip; the field and its value come first.",
+    "placeholders": {
+      "field": {
+        "type": "String"
+      }
+    }
+  },
+  "a2uiFieldWho": "Who",
+  "@a2uiFieldWho": {
+    "description": "Field label on an entry slip: whose entry it is."
+  },
+  "a2uiFieldWhen": "When",
+  "@a2uiFieldWhen": {
+    "description": "Field label on an entry slip: the day."
+  },
+  "a2uiFieldFrom": "From",
+  "@a2uiFieldFrom": {
+    "description": "Field label on an entry slip: the account money leaves."
+  },
+  "a2uiFieldInto": "Into",
+  "@a2uiFieldInto": {
+    "description": "Field label on an entry slip: the account money goes into."
+  },
+  "a2uiFieldTo": "To",
+  "@a2uiFieldTo": {
+    "description": "Field label on a transfer slip: the destination account."
+  },
+  "a2uiFieldWith": "With",
+  "@a2uiFieldWith": {
+    "description": "Field label on a loan slip: the other person."
+  },
+  "a2uiFieldGoal": "Goal",
+  "@a2uiFieldGoal": {
+    "description": "Field label on a savings slip: the goal."
+  },
+  "a2uiAskAccount": "Which account?",
+  "@a2uiAskAccount": {
+    "description": "Question on an entry slip when the account is missing."
+  },
+  "a2uiAskToAccount": "Into which account?",
+  "@a2uiAskToAccount": {
+    "description": "Question on a transfer slip when the destination is missing."
+  },
+  "a2uiAskCategory": "Which category?",
+  "@a2uiAskCategory": {
+    "description": "Question on an entry slip when the category is missing."
+  },
+  "a2uiAskWho": "Whose is it?",
+  "@a2uiAskWho": {
+    "description": "Question on an entry slip when it is unclear whose entry it is."
+  },
+  "a2uiAskDay": "Which day?",
+  "@a2uiAskDay": {
+    "description": "Question on an entry slip when the day is missing."
+  },
+  "a2uiAskPerson": "Who with?",
+  "@a2uiAskPerson": {
+    "description": "Question on a loan slip when the person is missing."
+  },
+  "a2uiAskGoal": "Which goal?",
+  "@a2uiAskGoal": {
+    "description": "Question on a savings slip when the goal is missing."
+  },
+  "a2uiAskIntent": "What kind of entry is it?",
+  "@a2uiAskIntent": {
+    "description": "Question on an entry slip when its kind is being changed."
+  },
+  "a2uiAskInForm": "This needs the full form.",
+  "@a2uiAskInForm": {
+    "description": "Shown on an entry slip when a missing field can only be set in the manual form."
+  },
+  "a2uiFixInForm": "Fix it in the form",
+  "@a2uiFixInForm": {
+    "description": "Text button that opens the manual entry form, prefilled."
+  },
+  "a2uiMore": "More…",
+  "@a2uiMore": {
+    "description": "Chip that shows every option of a field picker."
+  },
+  "a2uiOtherDay": "Another day…",
+  "@a2uiOtherDay": {
+    "description": "Chip that opens the date picker for an entry."
+  },
+  "a2uiDayToday": "Today",
+  "@a2uiDayToday": {
+    "description": "A day: today."
+  },
+  "a2uiDayYesterday": "Yesterday",
+  "@a2uiDayYesterday": {
+    "description": "A day: yesterday."
+  },
+  "a2uiDayAtTime": "{date} {time}",
+  "@a2uiDayAtTime": {
+    "description": "A day with its time, such as \"Today 13:20\".",
+    "placeholders": {
+      "date": {
+        "type": "String"
+      },
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "a2uiWhoMe": "You",
+  "@a2uiWhoMe": {
+    "description": "Whose entry: the member using the app."
+  },
+  "a2uiWhoPartner": "Partner",
+  "@a2uiWhoPartner": {
+    "description": "Whose entry: the partner, before their name is known."
+  },
+  "a2uiWhoJoint": "Joint",
+  "@a2uiWhoJoint": {
+    "description": "Whose entry: both partners."
+  },
+  "a2uiIntentExpense": "Expense",
+  "@a2uiIntentExpense": {
+    "description": "Kind of entry: money spent."
+  },
+  "a2uiIntentIncome": "Income",
+  "@a2uiIntentIncome": {
+    "description": "Kind of entry: money earned."
+  },
+  "a2uiIntentTransfer": "Transfer",
+  "@a2uiIntentTransfer": {
+    "description": "Kind of entry: between own accounts."
+  },
+  "a2uiIntentSavingsMove": "Savings",
+  "@a2uiIntentSavingsMove": {
+    "description": "Kind of entry: money moved to savings or a goal."
+  },
+  "a2uiIntentLoanGiven": "Lent",
+  "@a2uiIntentLoanGiven": {
+    "description": "Kind of entry: money lent to someone."
+  },
+  "a2uiIntentLoanTaken": "Borrowed",
+  "@a2uiIntentLoanTaken": {
+    "description": "Kind of entry: money borrowed from someone."
+  },
+  "a2uiIntentRepaymentReceived": "Repaid to us",
+  "@a2uiIntentRepaymentReceived": {
+    "description": "Kind of entry: someone repaid a loan."
+  },
+  "a2uiIntentRepaymentMade": "Repaid",
+  "@a2uiIntentRepaymentMade": {
+    "description": "Kind of entry: we repaid a debt."
+  },
+  "a2uiIntentAdjustment": "Adjustment",
+  "@a2uiIntentAdjustment": {
+    "description": "Kind of entry: a balance correction."
+  },
+  "a2uiIntentUnknown": "Entry",
+  "@a2uiIntentUnknown": {
+    "description": "Kind of entry when it is not known."
+  },
+  "a2uiDuplicateHint": "Looks like one you already saved",
+  "@a2uiDuplicateHint": {
+    "description": "Warning on an entry slip that may duplicate a saved entry."
+  },
+  "a2uiDuplicateView": "View",
+  "@a2uiDuplicateView": {
+    "description": "Text button that opens the saved entry a draft may duplicate."
+  },
+  "a2uiDuplicateKeep": "Save anyway",
+  "@a2uiDuplicateKeep": {
+    "description": "Text button that dismisses the duplicate warning."
+  },
+  "a2uiRateQuestion": "Today's dollar rate?",
+  "@a2uiRateQuestion": {
+    "description": "Inline question on an entry slip when no exchange rate was entered today; followed by the latest rate."
+  },
+  "a2uiRateUse": "Use it",
+  "@a2uiRateUse": {
+    "description": "Text button that keeps the latest exchange rate for today."
+  },
+  "a2uiRateChange": "Change",
+  "@a2uiRateChange": {
+    "description": "Text button that opens the number pad to type today's rate."
+  },
+  "a2uiRateSpoken": "Today's dollar rate? The latest was {rate} dinars.",
+  "@a2uiRateSpoken": {
+    "description": "VoiceOver label of the inline rate question.",
+    "placeholders": {
+      "rate": {
+        "type": "String"
+      }
+    }
+  },
+  "a2uiRateTitle": "Today's dollar rate",
+  "@a2uiRateTitle": {
+    "description": "Title of the sheet where today's exchange rate is typed."
+  },
+  "a2uiRateUnit": "IQD per USD",
+  "@a2uiRateUnit": {
+    "description": "Unit after the typed exchange rate."
+  },
+  "a2uiRateSave": "Save",
+  "@a2uiRateSave": {
+    "description": "Button that saves the typed exchange rate."
+  },
+  "a2uiRateBackspace": "Delete",
+  "@a2uiRateBackspace": {
+    "description": "VoiceOver label of the backspace key on the rate number pad."
+  },
+  "a2uiNeedsReview": "Needs review",
+  "@a2uiNeedsReview": {
+    "description": "Label on an entry the app could not read; it must be edited before saving."
+  },
+  "a2uiNeedsReviewBody": "Something in this entry didn't come through. Edit it to save.",
+  "@a2uiNeedsReviewBody": {
+    "description": "Body of an entry the app could not read."
+  },
+  "a2uiEdit": "Edit",
+  "@a2uiEdit": {
+    "description": "Text button that opens the manual form for an entry that needs review."
+  },
+  "a2uiRecurringMonthly": "Repeat {title} every month?",
+  "@a2uiRecurringMonthly": {
+    "description": "Offer after saving an entry that looks monthly.",
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "a2uiRecurringMonthlyOn": "Repeat {title} every month, on day {day}?",
+  "@a2uiRecurringMonthlyOn": {
+    "description": "Offer after saving an entry that looks monthly on a given day.",
+    "placeholders": {
+      "title": {
+        "type": "String"
+      },
+      "day": {
+        "type": "int"
+      }
+    }
+  },
+  "a2uiRecurringWeekly": "Repeat {title} every week?",
+  "@a2uiRecurringWeekly": {
+    "description": "Offer after saving an entry that looks weekly.",
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "a2uiRecurringYes": "Make it repeat",
+  "@a2uiRecurringYes": {
+    "description": "Text button that makes a saved entry recurring."
+  },
+  "a2uiRecurringNo": "Not now",
+  "@a2uiRecurringNo": {
+    "description": "Text button that declines the recurring offer."
+  },
+  "a2uiOther": "Other…",
+  "@a2uiOther": {
+    "description": "Chip that opens a text field for an answer not in the list."
+  },
+  "a2uiOtherLabel": "Your answer",
+  "@a2uiOtherLabel": {
+    "description": "Label of the text field for an answer not in the list."
+  },
+  "a2uiDone": "Done",
+  "@a2uiDone": {
+    "description": "Text button that confirms a typed answer."
+  },
+  "a2uiReceiptSplit": "Split by category",
+  "@a2uiReceiptSplit": {
+    "description": "Switch on a receipt card that saves one entry per category."
+  },
+  "a2uiReceiptRetake": "Retake",
+  "@a2uiReceiptRetake": {
+    "description": "Button that reopens the camera to scan the receipt again."
+  },
+  "a2uiReceiptOnDevice": "Read on device",
+  "@a2uiReceiptOnDevice": {
+    "description": "Chip on a receipt card read on the phone, without the cloud."
+  },
+  "a2uiReceiptUncategorized": "Other",
+  "@a2uiReceiptUncategorized": {
+    "description": "Receipt group of lines without a category."
+  },
+  "a2uiReceiptItems": "{count, plural, =1{1 item} other{{count} items}}",
+  "@a2uiReceiptItems": {
+    "description": "Number of receipt lines in a group.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "a2uiReceiptUnreadable": "This receipt couldn't be read.",
+  "@a2uiReceiptUnreadable": {
+    "description": "Shown on a receipt card whose data is malformed."
+  },
+  "a2uiTranscriptHeard": "Heard: {text}",
+  "@a2uiTranscriptHeard": {
+    "description": "VoiceOver label of the quoted words the phone heard or read.",
+    "placeholders": {
+      "text": {
+        "type": "String"
+      }
+    }
+  },
+  "a2uiListEmpty": "Nothing here yet.",
+  "@a2uiListEmpty": {
+    "description": "Shown by a list of entries on an agent card when it is empty."
+  },
+  "a2uiBudgetFigures": "{spent} / {limit}",
+  "@a2uiBudgetFigures": {
+    "description": "Spent and limit of a budget, such as \"85,000 / 120,000\".",
+    "placeholders": {
+      "spent": {
+        "type": "String"
+      },
+      "limit": {
+        "type": "String"
+      }
+    }
+  },
+  "a2uiBudgetLeft": "{left} left",
+  "@a2uiBudgetLeft": {
+    "description": "Amount left in a budget.",
+    "placeholders": {
+      "left": {
+        "type": "String"
+      }
+    }
+  },
+  "a2uiBudgetOver": "Over by {left}",
+  "@a2uiBudgetOver": {
+    "description": "Amount by which a budget is exceeded.",
+    "placeholders": {
+      "left": {
+        "type": "String"
+      }
+    }
+  },
+  "a2uiLoanOwesYou": "{name} owes you",
+  "@a2uiLoanOwesYou": {
+    "description": "Title of a loan card for money lent.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "a2uiLoanYouOwe": "You owe {name}",
+  "@a2uiLoanYouOwe": {
+    "description": "Title of a loan card for money borrowed.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "a2uiLoanOf": "of {principal}",
+  "@a2uiLoanOf": {
+    "description": "The original amount of a loan, after the outstanding amount.",
+    "placeholders": {
+      "principal": {
+        "type": "String"
+      }
+    }
+  },
+  "a2uiLoanDue": "Due {date}",
+  "@a2uiLoanDue": {
+    "description": "Due day of a loan.",
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "a2uiLoanRepaid": "Repaid so far",
+  "@a2uiLoanRepaid": {
+    "description": "VoiceOver label of the repaid bar on a loan card."
+  },
+  "a2uiLoanRecordRepayment": "Record a repayment",
+  "@a2uiLoanRecordRepayment": {
+    "description": "Text button on a loan card that opens the loan to record a repayment."
+  },
+  "a2uiGoalFigures": "{saved} of {target}",
+  "@a2uiGoalFigures": {
+    "description": "Saved and target of a goal card.",
+    "placeholders": {
+      "saved": {
+        "type": "String"
+      },
+      "target": {
+        "type": "String"
+      }
+    }
+  },
+  "a2uiNudgeBill": "Bill reminder",
+  "@a2uiNudgeBill": {
+    "description": "VoiceOver prefix of a nudge about a bill."
+  },
+  "a2uiNudgeBudget": "Budget",
+  "@a2uiNudgeBudget": {
+    "description": "VoiceOver prefix of a nudge about a budget."
+  },
+  "a2uiNudgeLoan": "Loan",
+  "@a2uiNudgeLoan": {
+    "description": "VoiceOver prefix of a nudge about a loan."
+  },
+  "a2uiNudgeRate": "Exchange rate",
+  "@a2uiNudgeRate": {
+    "description": "VoiceOver prefix of a nudge about the exchange rate."
+  },
+  "a2uiNudgeReport": "Report",
+  "@a2uiNudgeReport": {
+    "description": "VoiceOver prefix of a nudge about a report."
+  },
+  "a2uiNudgeInfo": "Note",
+  "@a2uiNudgeInfo": {
+    "description": "VoiceOver prefix of any other nudge."
+  },
+  "a2uiDateTimeLabel": "Date",
+  "@a2uiDateTimeLabel": {
+    "description": "Label of a date field on an agent card when it has none."
+  },
+  "a2uiDateTimeEmpty": "Not set",
+  "@a2uiDateTimeEmpty": {
+    "description": "Value of a date field that is empty."
   }
 }

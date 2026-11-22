@@ -425,6 +425,618 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Couldn\'t unlock. Try again.'**
   String get lockFailed;
+
+  /// Converted amount under a figure on an agent card, such as "≈ USD 5.87".
+  ///
+  /// In en, this message translates to:
+  /// **'≈ {money}'**
+  String a2uiApprox(String money);
+
+  /// VoiceOver label of an amount whose currency the app does not know (shown as a dash).
+  ///
+  /// In en, this message translates to:
+  /// **'Amount in an unknown currency'**
+  String get a2uiAmountUnknown;
+
+  /// Problem line on an entry slip when the amount is outside the allowed range.
+  ///
+  /// In en, this message translates to:
+  /// **'Check the amount; it looks too large or too small.'**
+  String get a2uiAmountOutOfRange;
+
+  /// Problem line on an entry slip when the entry currency differs from its account.
+  ///
+  /// In en, this message translates to:
+  /// **'This account is in {currency}.'**
+  String a2uiCurrencyMismatch(String currency);
+
+  /// Problem line on an entry slip when the account id is not known.
+  ///
+  /// In en, this message translates to:
+  /// **'That account isn\'t in your household.'**
+  String get a2uiUnknownAccount;
+
+  /// Problem line on an entry slip when the category id is not known.
+  ///
+  /// In en, this message translates to:
+  /// **'That category isn\'t in your household.'**
+  String get a2uiUnknownCategory;
+
+  /// Problem line on an entry slip when a person, loan or goal id is not known.
+  ///
+  /// In en, this message translates to:
+  /// **'Something this entry points to isn\'t in your household.'**
+  String get a2uiUnknownReference;
+
+  /// Shown above an entry list with too many entries to save at once.
+  ///
+  /// In en, this message translates to:
+  /// **'Save at most {count} entries at a time.'**
+  String a2uiTooManyDrafts(int count);
+
+  /// Hint under the disabled Save button while the kind of entry is still being asked.
+  ///
+  /// In en, this message translates to:
+  /// **'Answer the question above to save.'**
+  String get a2uiAnswerAbove;
+
+  /// Primary button on an entry list that saves its entries (two entries use a2uiSaveBoth).
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{Save} other{Save {count} entries}}'**
+  String a2uiSaveEntries(int count);
+
+  /// Primary button on an entry list with exactly two entries.
+  ///
+  /// In en, this message translates to:
+  /// **'Save both'**
+  String get a2uiSaveBoth;
+
+  /// Primary button label while entries are being saved.
+  ///
+  /// In en, this message translates to:
+  /// **'Saving…'**
+  String get a2uiSaving;
+
+  /// Confirmation after saving entries from a card; also announced by VoiceOver.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{Saved.} other{Saved {count} entries.}}'**
+  String a2uiSavedEntries(int count);
+
+  /// First word of the mono line on a saved entry slip, as in "SAVED · DINING".
+  ///
+  /// In en, this message translates to:
+  /// **'Saved'**
+  String get a2uiSavedLabel;
+
+  /// Shown under the Save button when saving failed.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t save. Your entries are still here.'**
+  String get a2uiSaveFailed;
+
+  /// Text button that undoes a save, shown for ten seconds.
+  ///
+  /// In en, this message translates to:
+  /// **'Undo'**
+  String get a2uiUndo;
+
+  /// Shown when undoing a save failed; Undo stays available to retry.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t undo. The entries are still saved; try again.'**
+  String get a2uiUndoFailed;
+
+  /// Badge on a field the app guessed; shown upper-case.
+  ///
+  /// In en, this message translates to:
+  /// **'Guessed'**
+  String get a2uiGuessed;
+
+  /// VoiceOver label of a tappable field on an entry slip; the field and its value come first.
+  ///
+  /// In en, this message translates to:
+  /// **'{field}. Change'**
+  String a2uiChangeField(String field);
+
+  /// Field label on an entry slip: whose entry it is.
+  ///
+  /// In en, this message translates to:
+  /// **'Who'**
+  String get a2uiFieldWho;
+
+  /// Field label on an entry slip: the day.
+  ///
+  /// In en, this message translates to:
+  /// **'When'**
+  String get a2uiFieldWhen;
+
+  /// Field label on an entry slip: the account money leaves.
+  ///
+  /// In en, this message translates to:
+  /// **'From'**
+  String get a2uiFieldFrom;
+
+  /// Field label on an entry slip: the account money goes into.
+  ///
+  /// In en, this message translates to:
+  /// **'Into'**
+  String get a2uiFieldInto;
+
+  /// Field label on a transfer slip: the destination account.
+  ///
+  /// In en, this message translates to:
+  /// **'To'**
+  String get a2uiFieldTo;
+
+  /// Field label on a loan slip: the other person.
+  ///
+  /// In en, this message translates to:
+  /// **'With'**
+  String get a2uiFieldWith;
+
+  /// Field label on a savings slip: the goal.
+  ///
+  /// In en, this message translates to:
+  /// **'Goal'**
+  String get a2uiFieldGoal;
+
+  /// Question on an entry slip when the account is missing.
+  ///
+  /// In en, this message translates to:
+  /// **'Which account?'**
+  String get a2uiAskAccount;
+
+  /// Question on a transfer slip when the destination is missing.
+  ///
+  /// In en, this message translates to:
+  /// **'Into which account?'**
+  String get a2uiAskToAccount;
+
+  /// Question on an entry slip when the category is missing.
+  ///
+  /// In en, this message translates to:
+  /// **'Which category?'**
+  String get a2uiAskCategory;
+
+  /// Question on an entry slip when it is unclear whose entry it is.
+  ///
+  /// In en, this message translates to:
+  /// **'Whose is it?'**
+  String get a2uiAskWho;
+
+  /// Question on an entry slip when the day is missing.
+  ///
+  /// In en, this message translates to:
+  /// **'Which day?'**
+  String get a2uiAskDay;
+
+  /// Question on a loan slip when the person is missing.
+  ///
+  /// In en, this message translates to:
+  /// **'Who with?'**
+  String get a2uiAskPerson;
+
+  /// Question on a savings slip when the goal is missing.
+  ///
+  /// In en, this message translates to:
+  /// **'Which goal?'**
+  String get a2uiAskGoal;
+
+  /// Question on an entry slip when its kind is being changed.
+  ///
+  /// In en, this message translates to:
+  /// **'What kind of entry is it?'**
+  String get a2uiAskIntent;
+
+  /// Shown on an entry slip when a missing field can only be set in the manual form.
+  ///
+  /// In en, this message translates to:
+  /// **'This needs the full form.'**
+  String get a2uiAskInForm;
+
+  /// Text button that opens the manual entry form, prefilled.
+  ///
+  /// In en, this message translates to:
+  /// **'Fix it in the form'**
+  String get a2uiFixInForm;
+
+  /// Chip that shows every option of a field picker.
+  ///
+  /// In en, this message translates to:
+  /// **'More…'**
+  String get a2uiMore;
+
+  /// Chip that opens the date picker for an entry.
+  ///
+  /// In en, this message translates to:
+  /// **'Another day…'**
+  String get a2uiOtherDay;
+
+  /// A day: today.
+  ///
+  /// In en, this message translates to:
+  /// **'Today'**
+  String get a2uiDayToday;
+
+  /// A day: yesterday.
+  ///
+  /// In en, this message translates to:
+  /// **'Yesterday'**
+  String get a2uiDayYesterday;
+
+  /// A day with its time, such as "Today 13:20".
+  ///
+  /// In en, this message translates to:
+  /// **'{date} {time}'**
+  String a2uiDayAtTime(String date, String time);
+
+  /// Whose entry: the member using the app.
+  ///
+  /// In en, this message translates to:
+  /// **'You'**
+  String get a2uiWhoMe;
+
+  /// Whose entry: the partner, before their name is known.
+  ///
+  /// In en, this message translates to:
+  /// **'Partner'**
+  String get a2uiWhoPartner;
+
+  /// Whose entry: both partners.
+  ///
+  /// In en, this message translates to:
+  /// **'Joint'**
+  String get a2uiWhoJoint;
+
+  /// Kind of entry: money spent.
+  ///
+  /// In en, this message translates to:
+  /// **'Expense'**
+  String get a2uiIntentExpense;
+
+  /// Kind of entry: money earned.
+  ///
+  /// In en, this message translates to:
+  /// **'Income'**
+  String get a2uiIntentIncome;
+
+  /// Kind of entry: between own accounts.
+  ///
+  /// In en, this message translates to:
+  /// **'Transfer'**
+  String get a2uiIntentTransfer;
+
+  /// Kind of entry: money moved to savings or a goal.
+  ///
+  /// In en, this message translates to:
+  /// **'Savings'**
+  String get a2uiIntentSavingsMove;
+
+  /// Kind of entry: money lent to someone.
+  ///
+  /// In en, this message translates to:
+  /// **'Lent'**
+  String get a2uiIntentLoanGiven;
+
+  /// Kind of entry: money borrowed from someone.
+  ///
+  /// In en, this message translates to:
+  /// **'Borrowed'**
+  String get a2uiIntentLoanTaken;
+
+  /// Kind of entry: someone repaid a loan.
+  ///
+  /// In en, this message translates to:
+  /// **'Repaid to us'**
+  String get a2uiIntentRepaymentReceived;
+
+  /// Kind of entry: we repaid a debt.
+  ///
+  /// In en, this message translates to:
+  /// **'Repaid'**
+  String get a2uiIntentRepaymentMade;
+
+  /// Kind of entry: a balance correction.
+  ///
+  /// In en, this message translates to:
+  /// **'Adjustment'**
+  String get a2uiIntentAdjustment;
+
+  /// Kind of entry when it is not known.
+  ///
+  /// In en, this message translates to:
+  /// **'Entry'**
+  String get a2uiIntentUnknown;
+
+  /// Warning on an entry slip that may duplicate a saved entry.
+  ///
+  /// In en, this message translates to:
+  /// **'Looks like one you already saved'**
+  String get a2uiDuplicateHint;
+
+  /// Text button that opens the saved entry a draft may duplicate.
+  ///
+  /// In en, this message translates to:
+  /// **'View'**
+  String get a2uiDuplicateView;
+
+  /// Text button that dismisses the duplicate warning.
+  ///
+  /// In en, this message translates to:
+  /// **'Save anyway'**
+  String get a2uiDuplicateKeep;
+
+  /// Inline question on an entry slip when no exchange rate was entered today; followed by the latest rate.
+  ///
+  /// In en, this message translates to:
+  /// **'Today\'s dollar rate?'**
+  String get a2uiRateQuestion;
+
+  /// Text button that keeps the latest exchange rate for today.
+  ///
+  /// In en, this message translates to:
+  /// **'Use it'**
+  String get a2uiRateUse;
+
+  /// Text button that opens the number pad to type today's rate.
+  ///
+  /// In en, this message translates to:
+  /// **'Change'**
+  String get a2uiRateChange;
+
+  /// VoiceOver label of the inline rate question.
+  ///
+  /// In en, this message translates to:
+  /// **'Today\'s dollar rate? The latest was {rate} dinars.'**
+  String a2uiRateSpoken(String rate);
+
+  /// Title of the sheet where today's exchange rate is typed.
+  ///
+  /// In en, this message translates to:
+  /// **'Today\'s dollar rate'**
+  String get a2uiRateTitle;
+
+  /// Unit after the typed exchange rate.
+  ///
+  /// In en, this message translates to:
+  /// **'IQD per USD'**
+  String get a2uiRateUnit;
+
+  /// Button that saves the typed exchange rate.
+  ///
+  /// In en, this message translates to:
+  /// **'Save'**
+  String get a2uiRateSave;
+
+  /// VoiceOver label of the backspace key on the rate number pad.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete'**
+  String get a2uiRateBackspace;
+
+  /// Label on an entry the app could not read; it must be edited before saving.
+  ///
+  /// In en, this message translates to:
+  /// **'Needs review'**
+  String get a2uiNeedsReview;
+
+  /// Body of an entry the app could not read.
+  ///
+  /// In en, this message translates to:
+  /// **'Something in this entry didn\'t come through. Edit it to save.'**
+  String get a2uiNeedsReviewBody;
+
+  /// Text button that opens the manual form for an entry that needs review.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit'**
+  String get a2uiEdit;
+
+  /// Offer after saving an entry that looks monthly.
+  ///
+  /// In en, this message translates to:
+  /// **'Repeat {title} every month?'**
+  String a2uiRecurringMonthly(String title);
+
+  /// Offer after saving an entry that looks monthly on a given day.
+  ///
+  /// In en, this message translates to:
+  /// **'Repeat {title} every month, on day {day}?'**
+  String a2uiRecurringMonthlyOn(String title, int day);
+
+  /// Offer after saving an entry that looks weekly.
+  ///
+  /// In en, this message translates to:
+  /// **'Repeat {title} every week?'**
+  String a2uiRecurringWeekly(String title);
+
+  /// Text button that makes a saved entry recurring.
+  ///
+  /// In en, this message translates to:
+  /// **'Make it repeat'**
+  String get a2uiRecurringYes;
+
+  /// Text button that declines the recurring offer.
+  ///
+  /// In en, this message translates to:
+  /// **'Not now'**
+  String get a2uiRecurringNo;
+
+  /// Chip that opens a text field for an answer not in the list.
+  ///
+  /// In en, this message translates to:
+  /// **'Other…'**
+  String get a2uiOther;
+
+  /// Label of the text field for an answer not in the list.
+  ///
+  /// In en, this message translates to:
+  /// **'Your answer'**
+  String get a2uiOtherLabel;
+
+  /// Text button that confirms a typed answer.
+  ///
+  /// In en, this message translates to:
+  /// **'Done'**
+  String get a2uiDone;
+
+  /// Switch on a receipt card that saves one entry per category.
+  ///
+  /// In en, this message translates to:
+  /// **'Split by category'**
+  String get a2uiReceiptSplit;
+
+  /// Button that reopens the camera to scan the receipt again.
+  ///
+  /// In en, this message translates to:
+  /// **'Retake'**
+  String get a2uiReceiptRetake;
+
+  /// Chip on a receipt card read on the phone, without the cloud.
+  ///
+  /// In en, this message translates to:
+  /// **'Read on device'**
+  String get a2uiReceiptOnDevice;
+
+  /// Receipt group of lines without a category.
+  ///
+  /// In en, this message translates to:
+  /// **'Other'**
+  String get a2uiReceiptUncategorized;
+
+  /// Number of receipt lines in a group.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 item} other{{count} items}}'**
+  String a2uiReceiptItems(int count);
+
+  /// Shown on a receipt card whose data is malformed.
+  ///
+  /// In en, this message translates to:
+  /// **'This receipt couldn\'t be read.'**
+  String get a2uiReceiptUnreadable;
+
+  /// VoiceOver label of the quoted words the phone heard or read.
+  ///
+  /// In en, this message translates to:
+  /// **'Heard: {text}'**
+  String a2uiTranscriptHeard(String text);
+
+  /// Shown by a list of entries on an agent card when it is empty.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing here yet.'**
+  String get a2uiListEmpty;
+
+  /// Spent and limit of a budget, such as "85,000 / 120,000".
+  ///
+  /// In en, this message translates to:
+  /// **'{spent} / {limit}'**
+  String a2uiBudgetFigures(String spent, String limit);
+
+  /// Amount left in a budget.
+  ///
+  /// In en, this message translates to:
+  /// **'{left} left'**
+  String a2uiBudgetLeft(String left);
+
+  /// Amount by which a budget is exceeded.
+  ///
+  /// In en, this message translates to:
+  /// **'Over by {left}'**
+  String a2uiBudgetOver(String left);
+
+  /// Title of a loan card for money lent.
+  ///
+  /// In en, this message translates to:
+  /// **'{name} owes you'**
+  String a2uiLoanOwesYou(String name);
+
+  /// Title of a loan card for money borrowed.
+  ///
+  /// In en, this message translates to:
+  /// **'You owe {name}'**
+  String a2uiLoanYouOwe(String name);
+
+  /// The original amount of a loan, after the outstanding amount.
+  ///
+  /// In en, this message translates to:
+  /// **'of {principal}'**
+  String a2uiLoanOf(String principal);
+
+  /// Due day of a loan.
+  ///
+  /// In en, this message translates to:
+  /// **'Due {date}'**
+  String a2uiLoanDue(String date);
+
+  /// VoiceOver label of the repaid bar on a loan card.
+  ///
+  /// In en, this message translates to:
+  /// **'Repaid so far'**
+  String get a2uiLoanRepaid;
+
+  /// Text button on a loan card that opens the loan to record a repayment.
+  ///
+  /// In en, this message translates to:
+  /// **'Record a repayment'**
+  String get a2uiLoanRecordRepayment;
+
+  /// Saved and target of a goal card.
+  ///
+  /// In en, this message translates to:
+  /// **'{saved} of {target}'**
+  String a2uiGoalFigures(String saved, String target);
+
+  /// VoiceOver prefix of a nudge about a bill.
+  ///
+  /// In en, this message translates to:
+  /// **'Bill reminder'**
+  String get a2uiNudgeBill;
+
+  /// VoiceOver prefix of a nudge about a budget.
+  ///
+  /// In en, this message translates to:
+  /// **'Budget'**
+  String get a2uiNudgeBudget;
+
+  /// VoiceOver prefix of a nudge about a loan.
+  ///
+  /// In en, this message translates to:
+  /// **'Loan'**
+  String get a2uiNudgeLoan;
+
+  /// VoiceOver prefix of a nudge about the exchange rate.
+  ///
+  /// In en, this message translates to:
+  /// **'Exchange rate'**
+  String get a2uiNudgeRate;
+
+  /// VoiceOver prefix of a nudge about a report.
+  ///
+  /// In en, this message translates to:
+  /// **'Report'**
+  String get a2uiNudgeReport;
+
+  /// VoiceOver prefix of any other nudge.
+  ///
+  /// In en, this message translates to:
+  /// **'Note'**
+  String get a2uiNudgeInfo;
+
+  /// Label of a date field on an agent card when it has none.
+  ///
+  /// In en, this message translates to:
+  /// **'Date'**
+  String get a2uiDateTimeLabel;
+
+  /// Value of a date field that is empty.
+  ///
+  /// In en, this message translates to:
+  /// **'Not set'**
+  String get a2uiDateTimeEmpty;
 }
 
 class _AppLocalizationsDelegate

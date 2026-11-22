@@ -21,6 +21,8 @@ void main() {
         'shell',
         'routing',
         'lock',
+        // The Xpense catalog cards (lib/a2ui/, WP-31).
+        'a2ui',
         for (final dir in Directory('lib/features').listSync())
           if (dir is Directory)
             dir.uri.pathSegments.reversed.skip(1).first.split('_').first,
@@ -80,13 +82,14 @@ List<String> findHardCoded(String source) => [
         match.group(0)!,
 ];
 
-/// Checks every hand-written Dart file under [lib]. The debug-only gallery
-/// is developer-facing and exempt; generated files are skipped.
+/// Checks every hand-written Dart file under [lib]. The debug-only
+/// galleries are developer-facing and exempt; generated files are skipped.
 List<String> hardCodedStrings(Directory lib) => [
   for (final file in lib.listSync(recursive: true).whereType<File>())
     if (file.path.endsWith('.dart') &&
         !file.path.contains('/generated/') &&
         !file.path.contains('/core/ui/gallery/') &&
+        !file.path.contains('/a2ui/gallery/') &&
         !file.path.endsWith('.g.dart'))
       for (final hit in findHardCoded(file.readAsStringSync()))
         '${file.path}: $hit',

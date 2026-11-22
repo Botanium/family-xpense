@@ -1,0 +1,69 @@
+[
+  {
+    "version": "1.0",
+    "deleteSurface": {
+      "surfaceId": "rcpt_cloud"
+    }
+  },
+  {
+    "version": "1.0",
+    "createSurface": {
+      "surfaceId": "rcpt_cloud",
+      "catalogId": "https://familyxpense.app/a2ui/catalogs/xpense/v1/catalog.json",
+      "sendDataModel": false,
+      "components": [
+        {
+          "id": "root",
+          "component": "ReceiptSummary",
+          "receipt": {
+            "@path": "/receipt"
+          },
+          "drafts": {
+            "@path": "/drafts"
+          },
+          "split": {
+            "@path": "/ui/split"
+          },
+          "source": "cloud"
+        }
+      ],
+      "dataModel": {
+        "receipt": {
+          "merchant": "Café Nawroz",
+          "occurredOn": "2026-11-22",
+          "occurredTime": "09:40",
+          "currency": "USD",
+          "totalMinor": 1250,
+          "lines": [
+            {
+              "text": "Flat white",
+              "amountMinor": 450,
+              "categoryId": "dining"
+            },
+            {
+              "text": "Croissant",
+              "amountMinor": 800,
+              "categoryId": "dining"
+            }
+          ]
+        },
+        "drafts": [
+          {
+            "id": "r",
+            "intent": "expense",
+            "amountMinor": 1250,
+            "currency": "USD",
+            "categoryId": "dining",
+            "accountId": "acc_chk",
+            "who": "me",
+            "occurredOn": "2026-11-22",
+            "title": "Café Nawroz"
+          }
+        ],
+        "ui": {
+          "split": false
+        }
+      }
+    }
+  }
+]

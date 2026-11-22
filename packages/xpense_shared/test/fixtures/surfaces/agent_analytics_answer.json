@@ -1,0 +1,81 @@
+[
+  {
+    "version": "1.0",
+    "deleteSurface": {
+      "surfaceId": "ans_food_nov"
+    }
+  },
+  {
+    "version": "1.0",
+    "createSurface": {
+      "surfaceId": "ans_food_nov",
+      "catalogId": "https://familyxpense.app/a2ui/catalogs/xpense/v1/catalog.json",
+      "sendDataModel": false,
+      "components": [
+        {
+          "id": "root",
+          "component": "Column",
+          "children": [
+            "head",
+            "total",
+            "rows",
+            "chips"
+          ]
+        },
+        {
+          "id": "head",
+          "component": "Text",
+          "text": "Food in November"
+        },
+        {
+          "id": "total",
+          "component": "MoneyText",
+          "amountMinor": {
+            "@path": "/result/total"
+          },
+          "currency": "USD",
+          "size": "large"
+        },
+        {
+          "id": "rows",
+          "component": "BreakdownList",
+          "items": {
+            "@path": "/result/rows"
+          },
+          "currency": "USD"
+        },
+        {
+          "id": "chips",
+          "component": "SuggestionChips",
+          "options": [
+            {
+              "label": "By week",
+              "message": "Show food spending by week this month"
+            },
+            {
+              "label": "Compare to October",
+              "message": "Compare food spending with October"
+            }
+          ]
+        }
+      ],
+      "dataModel": {
+        "result": {
+          "total": 48650,
+          "rows": [
+            {
+              "label": "Groceries",
+              "amountMinor": 38600,
+              "share": 0.79
+            },
+            {
+              "label": "Dining",
+              "amountMinor": 10050,
+              "share": 0.21
+            }
+          ]
+        }
+      }
+    }
+  }
+]

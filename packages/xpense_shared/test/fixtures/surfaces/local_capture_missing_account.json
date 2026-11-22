@@ -1,0 +1,64 @@
+[
+  {
+    "version": "1.0",
+    "createSurface": {
+      "surfaceId": "loc_cap_k3m9",
+      "catalogId": "https://familyxpense.app/a2ui/catalogs/xpense/v1/catalog.json",
+      "components": [
+        {
+          "id": "root",
+          "component": "Column",
+          "children": [
+            "heard",
+            "list"
+          ]
+        },
+        {
+          "id": "heard",
+          "component": "Transcript",
+          "text": "Spent ten thousand dinars on lunch with the kids",
+          "seconds": 6
+        },
+        {
+          "id": "list",
+          "component": "EntryList",
+          "drafts": {
+            "@path": "/drafts"
+          },
+          "status": "review"
+        }
+      ],
+      "dataModel": {
+        "drafts": [
+          {
+            "id": "d1",
+            "intent": "expense",
+            "amountMinor": 10000,
+            "currency": "IQD",
+            "categoryId": "dining",
+            "who": "me",
+            "occurredOn": "2026-11-22",
+            "occurredTime": "13:20",
+            "title": "Lunch with the kids",
+            "fx": {
+              "pair": "USD/IQD",
+              "pairRate": "1705",
+              "source": "market",
+              "asOf": "2026-11-22",
+              "baseAmountMinor": 587
+            },
+            "confidence": {
+              "intent": 0.97,
+              "category": 0.94,
+              "account": 0.31
+            },
+            "missing": [
+              "accountId"
+            ],
+            "origin": "decisions"
+          }
+        ]
+      }
+    }
+  }
+]

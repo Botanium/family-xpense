@@ -187,4 +187,374 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get lockFailed => 'Couldn\'t unlock. Try again.';
+
+  @override
+  String a2uiApprox(String money) {
+    return '≈ $money';
+  }
+
+  @override
+  String get a2uiAmountUnknown => 'Amount in an unknown currency';
+
+  @override
+  String get a2uiAmountOutOfRange =>
+      'Check the amount; it looks too large or too small.';
+
+  @override
+  String a2uiCurrencyMismatch(String currency) {
+    return 'This account is in $currency.';
+  }
+
+  @override
+  String get a2uiUnknownAccount => 'That account isn\'t in your household.';
+
+  @override
+  String get a2uiUnknownCategory => 'That category isn\'t in your household.';
+
+  @override
+  String get a2uiUnknownReference =>
+      'Something this entry points to isn\'t in your household.';
+
+  @override
+  String a2uiTooManyDrafts(int count) {
+    return 'Save at most $count entries at a time.';
+  }
+
+  @override
+  String get a2uiAnswerAbove => 'Answer the question above to save.';
+
+  @override
+  String a2uiSaveEntries(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Save $count entries',
+      one: 'Save',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get a2uiSaveBoth => 'Save both';
+
+  @override
+  String get a2uiSaving => 'Saving…';
+
+  @override
+  String a2uiSavedEntries(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Saved $count entries.',
+      one: 'Saved.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get a2uiSavedLabel => 'Saved';
+
+  @override
+  String get a2uiSaveFailed => 'Couldn\'t save. Your entries are still here.';
+
+  @override
+  String get a2uiUndo => 'Undo';
+
+  @override
+  String get a2uiUndoFailed =>
+      'Couldn\'t undo. The entries are still saved; try again.';
+
+  @override
+  String get a2uiGuessed => 'Guessed';
+
+  @override
+  String a2uiChangeField(String field) {
+    return '$field. Change';
+  }
+
+  @override
+  String get a2uiFieldWho => 'Who';
+
+  @override
+  String get a2uiFieldWhen => 'When';
+
+  @override
+  String get a2uiFieldFrom => 'From';
+
+  @override
+  String get a2uiFieldInto => 'Into';
+
+  @override
+  String get a2uiFieldTo => 'To';
+
+  @override
+  String get a2uiFieldWith => 'With';
+
+  @override
+  String get a2uiFieldGoal => 'Goal';
+
+  @override
+  String get a2uiAskAccount => 'Which account?';
+
+  @override
+  String get a2uiAskToAccount => 'Into which account?';
+
+  @override
+  String get a2uiAskCategory => 'Which category?';
+
+  @override
+  String get a2uiAskWho => 'Whose is it?';
+
+  @override
+  String get a2uiAskDay => 'Which day?';
+
+  @override
+  String get a2uiAskPerson => 'Who with?';
+
+  @override
+  String get a2uiAskGoal => 'Which goal?';
+
+  @override
+  String get a2uiAskIntent => 'What kind of entry is it?';
+
+  @override
+  String get a2uiAskInForm => 'This needs the full form.';
+
+  @override
+  String get a2uiFixInForm => 'Fix it in the form';
+
+  @override
+  String get a2uiMore => 'More…';
+
+  @override
+  String get a2uiOtherDay => 'Another day…';
+
+  @override
+  String get a2uiDayToday => 'Today';
+
+  @override
+  String get a2uiDayYesterday => 'Yesterday';
+
+  @override
+  String a2uiDayAtTime(String date, String time) {
+    return '$date $time';
+  }
+
+  @override
+  String get a2uiWhoMe => 'You';
+
+  @override
+  String get a2uiWhoPartner => 'Partner';
+
+  @override
+  String get a2uiWhoJoint => 'Joint';
+
+  @override
+  String get a2uiIntentExpense => 'Expense';
+
+  @override
+  String get a2uiIntentIncome => 'Income';
+
+  @override
+  String get a2uiIntentTransfer => 'Transfer';
+
+  @override
+  String get a2uiIntentSavingsMove => 'Savings';
+
+  @override
+  String get a2uiIntentLoanGiven => 'Lent';
+
+  @override
+  String get a2uiIntentLoanTaken => 'Borrowed';
+
+  @override
+  String get a2uiIntentRepaymentReceived => 'Repaid to us';
+
+  @override
+  String get a2uiIntentRepaymentMade => 'Repaid';
+
+  @override
+  String get a2uiIntentAdjustment => 'Adjustment';
+
+  @override
+  String get a2uiIntentUnknown => 'Entry';
+
+  @override
+  String get a2uiDuplicateHint => 'Looks like one you already saved';
+
+  @override
+  String get a2uiDuplicateView => 'View';
+
+  @override
+  String get a2uiDuplicateKeep => 'Save anyway';
+
+  @override
+  String get a2uiRateQuestion => 'Today\'s dollar rate?';
+
+  @override
+  String get a2uiRateUse => 'Use it';
+
+  @override
+  String get a2uiRateChange => 'Change';
+
+  @override
+  String a2uiRateSpoken(String rate) {
+    return 'Today\'s dollar rate? The latest was $rate dinars.';
+  }
+
+  @override
+  String get a2uiRateTitle => 'Today\'s dollar rate';
+
+  @override
+  String get a2uiRateUnit => 'IQD per USD';
+
+  @override
+  String get a2uiRateSave => 'Save';
+
+  @override
+  String get a2uiRateBackspace => 'Delete';
+
+  @override
+  String get a2uiNeedsReview => 'Needs review';
+
+  @override
+  String get a2uiNeedsReviewBody =>
+      'Something in this entry didn\'t come through. Edit it to save.';
+
+  @override
+  String get a2uiEdit => 'Edit';
+
+  @override
+  String a2uiRecurringMonthly(String title) {
+    return 'Repeat $title every month?';
+  }
+
+  @override
+  String a2uiRecurringMonthlyOn(String title, int day) {
+    return 'Repeat $title every month, on day $day?';
+  }
+
+  @override
+  String a2uiRecurringWeekly(String title) {
+    return 'Repeat $title every week?';
+  }
+
+  @override
+  String get a2uiRecurringYes => 'Make it repeat';
+
+  @override
+  String get a2uiRecurringNo => 'Not now';
+
+  @override
+  String get a2uiOther => 'Other…';
+
+  @override
+  String get a2uiOtherLabel => 'Your answer';
+
+  @override
+  String get a2uiDone => 'Done';
+
+  @override
+  String get a2uiReceiptSplit => 'Split by category';
+
+  @override
+  String get a2uiReceiptRetake => 'Retake';
+
+  @override
+  String get a2uiReceiptOnDevice => 'Read on device';
+
+  @override
+  String get a2uiReceiptUncategorized => 'Other';
+
+  @override
+  String a2uiReceiptItems(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count items',
+      one: '1 item',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get a2uiReceiptUnreadable => 'This receipt couldn\'t be read.';
+
+  @override
+  String a2uiTranscriptHeard(String text) {
+    return 'Heard: $text';
+  }
+
+  @override
+  String get a2uiListEmpty => 'Nothing here yet.';
+
+  @override
+  String a2uiBudgetFigures(String spent, String limit) {
+    return '$spent / $limit';
+  }
+
+  @override
+  String a2uiBudgetLeft(String left) {
+    return '$left left';
+  }
+
+  @override
+  String a2uiBudgetOver(String left) {
+    return 'Over by $left';
+  }
+
+  @override
+  String a2uiLoanOwesYou(String name) {
+    return '$name owes you';
+  }
+
+  @override
+  String a2uiLoanYouOwe(String name) {
+    return 'You owe $name';
+  }
+
+  @override
+  String a2uiLoanOf(String principal) {
+    return 'of $principal';
+  }
+
+  @override
+  String a2uiLoanDue(String date) {
+    return 'Due $date';
+  }
+
+  @override
+  String get a2uiLoanRepaid => 'Repaid so far';
+
+  @override
+  String get a2uiLoanRecordRepayment => 'Record a repayment';
+
+  @override
+  String a2uiGoalFigures(String saved, String target) {
+    return '$saved of $target';
+  }
+
+  @override
+  String get a2uiNudgeBill => 'Bill reminder';
+
+  @override
+  String get a2uiNudgeBudget => 'Budget';
+
+  @override
+  String get a2uiNudgeLoan => 'Loan';
+
+  @override
+  String get a2uiNudgeRate => 'Exchange rate';
+
+  @override
+  String get a2uiNudgeReport => 'Report';
+
+  @override
+  String get a2uiNudgeInfo => 'Note';
+
+  @override
+  String get a2uiDateTimeLabel => 'Date';
+
+  @override
+  String get a2uiDateTimeEmpty => 'Not set';
 }

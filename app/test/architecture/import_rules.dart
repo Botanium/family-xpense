@@ -109,6 +109,7 @@ const Map<Layer, Set<String>> forbiddenFlutterLibraries = {
 const Map<String, Set<Layer>> adapterOnlyPackages = {
   'a2ui_core': {Layer.a2ui},
   'a2ui_flutter': {Layer.a2ui},
+  'json_schema_builder': {Layer.a2ui},
   'liquid_glass_widgets': {Layer.core},
   'flutter_edge_ai': {Layer.services},
   'speech_to_text': {Layer.services},

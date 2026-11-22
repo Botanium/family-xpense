@@ -1,0 +1,54 @@
+[
+  {
+    "version": "1.0",
+    "deleteSurface": {
+      "surfaceId": "nudge_mix"
+    }
+  },
+  {
+    "version": "1.0",
+    "createSurface": {
+      "surfaceId": "nudge_mix",
+      "catalogId": "https://familyxpense.app/a2ui/catalogs/xpense/v1/catalog.json",
+      "sendDataModel": false,
+      "components": [
+        {
+          "id": "root",
+          "component": "Column",
+          "children": [
+            "rate",
+            "report",
+            "offline"
+          ]
+        },
+        {
+          "id": "rate",
+          "component": "Nudge",
+          "text": "No dollar rate yet today.",
+          "kind": "rate",
+          "actionLabel": "Set it",
+          "action": {
+            "event": {
+              "name": "xp.more",
+              "context": {
+                "topic": "rate"
+              }
+            }
+          }
+        },
+        {
+          "id": "report",
+          "component": "Nudge",
+          "text": "Your October report is ready.",
+          "kind": "report"
+        },
+        {
+          "id": "offline",
+          "component": "Notice",
+          "text": "Answers need a connection; typed entries still save.",
+          "kind": "privacy"
+        }
+      ]
+    }
+  }
+]

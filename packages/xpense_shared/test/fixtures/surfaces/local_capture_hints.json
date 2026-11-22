@@ -1,0 +1,52 @@
+[
+  {
+    "version": "1.0",
+    "createSurface": {
+      "surfaceId": "loc_cap_hints",
+      "catalogId": "https://familyxpense.app/a2ui/catalogs/xpense/v1/catalog.json",
+      "components": [
+        {
+          "id": "root",
+          "component": "Column",
+          "children": [
+            "list"
+          ]
+        },
+        {
+          "id": "list",
+          "component": "EntryList",
+          "drafts": {
+            "@path": "/drafts"
+          },
+          "status": "review"
+        }
+      ],
+      "dataModel": {
+        "drafts": [
+          {
+            "id": "d1",
+            "intent": "expense",
+            "amountMinor": 4500,
+            "currency": "USD",
+            "accountId": "acc_chk",
+            "categoryId": "utilities",
+            "who": "joint",
+            "occurredOn": "2026-11-22",
+            "title": "Internet",
+            "duplicate": {
+              "txnId": "t_88",
+              "probability": 0.81
+            },
+            "recurring": {
+              "probability": 0.92,
+              "unit": "month",
+              "interval": 1,
+              "dayOfMonth": 5
+            },
+            "origin": "rule"
+          }
+        ]
+      }
+    }
+  }
+]
