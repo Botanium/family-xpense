@@ -102,13 +102,32 @@ final settingsStoreProvider = Provider<SettingsStore>(
 ///
 /// The root reads it for the theme and the lock; Settings changes it. A
 /// change is published only after the store has committed it.
+///
+/// Changes are queued: each one is applied to the settings as they stand
+/// after every earlier change has been saved, so two changes made while a
+/// save is still running both survive (PR #13 review). There is no way to
+/// save a whole snapshot, which is what let a later save undo an earlier
+/// one.
 final class AppSettingsController extends Notifier<AppSettings> {
+  Future<void> _queue = Future<void>.value();
+
   @override
   AppSettings build() => ref.watch(settingsStoreProvider).current;
 
-  /// Persists [next], then publishes it. Throws what the store throws, so
-  /// the caller can report it; the published value is then unchanged.
-  Future<void> save(AppSettings next) async {
+  /// Applies [change] to the latest settings, persists the result, then
+  /// publishes it. Completes once this change is committed. Throws what the
+  /// store throws, so the caller can report it; the published value is then
+  /// unchanged, and later changes still run.
+  Future<void> update(AppSettings Function(AppSettings current) change) {
+    final run = _queue.then((_) => _apply(change));
+    // A failed save must not block the changes queued after it.
+    _queue = run.then<void>((_) {}, onError: (Object _) {});
+    return run;
+  }
+
+  Future<void> _apply(AppSettings Function(AppSettings current) change) async {
+    if (!ref.mounted) return;
+    final next = change(state);
     if (next == state) return;
     await ref.read(settingsStoreProvider).save(next);
     if (!ref.mounted) return;

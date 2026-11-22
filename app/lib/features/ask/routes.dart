@@ -43,6 +43,23 @@ class _AskPlaceholderState extends State<_AskPlaceholder> {
       ? CaptureMode.voice
       : CaptureMode.type;
 
+  // A second `xpense://ask?text=…` link while Ask is on screen reuses this
+  // page with a new prefill: show the new text. A rebuild with the same
+  // prefill, or a link without text, keeps what the user typed.
+  @override
+  void didUpdateWidget(_AskPlaceholder oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    final prefill = widget.prefill;
+    if (prefill == null || prefill.isEmpty || prefill == oldWidget.prefill) {
+      return;
+    }
+    _text.value = TextEditingValue(
+      text: prefill,
+      selection: TextSelection.collapsed(offset: prefill.length),
+    );
+    _mode = CaptureMode.type;
+  }
+
   @override
   void dispose() {
     _text.dispose();

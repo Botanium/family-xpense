@@ -167,7 +167,7 @@ void main() {
       expect(container.read(appLockControllerProvider).locked, isTrue);
       await container
           .read(appSettingsProvider.notifier)
-          .save(AppSettings.defaults);
+          .update((_) => AppSettings.defaults);
       expect(container.read(appLockControllerProvider).locked, isFalse);
       notifier.onLifecycle(AppLifecycleState.inactive);
       expect(container.read(appLockControllerProvider).obscured, isFalse);
