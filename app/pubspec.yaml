@@ -60,3 +60,24 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+  # Signal design system (WP-03, DESIGN_SYSTEM 4): bundled, never fetched.
+  # Geist v1.9.2 from github.com/vercel/geist-font, SIL OFL 1.1.
+  assets:
+    - assets/fonts/OFL.txt
+  fonts:
+    - family: Geist
+      fonts:
+        - asset: assets/fonts/geist/Geist-Regular.ttf
+          weight: 400
+        - asset: assets/fonts/geist/Geist-Medium.ttf
+          weight: 500
+        - asset: assets/fonts/geist/Geist-SemiBold.ttf
+          weight: 600
+    - family: GeistMono
+      fonts:
+        - asset: assets/fonts/geist_mono/GeistMono-Light.ttf
+          weight: 300
+        - asset: assets/fonts/geist_mono/GeistMono-Regular.ttf
+          weight: 400
+        - asset: assets/fonts/geist_mono/GeistMono-Medium.ttf
+          weight: 500
