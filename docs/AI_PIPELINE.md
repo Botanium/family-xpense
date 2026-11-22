@@ -102,11 +102,11 @@ Seeded per household; slugs are stable, names are stored per language (English o
 | Expense group | Sub-categories |
 |---|---|
 | `food` | `groceries`, `dining`, `bakery_tea` |
-| `home` | `electricity_generator`, `water`, `apartment_gas`, `internet_phone`, `household_goods`, `repairs` |
+| `home` | `electricity_generator`, `water`, `apartment_gas`, `internet_fee`, `phone_mobile_credit`, `household_goods`, `repairs` |
 | `transport` | `fuel`, `taxi`, `car_maintenance`, `public_transport` |
 | `family` | `kids_school`, `clothing`, `health`, `personal_care` |
 | `social` | `gifts`, `family_support`, `charity`, `occasions` |
-| `leisure` | `entertainment`, `travel`, `subscriptions` |
+| `leisure` | `entertainment`, `travel`, `online_subscriptions` |
 | `finance` | `fees`, `interest`, `taxes` |
 | `other_expense` | |
 
@@ -116,7 +116,7 @@ Seeded per household; slugs are stable, names are stored per language (English o
 | `received` | `gift_received`, `refund`, `sale`, `rental_income` |
 | `other_income` | |
 
-`electricity_generator`, `family_support`, `charity` and `occasions` reflect local spending patterns (neighbourhood generator fees, support to relatives, zakat and donations, weddings and funerals). The owner reviewed the list on 2026-11-22 (D-41): `rent` was removed and `apartment_gas` added; whether to split internet and subscriptions is still open.
+`electricity_generator`, `family_support`, `charity` and `occasions` reflect local spending patterns (neighbourhood generator fees, support to relatives, zakat and donations, weddings and funerals). The owner reviewed the list on 2026-11-22 (D-41): `rent` was removed and `apartment_gas` added; `internet_phone` became `internet_fee` plus `phone_mobile_credit`, and `subscriptions` became `online_subscriptions`.
 
 ## 5. Step 2: the fast parser
 

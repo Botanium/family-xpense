@@ -94,10 +94,16 @@ const List<CategoryDef> defaultCategories = [
     names: {'en': 'Apartment gas'},
   ),
   CategoryDef(
-    slug: 'internet_phone',
+    slug: 'internet_fee',
     kind: .expense,
     parentSlug: 'home',
-    names: {'en': 'Internet and phone'},
+    names: {'en': 'Internet fee'},
+  ),
+  CategoryDef(
+    slug: 'phone_mobile_credit',
+    kind: .expense,
+    parentSlug: 'home',
+    names: {'en': 'Phone and mobile credit'},
   ),
   CategoryDef(
     slug: 'household_goods',
@@ -200,10 +206,10 @@ const List<CategoryDef> defaultCategories = [
     names: {'en': 'Travel'},
   ),
   CategoryDef(
-    slug: 'subscriptions',
+    slug: 'online_subscriptions',
     kind: .expense,
     parentSlug: 'leisure',
-    names: {'en': 'Subscriptions'},
+    names: {'en': 'Online subscriptions'},
   ),
   CategoryDef(slug: 'finance', kind: .expense, names: {'en': 'Finance'}),
   CategoryDef(
