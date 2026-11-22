@@ -86,7 +86,7 @@ Future<PrepareEntriesOutput> prepareEntries(
       _DraftBuilder(
         id: 'd${i + 1}',
         entry: e,
-        text: e.text ?? (texts.isEmpty ? '' : texts.last),
+        text: _memberText(e.text, texts),
         snap: snap,
         today: today.iso,
         parseContext: parseContext,
@@ -110,6 +110,20 @@ Future<PrepareEntriesOutput> prepareEntries(
     ask: _firstFollowUp(drafts, builders),
     notes: notes.isEmpty ? null : notes,
   );
+}
+
+/// The entry's words, used by every "did the member write it" check: the
+/// model's `text` when it is a verbatim span of a member message, otherwise
+/// the latest member message itself (a paraphrase could carry words the
+/// member never wrote).
+String _memberText(String? span, List<String> texts) {
+  if (span != null && span.trim().isNotEmpty) {
+    final s = _norm(span);
+    for (final t in texts) {
+      if (' ${_norm(t)} '.contains(' $s ')) return span;
+    }
+  }
+  return texts.isEmpty ? '' : texts.last;
 }
 
 /// The amounts found in the messages; each can back one entry.
@@ -187,6 +201,14 @@ final class _DraftBuilder {
   final guessed = <String>{};
   final listedMissing = <String>{};
   HouseholdCategory? modelCategory;
+
+  /// The amount as written (major units), kept to re-read it in another
+  /// currency.
+  Decimal? amountValue;
+
+  /// Whether a currency word or an account the member named settled the
+  /// currency.
+  bool currencyFromWords = false;
   HouseholdAccount? modelAccount;
   HouseholdAccount? modelToAccount;
 
@@ -234,15 +256,23 @@ final class _DraftBuilder {
       _log.info('dropped an amount not found in the message');
       return;
     }
+    amountValue = found.value;
     // Currency, most reliable first: a currency word next to or about the
-    // amount; the account the entry names; the model's reading; the
-    // household base currency. Only the first two are not guesses.
-    final hinted = _matchAccounts(entry.accountHint, null);
+    // amount; an account the member named; the model's reading; the
+    // household base currency. Only the first two are not guesses: an
+    // account the model hinted but the member did not write settles
+    // nothing (its currency can still follow it later, as a guess).
+    final hint = entry.accountHint;
+    final named = hint != null && _wrote(hint)
+        ? _matchAccounts(hint, null)
+        : const <HouseholdAccount>[];
     final String code;
     if (found.source == CurrencySource.word && found.currency != null) {
       code = found.currency!.code;
-    } else if (hinted.length == 1) {
-      code = hinted.single.currency;
+      currencyFromWords = true;
+    } else if (named.length == 1) {
+      code = named.single.currency;
+      currencyFromWords = true;
     } else {
       code = entry.currency ?? snap.baseCurrency;
       guessed.add('currency');
@@ -263,18 +293,44 @@ final class _DraftBuilder {
     }
   }
 
+  /// Moves a guessed currency to [account]'s, re-reading the written amount
+  /// in it. Returns false (and changes nothing) when the currency was
+  /// written or named, or the amount does not fit the account's currency.
+  bool _followAccountCurrency(HouseholdAccount account) {
+    if (account.currency == currency) return true;
+    if (currencyFromWords) return false;
+    final to = Currency.tryParse(account.currency);
+    final value = amountValue;
+    if (to == null) return false;
+    if (value != null) {
+      final money = Money.parseMajor(value.toString(), to);
+      if (money case Ok(:final value)) {
+        amountMinor = value.minorUnits;
+      } else {
+        return false;
+      }
+    }
+    currency = account.currency;
+    guessed.add('currency');
+    return true;
+  }
+
   void resolveWords() {
     // Account words. Like categories below, only words the member wrote
     // settle a field; a hint the model made up ("dollars", "checking" for
     // "Groceries 45") is kept as a guess the classifier can override.
-    final accounts = _matchAccounts(entry.accountHint, currency);
-    if (accounts.length == 1) {
-      if (_wrote(entry.accountHint!)) {
+    final hint = entry.accountHint;
+    if (hint != null && _wrote(hint)) {
+      final accounts = _matchAccounts(hint, currency);
+      if (accounts.length == 1) {
         accountId = accounts.single.id;
         confidence['account'] = 1;
-      } else {
-        modelAccount = accounts.single;
       }
+    } else {
+      // Its currency need not match a guessed currency: the two are
+      // reconciled once the classifier has answered.
+      final accounts = _matchAccounts(hint, null);
+      if (accounts.length == 1) modelAccount = accounts.single;
     }
     if (_isTransfer) {
       final to = _matchAccounts(entry.toAccountHint, null);
@@ -338,8 +394,12 @@ final class _DraftBuilder {
   }
 
   String _resolveDate() {
-    for (final words in [entry.dateWords, text]) {
-      if (words == null) continue;
+    // Date words count only when the member wrote them.
+    final dateWords = entry.dateWords;
+    for (final words in [
+      if (dateWords != null && _mentions(text, dateWords)) dateWords,
+      text,
+    ]) {
       final mention = parseText(words, parseContext).dateMention;
       if (mention != null) return mention.date.iso;
     }
@@ -404,7 +464,10 @@ final class _DraftBuilder {
       guessed.add('categoryId');
     }
     // The same for accounts the model named but the member did not.
-    if (accountId == null && modelAccount != null && !accountScored) {
+    if (accountId == null &&
+        modelAccount != null &&
+        !accountScored &&
+        (currency == null || _followAccountCurrency(modelAccount!))) {
       accountId = modelAccount!.id;
       guessed.add('accountId');
     }
@@ -500,9 +563,10 @@ final class _DraftBuilder {
       accountScored = answer.account?.choice != null;
       final id = pick(answer.account, 'accountId', 'account');
       final account = snap.activeAccount(id);
-      // Only an account in the entry's currency can hold it.
+      // An account holds only its own currency: a guessed currency follows
+      // the account; a written one rules the account out.
       if (account != null &&
-          (currency == null || account.currency == currency)) {
+          (currency == null || _followAccountCurrency(account))) {
         accountId = account.id;
       } else {
         guessed.remove('accountId');

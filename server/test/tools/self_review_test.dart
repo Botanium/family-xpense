@@ -133,6 +133,99 @@ void main() {
     });
   });
 
+  group('fields derived from words the member did not write', () {
+    test('currency from an unwritten account hint is a guess', () async {
+      // PR #30 review: "Groceries 45" with an inferred cash-wallet hint was
+      // settled as 45 IQD.
+      final out = await prepare(
+        ProposedEntry(
+          intent: 'expense',
+          amount: '45',
+          text: 'Groceries 45',
+          accountHint: 'cash wallet',
+        ),
+        'Groceries 45',
+      );
+      final d = out.drafts.single;
+      expect(d.guessed, containsAll(['currency', 'accountId']));
+      expect(d.confidence?.account, isNull);
+    });
+
+    test(
+      'a guessed currency follows the account the classifier picks',
+      () async {
+        final out = await prepare(
+          ProposedEntry(
+            intent: 'expense',
+            amount: '45',
+            text: 'Groceries 45',
+            accountHint: 'cash wallet',
+          ),
+          'Groceries 45',
+          classifier: FakeEntryClassifier.always(
+            DecideResponse(
+              account: ChoiceAnswer(choice: 'acc_visa', confidence: 0.92),
+            ),
+          ),
+        );
+        final d = out.drafts.single;
+        expect(d.accountId, 'acc_visa');
+        expect(d.currency, 'USD');
+        expect(d.amountMinor, 4500);
+        expect(d.guessed, contains('currency'));
+      },
+    );
+
+    test('a written currency is not moved by the classifier', () async {
+      final out = await prepare(
+        ProposedEntry(
+          intent: 'expense',
+          amount: '25000',
+          text: 'taxi 25000 dinars',
+        ),
+        'taxi 25000 dinars',
+        classifier: FakeEntryClassifier.always(
+          DecideResponse(
+            account: ChoiceAnswer(choice: 'acc_visa', confidence: 0.95),
+          ),
+        ),
+      );
+      final d = out.drafts.single;
+      expect(d.currency, 'IQD');
+      expect(d.amountMinor, 25000);
+      expect(d.accountId, isNull);
+    });
+
+    test('date words the member did not write are ignored', () async {
+      final out = await prepare(
+        ProposedEntry(
+          intent: 'expense',
+          amount: '12',
+          text: 'lunch 12',
+          dateWords: 'yesterday',
+        ),
+        'lunch 12',
+      );
+      expect(out.drafts.single.occurredOn, '2026-11-22');
+    });
+
+    test("a paraphrased text does not count as the member's words", () async {
+      // The member wrote "paid 45"; the model's "text" adds "from checking".
+      final out = await prepare(
+        ProposedEntry(
+          intent: 'expense',
+          amount: '45',
+          text: 'paid 45 from checking',
+          accountHint: 'checking',
+        ),
+        'paid 45',
+      );
+      final d = out.drafts.single;
+      expect(d.confidence?.account, isNull);
+      expect(d.guessed, contains('accountId'));
+    });
+  });
+
   test("a transfer's destination confidence keeps its own key", () async {
     final out = await prepare(
       ProposedEntry(
