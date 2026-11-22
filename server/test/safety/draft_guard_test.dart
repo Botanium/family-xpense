@@ -323,6 +323,40 @@ void main() {
       ]);
     });
 
+    test('an invented top-level scalar in the data model is dropped', () {
+      // PR #30 review: `$/totalMinor = 999999` lost its key and passed.
+      final result = guardParts([
+        answer(
+          [
+            {
+              'id': 'root',
+              'component': 'MoneyText',
+              'amountMinor': {'@path': '/totalMinor'},
+            },
+          ],
+          {'totalMinor': 999999},
+        ),
+      ], facts);
+      expect(result.violations.single.reason, 'unbacked_figure');
+      expect(result.parts, isEmpty);
+    });
+
+    test("a tool's figure as a top-level scalar passes", () {
+      final result = guardParts([
+        answer(
+          [
+            {
+              'id': 'root',
+              'component': 'MoneyText',
+              'amountMinor': {'@path': '/totalBaseMinor'},
+            },
+          ],
+          {'totalBaseMinor': 373410},
+        ),
+      ], facts);
+      expect(result.violations, isEmpty);
+    });
+
     // PR #30 review: figures written by updateDataModel get the same check.
     Map<String, dynamic> update(String path, Object? value, String express) =>
         _part([

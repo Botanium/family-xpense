@@ -247,7 +247,10 @@ String? _unbackedFigures(List<Object?> messages, GuardFacts facts) {
     final model = body['dataModel'];
     if (model is Map) {
       for (final MapEntry(:key, :value) in model.entries) {
-        if (!_draftKeys.contains(key)) _figures(value, figures);
+        // The key names a top-level scalar (`$/totalMinor = …`).
+        if (!_draftKeys.contains(key)) {
+          _figures(value, figures, key is String ? key : null);
+        }
       }
     }
     if (!_figuresBacked(figures, facts)) return '${body['surfaceId']}';
