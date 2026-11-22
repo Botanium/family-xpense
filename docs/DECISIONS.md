@@ -27,7 +27,7 @@ Three parts: decisions locked by the owner (L), decisions made while planning (D
 | L-19 | Jobs: Cloud Scheduler and Eventarc to Cloud Run endpoints | Locked |
 | L-20 | Security: Firebase Auth (Apple, Google, email), App Check verified on Cloud Run, Secret Manager, per-household rate limits | Locked |
 | L-21 | Observability: Genkit Developer UI in development; production telemetry to Cloud Trace and Logging; Crashlytics | Locked; mechanism in D-29 |
-| L-22 | Two new projects, `xpense-dev` and `xpense-prod`; emulator suite locally; never reuse the machine's active gcloud project | Locked |
+| L-22 | Two new projects, `xpense-dev` and `xpense-prod`; emulator suite locally; never reuse the machine's active gcloud project | **Changed by the owner on 2026-11-22** (D-38): development uses the existing project `expense-family-cc6ee`; production is a new project created before release |
 | L-23 | Architecture shape: feature-first Flutter modules with `core/`, `data/`, `a2ui/`; one Cloud Run service with `/agent`, `/decide`, `/jobs/*`; Firestore under `households/{hid}` | Locked; refined by D-17, D-19, D-20, D-28 |
 | L-24 | Workflow: Fable plans, each work package in its own Opus session, branch and worktree; CI with analyzers, tests, rules tests, catalog goldens and `genkit eval` | Locked |
 
@@ -164,6 +164,13 @@ Three parts: decisions locked by the owner (L), decisions made while planning (D
 - Kept, because it is free now and avoids rework later: all strings in an ARB file, directional insets and alignments, parser lexicons and category names keyed by language code.
 - Consequence for capture: speech is `en-US` only; receipts in Arabic script are read by the cloud model or entered by hand.
 - The research findings that matter when the languages return are in section 3 (no Sorani speech recogniser anywhere, no Arabic in Apple's on-device model or in ML Kit).
+
+**D-38. Development runs in the owner's existing project `expense-family-cc6ee`; production gets a new, clean project before the App Store release.** Status: Changed by the owner on 2026-11-22 (replaces the "two new projects" part of L-22).
+- The owner already had a test project, "Expense Family" (id `expense-family-cc6ee`, number 648682359990), and asked to "start new and fresh within that project". Its old Cloud Run service, container repository, test users and its Firestore database (which was in `me-central2`) were deleted; a new empty `(default)` database was created in `me-central1` with delete protection. Set-up and current state: [ENVIRONMENTS.md](ENVIRONMENTS.md).
+- Where documents written earlier say `xpense-dev` for a command that reaches a real project, use `expense-family-cc6ee` (alias `dev` in `firebase/.firebaserc`). Emulators keep fake ids (`demo-xpense`; `xpense-dev` in the rules tests), which never reach a real project.
+- Production is not created in WP-01. Until it exists nothing runs in production; ARCHITECTURE 8's production column describes that future project (App Attest only, enforcement on, its own paid-tier key).
+- The iOS bundle id is `com.bitrelia.familyxpense`, already registered in that project, replacing the `app.familyxpense.xpenseApp` placeholder.
+- Unchanged from L-22: never use the machine's active gcloud project. Every `gcloud` command passes `--project` and `--billing-project`, because some command groups bill the active project otherwise (ENVIRONMENTS 2).
 
 ## 3. What was verified (2026-11-22)
 
