@@ -7,7 +7,7 @@
 //
 // Writes ../evidence/probes.md and raw JSONL.
 //
-//   GEMINI_API_KEY=... dart run bin/probe_errors.dart
+//   dart run bin/probe_errors.dart
 import 'dart:convert';
 import 'dart:io';
 
@@ -40,7 +40,7 @@ Map<String, Object?> _choice(Map<String, String> criteria) =>
     });
 
 Future<void> main() async {
-  final client = DecisionsClient(apiKey: apiKeyFromEnvironment());
+  final client = await DecisionsClient.open();
   final rawOut = File('evidence/raw/probes.jsonl').openWrite();
   final b = StringBuffer()
     ..writeln('# WP-S4 probes: errors, limits, safety, concurrency')
@@ -231,6 +231,9 @@ Future<void> main() async {
     );
 
   await rawOut.close();
+  b
+    ..writeln()
+    ..writeln(client.keySummary);
   client.close();
   File('evidence/probes.md').writeAsStringSync(b.toString());
   stdout.write(b);

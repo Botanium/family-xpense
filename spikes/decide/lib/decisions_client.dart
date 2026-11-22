@@ -1,34 +1,23 @@
 /// A minimal REST client for `POST /v1beta/decisions` (no Dart SDK exists).
 ///
-/// The API key is read once from the environment and only ever placed in
-/// the `x-goog-api-key` header. Nothing here prints, logs or stores it, and
-/// no outcome carries it.
+/// The API key comes from Secret Manager (`readLatestKey`) and is only ever
+/// placed in the `x-goog-api-key` header. Nothing here prints, logs or
+/// stores it, and no outcome carries it. On an API-key error the client
+/// re-reads the latest version once and retries, so a key rotation in the
+/// middle of a run does not fail it.
 library;
 
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:wp_s4_decide/secret.dart';
+
 final Uri decisionsEndpoint = Uri.parse(
   'https://generativelanguage.googleapis.com/v1beta/decisions',
 );
 
 const String decisionModel = 'gemini-decision-1';
-
-/// The key from `GEMINI_API_KEY`, or a clear error without echoing anything.
-String apiKeyFromEnvironment() {
-  final key = Platform.environment['GEMINI_API_KEY']?.trim();
-  if (key == null || key.isEmpty) {
-    stderr.writeln(
-      'GEMINI_API_KEY is not set. Run with:\n'
-      r'  GEMINI_API_KEY="$(gcloud secrets versions access latest '
-      '--secret=GEMINI_API_KEY --project=expense-family-cc6ee '
-      '--billing-project=expense-family-cc6ee)" dart run bin/<script>.dart',
-    );
-    exit(64);
-  }
-  return key;
-}
 
 /// What one call produced.
 sealed class DecisionOutcome {
@@ -115,6 +104,12 @@ final class DecisionHttpError extends DecisionOutcome {
 
   bool get retryable => status == 429 || status >= 500;
 
+  /// The key was rejected: 400 "API key not valid", 401 or 403.
+  bool get isKeyError =>
+      status == 401 ||
+      status == 403 ||
+      (status == 400 && (message ?? '').contains('API key'));
+
   @override
   String get kind => 'http_error';
 }
@@ -143,18 +138,68 @@ const Set<String> safetyCodes = {
 
 final class DecisionsClient {
   new({
-    required this._apiKey,
+    required ApiKey key,
+    this.refreshKey = readLatestKey,
     Uri? endpoint,
     this.timeout = const Duration(seconds: 20),
-  }) : _endpoint = endpoint ?? decisionsEndpoint;
+  }) : _key = key,
+       _endpoint = endpoint ?? decisionsEndpoint;
 
-  final String _apiKey;
+  /// Opens a client with the latest key from Secret Manager.
+  static Future<DecisionsClient> open() async =>
+      DecisionsClient(key: await readLatestKey());
+
+  ApiKey _key;
+  final Future<ApiKey> Function()? refreshKey;
   final Uri _endpoint;
   final Duration timeout;
   final HttpClient _http = HttpClient();
 
-  /// Sends a request body (without the key) and classifies the result.
+  /// Secret versions whose key got an answer from the API.
+  final Set<String> versionsUsed = {};
+
+  /// Times the key was re-read after an API-key error.
+  int keyRefreshes = 0;
+
+  /// The version the next call will use.
+  String get keyVersion => _key.version;
+
+  /// One line for reports.
+  String get keySummary =>
+      'Secret version(s) used: ${versionsUsed.isEmpty ? 'none' : versionsUsed.join(', ')}; '
+      'key re-reads after an API-key error: $keyRefreshes.';
+
+  /// Sends a request body (without the key) and classifies the result. On
+  /// an API-key error with the client's own key, re-reads the latest
+  /// version once and retries.
   Future<DecisionOutcome> send(
+    Map<String, Object?> body, {
+    String? apiKeyOverride,
+    bool omitKey = false,
+  }) async {
+    final ownKey = apiKeyOverride == null && !omitKey;
+    var outcome = await _send(
+      body,
+      apiKeyOverride: apiKeyOverride,
+      omitKey: omitKey,
+    );
+    if (ownKey &&
+        outcome is DecisionHttpError &&
+        outcome.isKeyError &&
+        refreshKey != null) {
+      _key = await refreshKey!();
+      keyRefreshes++;
+      outcome = await _send(body);
+    }
+    if (ownKey &&
+        outcome is! DecisionHttpError &&
+        outcome is! DecisionTransportError) {
+      versionsUsed.add(_key.version);
+    }
+    return outcome;
+  }
+
+  Future<DecisionOutcome> _send(
     Map<String, Object?> body, {
     String? apiKeyOverride,
     bool omitKey = false,
@@ -164,7 +209,7 @@ final class DecisionsClient {
       final req = await _http.postUrl(_endpoint).timeout(timeout);
       req.headers.contentType = ContentType.json;
       if (!omitKey) {
-        req.headers.set('x-goog-api-key', apiKeyOverride ?? _apiKey);
+        req.headers.set('x-goog-api-key', apiKeyOverride ?? _key.value);
       }
       req.add(utf8.encode(jsonEncode(body)));
       final res = await req.close().timeout(timeout);

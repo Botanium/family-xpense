@@ -1,9 +1,9 @@
 // WP-S4: runs the AI_PIPELINE 7 question set over the 60 utterances and
 // writes raw responses, scores and a Markdown report to ../evidence/.
 //
-//   GEMINI_API_KEY="$(gcloud secrets versions access latest \
-//     --secret=GEMINI_API_KEY --project=expense-family-cc6ee \
-//     --billing-project=expense-family-cc6ee)" \
+// The key is read from Secret Manager (latest version) when the run starts;
+// see lib/secret.dart. Needs gcloud signed in with access to the secret.
+//
 //   dart run bin/run_eval.dart [--passes 2] [--tag main] \
 //     [--category-options leaves|all] [--only category]
 import 'dart:convert';
@@ -28,7 +28,8 @@ Future<void> main(List<String> args) async {
   final only = opts['only']?.split(',').toSet();
 
   final cases = loadCases('data/utterances.json');
-  final client = DecisionsClient(apiKey: apiKeyFromEnvironment());
+  final client = await DecisionsClient.open();
+  stdout.writeln('secret version ${client.keyVersion}');
   final ctx = parseContext();
   final rng = math.Random(7);
   Directory('evidence/raw').createSync(recursive: true);
@@ -96,6 +97,7 @@ Future<void> main(List<String> args) async {
     keysAsked: keysAsked,
     retries: retries,
     catOptions: catOptions,
+    keySummary: client.keySummary,
   );
   File('evidence/${tag}_report.md').writeAsStringSync(report);
   stdout.writeln('wrote evidence/${tag}_report.md');
@@ -116,6 +118,7 @@ String _report({
   required Map<String, List<String>> keysAsked,
   required int retries,
   required CategoryOptions catOptions,
+  required String keySummary,
 }) {
   final b = StringBuffer()
     ..writeln('# WP-S4 run `$tag`')
@@ -125,6 +128,8 @@ String _report({
       '(${categoryCriteria(catOptions).length}). Passes: ${results.length}. '
       'Retries used: $retries. Generated ${DateTime.now().toUtc()} UTC.',
     )
+    ..writeln()
+    ..writeln(keySummary)
     ..writeln();
 
   final byId = {for (final c in cases) c.id: c};

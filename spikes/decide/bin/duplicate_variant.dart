@@ -3,7 +3,7 @@
 // wording with a second wording on those 7 cases plus 7 more, labelled
 // before either wording was run on them.
 //
-//   GEMINI_API_KEY=... dart run bin/duplicate_variant.dart
+//   dart run bin/duplicate_variant.dart
 import 'dart:io';
 
 import 'package:wp_s4_decide/decisions_client.dart';
@@ -104,7 +104,7 @@ const Map<String, Object?> v2 = {
 };
 
 Future<void> main() async {
-  final client = DecisionsClient(apiKey: apiKeyFromEnvironment());
+  final client = await DecisionsClient.open();
   final ctx = parseContext();
   final cases = <DupCase>[
     for (final c in loadCases('data/utterances.json'))
@@ -151,6 +151,9 @@ Future<void> main() async {
       '${xs.where((x) => !x.$2).length} non-duplicates.',
     );
   }
+  b
+    ..writeln()
+    ..writeln(client.keySummary);
   client.close();
   File('evidence/duplicate_variant.md').writeAsStringSync(b.toString());
   stdout.write(b);

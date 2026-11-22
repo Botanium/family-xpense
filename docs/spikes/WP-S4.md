@@ -1,6 +1,6 @@
 # WP-S4 Spike: Decisions API and cloud voice
 
-Date: 2026-11-22. Spike code: [`spikes/decide/`](../../spikes/decide/) (throwaway). Story S0.14. Dev project `expense-family-cc6ee`, paid-tier key from Secret Manager (`GEMINI_API_KEY`, version 1), read into the process environment at run time only.
+Date: 2026-11-22. Spike code: [`spikes/decide/`](../../spikes/decide/) (throwaway). Story S0.14. Dev project `expense-family-cc6ee`, paid-tier key from Secret Manager (`GEMINI_API_KEY`; every API call used **version 2**, see [Secret versions used](#secret-versions-used)), read at run time only.
 
 **Summary.**
 - **Decisions path: go.** On 60 English utterances against the default category tree, `gemini-decision-1` got intent and category right in every scored case (53/53 and 27/27), needed a follow-up in every ambiguous case (6/6) and in no explicit one (0/11), and detected multi-entry messages without error (60/60).
@@ -28,6 +28,21 @@ What the docs do not yet say:
 | Questions | all 9 keys of AI_PIPELINE 7 with its instructions word for word. `choice` options carry a description (category: name, group and examples); `noul` questions carry `true_description` and `false_description`. `repayable` is asked only when the parser finds a person, and `duplicate` only when candidates exist. Every other key is asked on every message so it can be scored. |
 | Category options | primary run: the 34 sub-categories plus `other_expense` and `other_income` (36). Variant: all 45 slugs including groups. |
 | Dataset | [`data/utterances.json`](../../spikes/decide/data/utterances.json): 60 English utterances, one slice per AI_PIPELINE 11 row (11 explicit, 7 terse, 6 income, 6 transfer and savings, 8 loans, 6 ambiguous, 6 multi-entry, 4 questions, 3 commands, 3 adversarial). Labels were written before any call. A label can list several acceptable answers, and an unlabelled key is not scored. 7 cases carry a duplicate candidate. |
+
+### Secret versions used
+
+`GEMINI_API_KEY` was rotated while this spike ran. The project's admin audit log shows version 1 added at 18:26:32 UTC, version 2 added at **18:40:01.69** and version 1 disabled at **18:42:09.70**. Secret reads themselves are not logged, because Data Access audit logs are off in the project, so the version for each run comes from when it read `latest`:
+
+| Run | `latest` read at (UTC) | Version |
+|---|---|---|
+| main evaluation, 2 passes, 120 calls | 18:40:11 (command start); results file opened 18:40:13 | 2 |
+| probes, token breakdown, duplicate variant, 45-option category run, catalog count | 18:42:25 (start of the chain) | 2 |
+| A2UI spike `bin/instruction_size.dart` | after 18:42:25 | 2 |
+| `bin/key_check.dart` (rotation test, below) | about 18:50 | 2 |
+
+The main run read `latest` 10 seconds after version 2 was added, so every number in this report came from version 2. Version 1 was never used for an API call.
+
+After the rotation notice, each script reads the key itself when it starts ([`lib/secret.dart`](../../spikes/decide/lib/secret.dart)). It resolves `latest` to a version number, reads that exact version, and writes the number into its report. On an API-key error (400 "API key not valid", 401 or 403) the client re-reads `latest` once and retries before reporting a failure. `bin/key_check.dart` tested this live: it started with an invalid key, was rejected, re-read version 2 and got an answer. Evidence reports generated before this change do not carry the version line; this table is the record for them.
 
 ### API facts checked against the live docs (2026-11-22)
 
@@ -305,11 +320,7 @@ cd spikes/decide && dart pub get
 ```
 
 ```bash
-export GEMINI_API_KEY="$(gcloud secrets versions access latest --secret=GEMINI_API_KEY --project=expense-family-cc6ee --billing-project=expense-family-cc6ee)"
-```
-
-```bash
 dart run bin/run_eval.dart --passes 2 --tag main && dart run bin/run_eval.dart --passes 1 --tag cat_all --category-options all --only category && dart run bin/token_breakdown.dart && dart run bin/duplicate_variant.dart && dart run bin/probe_errors.dart && dart run bin/catalog_tokens.dart
 ```
 
-About 300 calls in all, costing under USD 0.10.
+Each script reads the newest enabled version of `GEMINI_API_KEY` itself when it starts, so gcloud must be signed in with access to the secret. Nothing is exported, and the version number goes into each report. About 300 calls in all, costing under USD 0.10.

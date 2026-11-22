@@ -3,7 +3,7 @@
 // duplicate candidate), each question alone, the full set, and the
 // category question with both option lists. Each request runs 3 times.
 //
-//   GEMINI_API_KEY=... dart run bin/token_breakdown.dart
+//   dart run bin/token_breakdown.dart
 import 'dart:io';
 
 import 'package:wp_s4_decide/decisions_client.dart';
@@ -25,7 +25,7 @@ const allKeys = [
 ];
 
 Future<void> main() async {
-  final client = DecisionsClient(apiKey: apiKeyFromEnvironment());
+  final client = await DecisionsClient.open();
   final c = loadCases('data/utterances.json')
       .firstWhere((c) => c.id == 'exp-02');
   final parse = parseText(c.text, parseContext());
@@ -88,6 +88,9 @@ Future<void> main() async {
       'the baseline.',
     );
 
+  b
+    ..writeln()
+    ..writeln(client.keySummary);
   client.close();
   File('evidence/token_breakdown.md').writeAsStringSync(b.toString());
   stdout.write(b);

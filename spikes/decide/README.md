@@ -17,18 +17,20 @@ Calls `POST https://generativelanguage.googleapis.com/v1beta/decisions` (`gemini
 | `bin/duplicate_variant.dart` | two wordings of the `duplicate` question on 14 cases |
 | `bin/probe_errors.dart` | malformed requests, limits, bad key, safety filters, a concurrent burst |
 | `bin/catalog_tokens.dart` | countTokens for the injected instructions of the merged Xpense catalog |
+| `bin/key_check.dart` | checks the key re-read path after a rotation |
+| `lib/secret.dart` | reads the latest `GEMINI_API_KEY` version and records its number |
 | `evidence/` | reports and raw JSONL responses (no key: it is only ever sent as a header) |
 
 ## Running
 
-The key is read at runtime from Secret Manager into the process environment. It is never printed, logged or written to a file.
+Each script reads the key from Secret Manager when it starts ([`lib/secret.dart`](lib/secret.dart)). It resolves `latest` to a version number, reads that version and records the number in its report. The value stays in memory: it is never printed, logged or written to a file. On an API-key error the client re-reads `latest` once and retries, so a key rotation mid-run does not fail the run. gcloud must be signed in with access to the secret.
 
 ```bash
 cd spikes/decide && dart pub get
 ```
 
 ```bash
-GEMINI_API_KEY="$(gcloud secrets versions access latest --secret=GEMINI_API_KEY --project=expense-family-cc6ee --billing-project=expense-family-cc6ee)" dart run bin/run_eval.dart --passes 2 --tag main
+dart run bin/run_eval.dart --passes 2 --tag main
 ```
 
-The other scripts take the same environment variable. `run_eval.dart` also takes `--category-options all` (45 options instead of 36) and `--only <keys>`.
+`run_eval.dart` also takes `--category-options all` (45 options instead of 36) and `--only <keys>`. `bin/key_check.dart` tests the re-read path: it starts with an invalid key and should end with one re-read and an answer.
