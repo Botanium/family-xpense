@@ -1,0 +1,3 @@
+*.log
+.genkit/
+client/build/

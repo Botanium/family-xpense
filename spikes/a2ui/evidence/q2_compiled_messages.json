@@ -1,0 +1,436 @@
+{
+  "q2_drafts_array": {
+    "ok": true,
+    "source": "surface(\"cap_k3m9\")\n$/drafts = [\n  {id: \"d1\", intent: \"income\", amountMinor: 320000, currency: \"USD\", categoryId: \"salary\",\n   accountId: \"acc_chk\", who: \"me\", occurredOn: \"2026-11-22\", title: \"Salary\",\n   confidence: {intent: 0.99, category: 0.97, account: 0.96}},\n  {id: \"d2\", intent: \"expense\", amountMinor: 140000, currency: \"USD\", categoryId: \"rent\",\n   accountId: \"acc_chk\", who: \"joint\", occurredOn: \"2026-11-22\", title: \"Rent\",\n   confidence: {intent: 0.98, category: 0.99, account: 0.97}, guessed: [\"who\"]}\n]\nroot = EntryList($/drafts, \"review\", \"I found two things in that:\")\n",
+    "messages": [
+      {
+        "version": "1.0",
+        "deleteSurface": {
+          "surfaceId": "cap_k3m9"
+        }
+      },
+      {
+        "version": "1.0",
+        "createSurface": {
+          "surfaceId": "cap_k3m9",
+          "catalogId": "https://familyxpense.app/a2ui/catalogs/xpense-spike/v1/catalog.json",
+          "sendDataModel": false,
+          "components": [
+            {
+              "id": "root",
+              "component": "EntryList",
+              "drafts": {
+                "@path": "/drafts"
+              },
+              "status": "review",
+              "title": "I found two things in that:"
+            }
+          ],
+          "dataModel": {
+            "drafts": [
+              {
+                "id": "d1",
+                "intent": "income",
+                "amountMinor": 320000,
+                "currency": "USD",
+                "categoryId": "salary",
+                "accountId": "acc_chk",
+                "who": "me",
+                "occurredOn": "2026-11-22",
+                "title": "Salary",
+                "confidence": {
+                  "intent": 0.99,
+                  "category": 0.97,
+                  "account": 0.96
+                }
+              },
+              {
+                "id": "d2",
+                "intent": "expense",
+                "amountMinor": 140000,
+                "currency": "USD",
+                "categoryId": "rent",
+                "accountId": "acc_chk",
+                "who": "joint",
+                "occurredOn": "2026-11-22",
+                "title": "Rent",
+                "confidence": {
+                  "intent": 0.98,
+                  "category": 0.99,
+                  "account": 0.97
+                },
+                "guessed": [
+                  "who"
+                ]
+              }
+            ]
+          }
+        }
+      }
+    ]
+  },
+  "q2_choice_prompt": {
+    "ok": true,
+    "source": "surface(\"cap_p7x2\")\n$/drafts = [{id: \"d1\", intent: \"loan_given\", amountMinor: 30000, currency: \"USD\",\n  personName: \"Alex\", accountId: \"acc_chk\", occurredOn: \"2026-11-22\", missing: [\"intent\"]}]\nroot = Column([ask, list])\nask = ChoicePrompt(\"Quick check, so I file it right: will Alex pay this back?\",\n  [{label: \"Yes, it's a loan\", value: \"loan_given\", hint: \"Alex owes us\"},\n   {label: \"No, gift or payment\", value: \"expense\", hint: \"Expense\"},\n   {label: \"I was paying Alex back\", value: \"repayment_made\", hint: \"Debt\"}],\n  $/drafts/0/intent)\nlist = EntryList($/drafts)\n",
+    "messages": [
+      {
+        "version": "1.0",
+        "deleteSurface": {
+          "surfaceId": "cap_p7x2"
+        }
+      },
+      {
+        "version": "1.0",
+        "createSurface": {
+          "surfaceId": "cap_p7x2",
+          "catalogId": "https://familyxpense.app/a2ui/catalogs/xpense-spike/v1/catalog.json",
+          "sendDataModel": false,
+          "components": [
+            {
+              "id": "root",
+              "component": "Column",
+              "children": [
+                "ask",
+                "list"
+              ]
+            },
+            {
+              "id": "ask",
+              "component": "ChoicePrompt",
+              "question": "Quick check, so I file it right: will Alex pay this back?",
+              "options": [
+                {
+                  "label": "Yes, it's a loan",
+                  "value": "loan_given",
+                  "hint": "Alex owes us"
+                },
+                {
+                  "label": "No, gift or payment",
+                  "value": "expense",
+                  "hint": "Expense"
+                },
+                {
+                  "label": "I was paying Alex back",
+                  "value": "repayment_made",
+                  "hint": "Debt"
+                }
+              ],
+              "value": {
+                "@path": "/drafts/0/intent"
+              }
+            },
+            {
+              "id": "list",
+              "component": "EntryList",
+              "drafts": {
+                "@path": "/drafts"
+              }
+            }
+          ],
+          "dataModel": {
+            "drafts": [
+              {
+                "id": "d1",
+                "intent": "loan_given",
+                "amountMinor": 30000,
+                "currency": "USD",
+                "personName": "Alex",
+                "accountId": "acc_chk",
+                "occurredOn": "2026-11-22",
+                "missing": [
+                  "intent"
+                ]
+              }
+            ]
+          }
+        }
+      }
+    ]
+  },
+  "q2_quoted_keys_null_bool": {
+    "ok": true,
+    "source": "surface(\"cap_json\")\n$/drafts = [{\"id\": \"d1\", \"intent\": \"expense\", \"amountMinor\": 250, \"currency\": \"IQD\",\n  \"accountId\": null, \"missing\": [\"accountId\"], \"duplicate\": false, \"fx\": {\"pairRate\": \"1705\"}}]\nroot = EntryList($/drafts)\n",
+    "messages": [
+      {
+        "version": "1.0",
+        "deleteSurface": {
+          "surfaceId": "cap_json"
+        }
+      },
+      {
+        "version": "1.0",
+        "createSurface": {
+          "surfaceId": "cap_json",
+          "catalogId": "https://familyxpense.app/a2ui/catalogs/xpense-spike/v1/catalog.json",
+          "sendDataModel": false,
+          "components": [
+            {
+              "id": "root",
+              "component": "EntryList",
+              "drafts": {
+                "@path": "/drafts"
+              }
+            }
+          ],
+          "dataModel": {
+            "drafts": [
+              {
+                "id": "d1",
+                "intent": "expense",
+                "amountMinor": 250,
+                "currency": "IQD",
+                "accountId": null,
+                "missing": [
+                  "accountId"
+                ],
+                "duplicate": false,
+                "fx": {
+                  "pairRate": "1705"
+                }
+              }
+            ]
+          }
+        }
+      }
+    ]
+  },
+  "q1_checks_bare": {
+    "ok": true,
+    "source": "surface(\"legacy_keys\")\n$/name = \"\"\nroot = Button(label, \"primary\", Event(\"go\", {name: $/name}), _, [?required($/name, \"Name is required\")])\nlabel = Text(\"Go\")\n",
+    "messages": [
+      {
+        "version": "1.0",
+        "deleteSurface": {
+          "surfaceId": "legacy_keys"
+        }
+      },
+      {
+        "version": "1.0",
+        "createSurface": {
+          "surfaceId": "legacy_keys",
+          "catalogId": "https://familyxpense.app/a2ui/catalogs/xpense-spike/v1/catalog.json",
+          "sendDataModel": false,
+          "components": [
+            {
+              "id": "root",
+              "component": "Button",
+              "child": "label",
+              "variant": "primary",
+              "action": {
+                "event": {
+                  "name": "go",
+                  "context": {
+                    "name": {
+                      "@path": "/name"
+                    }
+                  }
+                }
+              },
+              "checks": [
+                {
+                  "condition": {
+                    "@call": "required",
+                    "args": {
+                      "value": {
+                        "@path": "/name"
+                      }
+                    }
+                  },
+                  "message": "Name is required"
+                }
+              ]
+            },
+            {
+              "id": "label",
+              "component": "Text",
+              "text": "Go"
+            }
+          ],
+          "dataModel": {
+            "name": ""
+          }
+        }
+      }
+    ]
+  },
+  "q2_update_element": {
+    "ok": true,
+    "source": "surface(\"cap_k3m9\")\n$/drafts/1/who = \"me\"\n",
+    "messages": [
+      {
+        "version": "1.0",
+        "updateDataModel": {
+          "surfaceId": "cap_k3m9",
+          "path": "/drafts/1/who",
+          "value": "me"
+        }
+      }
+    ]
+  },
+  "q4_update_local_surface": {
+    "ok": false,
+    "source": "surface(\"local_cap_1\")\n$/drafts/0/accountId = \"acc_cash\"\n",
+    "error": "Bad state: A2UI: failed to compile A2UI Express block: Surface not found for message: local_cap_1"
+  },
+  "q4_rerender_local_surface": {
+    "ok": true,
+    "source": "surface(\"local_cap_1\")\n$/drafts = [{id: \"d1\", intent: \"expense\", amountMinor: 10000, currency: \"IQD\", accountId: \"acc_cash\"}]\nroot = EntryList($/drafts)\n",
+    "messages": [
+      {
+        "version": "1.0",
+        "deleteSurface": {
+          "surfaceId": "local_cap_1"
+        }
+      },
+      {
+        "version": "1.0",
+        "createSurface": {
+          "surfaceId": "local_cap_1",
+          "catalogId": "https://familyxpense.app/a2ui/catalogs/xpense-spike/v1/catalog.json",
+          "sendDataModel": false,
+          "components": [
+            {
+              "id": "root",
+              "component": "EntryList",
+              "drafts": {
+                "@path": "/drafts"
+              }
+            }
+          ],
+          "dataModel": {
+            "drafts": [
+              {
+                "id": "d1",
+                "intent": "expense",
+                "amountMinor": 10000,
+                "currency": "IQD",
+                "accountId": "acc_cash"
+              }
+            ]
+          }
+        }
+      }
+    ]
+  },
+  "q5_choice_with_action": {
+    "ok": true,
+    "source": "surface(\"cap_q1\")\n$/drafts = [{id: \"d1\", intent: \"expense\", amountMinor: 1200, currency: \"USD\"}]\nroot = ChoicePrompt(\"Which account?\", [{label: \"Checking\", value: \"acc_chk\"},\n  {label: \"Cash\", value: \"acc_cash\"}], $/drafts/0/accountId,\n  false, Event(\"xp.answer\", {field: \"accountId\", value: $/drafts/0/accountId}))\n",
+    "messages": [
+      {
+        "version": "1.0",
+        "deleteSurface": {
+          "surfaceId": "cap_q1"
+        }
+      },
+      {
+        "version": "1.0",
+        "createSurface": {
+          "surfaceId": "cap_q1",
+          "catalogId": "https://familyxpense.app/a2ui/catalogs/xpense-spike/v1/catalog.json",
+          "sendDataModel": false,
+          "components": [
+            {
+              "id": "root",
+              "component": "ChoicePrompt",
+              "question": "Which account?",
+              "options": [
+                {
+                  "label": "Checking",
+                  "value": "acc_chk"
+                },
+                {
+                  "label": "Cash",
+                  "value": "acc_cash"
+                }
+              ],
+              "value": {
+                "@path": "/drafts/0/accountId"
+              },
+              "allowOther": false,
+              "action": {
+                "event": {
+                  "name": "xp.answer",
+                  "context": {
+                    "field": "accountId",
+                    "value": {
+                      "@path": "/drafts/0/accountId"
+                    }
+                  }
+                }
+              }
+            }
+          ],
+          "dataModel": {
+            "drafts": [
+              {
+                "id": "d1",
+                "intent": "expense",
+                "amountMinor": 1200,
+                "currency": "USD"
+              }
+            ]
+          }
+        }
+      }
+    ]
+  },
+  "q2_result_object": {
+    "ok": true,
+    "source": "surface(\"ans_food_nov\")\n$/result = {total: 48650, rows: [{label: \"Groceries\", amountMinor: 38600, share: 0.79},\n  {label: \"Dining\", amountMinor: 10050, share: 0.21}]}\nroot = Column([head, list])\nhead = Text(\"Food in November\")\nlist = EntryList($/result/rows)\n",
+    "messages": [
+      {
+        "version": "1.0",
+        "deleteSurface": {
+          "surfaceId": "ans_food_nov"
+        }
+      },
+      {
+        "version": "1.0",
+        "createSurface": {
+          "surfaceId": "ans_food_nov",
+          "catalogId": "https://familyxpense.app/a2ui/catalogs/xpense-spike/v1/catalog.json",
+          "sendDataModel": false,
+          "components": [
+            {
+              "id": "root",
+              "component": "Column",
+              "children": [
+                "head",
+                "list"
+              ]
+            },
+            {
+              "id": "head",
+              "component": "Text",
+              "text": "Food in November"
+            },
+            {
+              "id": "list",
+              "component": "EntryList",
+              "drafts": {
+                "@path": "/result/rows"
+              }
+            }
+          ],
+          "dataModel": {
+            "result": {
+              "total": 48650,
+              "rows": [
+                {
+                  "label": "Groceries",
+                  "amountMinor": 38600,
+                  "share": 0.79
+                },
+                {
+                  "label": "Dining",
+                  "amountMinor": 10050,
+                  "share": 0.21
+                }
+              ]
+            }
+          }
+        }
+      }
+    ]
+  }
+}
