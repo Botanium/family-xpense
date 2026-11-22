@@ -39,6 +39,33 @@ void main() {
     expect(find.byType(CaptureDock), findsOneWidget);
   });
 
+  testWidgets('a second Ask link replaces the text of the Ask on screen', (
+    tester,
+  ) async {
+    await pumpXpenseApp(tester, TestServices());
+
+    await openLink(tester, 'xpense://ask?text=lunch');
+    await openLink(tester, 'xpense://ask?text=dinner%2012000');
+
+    final field = tester.widget<EditableText>(find.byType(EditableText));
+    expect(field.controller.text, 'dinner 12000');
+  });
+
+  testWidgets('a rebuild of Ask keeps what the user typed', (tester) async {
+    await pumpXpenseApp(tester, TestServices());
+    await openLink(tester, 'xpense://ask?text=lunch');
+
+    await tester.enterText(find.byType(EditableText), 'lunch 9000');
+    // The phone switching to dark rebuilds every route with the same
+    // prefill.
+    tester.platformDispatcher.platformBrightnessTestValue = Brightness.dark;
+    addTearDown(tester.platformDispatcher.clearPlatformBrightnessTestValue);
+    await tester.pumpAndSettle();
+
+    final field = tester.widget<EditableText>(find.byType(EditableText));
+    expect(field.controller.text, 'lunch 9000');
+  });
+
   testWidgets('Back from a deep-linked Ask with nothing below goes Home', (
     tester,
   ) async {

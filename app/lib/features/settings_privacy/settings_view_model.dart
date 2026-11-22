@@ -52,19 +52,17 @@ final class SettingsViewModel extends Notifier<SettingsViewState> {
   SettingsViewState build() => const SettingsViewState();
 
   /// Switches the theme. The new theme paints once the choice is saved.
-  void setAppearance(AppearanceMode mode) => unawaited(
-    _save(ref.read(appSettingsProvider).copyWith(appearance: mode)),
-  );
+  void setAppearance(AppearanceMode mode) =>
+      unawaited(_update((s) => s.copyWith(appearance: mode)));
 
   /// Turns the Face ID lock on or off. Turning it on first asks for Face ID
   /// (or the passcode), so nobody can lock themselves out by accident.
   /// [reason] is the localized text iOS shows in the passcode prompt.
   void setFaceIdLock({required bool on, required String reason}) {
     if (state.confirmingFaceId) return;
-    final settings = ref.read(appSettingsProvider);
     if (!on) {
       state = const SettingsViewState();
-      unawaited(_save(settings.copyWith(faceIdLock: false)));
+      unawaited(_update((s) => s.copyWith(faceIdLock: false)));
       return;
     }
     state = const SettingsViewState(confirmingFaceId: true);
@@ -93,13 +91,15 @@ final class SettingsViewModel extends Notifier<SettingsViewState> {
     };
     state = SettingsViewState(faceIdNotice: notice);
     if (outcome is Unlocked) {
-      await _save(ref.read(appSettingsProvider).copyWith(faceIdLock: true));
+      await _update((s) => s.copyWith(faceIdLock: true));
     }
   }
 
-  Future<void> _save(AppSettings next) async {
+  // Each change is applied to the latest settings, never to a snapshot
+  // taken here, so overlapping changes do not undo each other.
+  Future<void> _update(AppSettings Function(AppSettings) change) async {
     try {
-      await ref.read(appSettingsProvider.notifier).save(next);
+      await ref.read(appSettingsProvider.notifier).update(change);
     } on Object catch (error, stack) {
       // The switch and chips show the stored value, which did not change,
       // so the screen already tells the truth; the error is logged.
