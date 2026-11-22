@@ -59,6 +59,11 @@ final class AppRouteTable {
   List<FeatureRoutes> get tabs => [home, activity, goals, accounts];
 }
 
+/// A rule that may send a location elsewhere, such as the sign-in gate:
+/// returns the new location, or null to let it pass. It must be pure and
+/// must not send a location to one it would rewrite again.
+typedef RouteGuard = String? Function(Uri location);
+
 /// Builds the app's one router (ARCHITECTURE 3.3).
 ///
 /// The four tabs share a `StatefulShellRoute.indexedStack`, so each keeps
@@ -66,10 +71,16 @@ final class AppRouteTable {
 /// top-level route pushed above the shell. Incoming `xpense://` links are
 /// rewritten by [appRedirect]. Debug builds add the component gallery at
 /// [AppRoutes.gallery]; release builds never contain the route.
+///
+/// [guard] runs after [appRedirect] on every location, and again whenever
+/// [refreshListenable] notifies; the root passes the onboarding gate here
+/// (WP-11), so a feature never builds its own router.
 GoRouter buildAppRouter(
   AppRouteTable table, {
   String initialLocation = AppRoutes.home,
   List<NavigatorObserver>? observers,
+  RouteGuard? guard,
+  Listenable? refreshListenable,
 }) {
   final tabs = table.tabs;
   assert(
@@ -79,7 +90,11 @@ GoRouter buildAppRouter(
   return GoRouter(
     initialLocation: initialLocation,
     observers: observers,
-    redirect: (context, state) => appRedirect(state.uri),
+    refreshListenable: refreshListenable,
+    // A deep link is rewritten first; go_router then runs this again on
+    // the rewritten location, where the guard applies.
+    redirect: (context, state) =>
+        appRedirect(state.uri) ?? guard?.call(state.uri),
     errorBuilder: (context, state) => const NotFoundScreen(),
     routes: [
       StatefulShellRoute.indexedStack(

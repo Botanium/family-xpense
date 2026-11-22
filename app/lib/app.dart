@@ -20,6 +20,7 @@ import 'package:xpense_app/features/household/routes.dart';
 import 'package:xpense_app/features/insights/routes.dart';
 import 'package:xpense_app/features/loans/routes.dart';
 import 'package:xpense_app/features/notifications/routes.dart';
+import 'package:xpense_app/features/onboarding/onboarding_gate.dart';
 import 'package:xpense_app/features/onboarding/routes.dart';
 import 'package:xpense_app/features/settings_privacy/lock/app_lock_controller.dart';
 import 'package:xpense_app/features/settings_privacy/lock/app_lock_gate.dart';
@@ -53,9 +54,15 @@ final appRouteTableProvider = Provider<AppRouteTable>(
   name: 'appRouteTableProvider',
 );
 
-/// The app's one router.
+/// The app's one router, behind the onboarding gate: signed out, only
+/// Welcome and its sign-in screens open (WP-11).
 final routerProvider = Provider<GoRouter>((ref) {
-  final router = buildAppRouter(ref.watch(appRouteTableProvider));
+  final gate = ref.watch(onboardingGateProvider);
+  final router = buildAppRouter(
+    ref.watch(appRouteTableProvider),
+    guard: gate.redirect,
+    refreshListenable: gate,
+  );
   ref.onDispose(router.dispose);
   return router;
 }, name: 'routerProvider');

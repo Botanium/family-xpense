@@ -11,6 +11,9 @@ import 'package:flutter_riverpod/misc.dart';
 import 'package:xpense_app/app.dart';
 import 'package:xpense_app/core/theme/theme.dart';
 import 'package:xpense_app/core/ui/ui.dart';
+import 'package:xpense_app/data/auth_repository.dart';
+import 'package:xpense_app/data/auth_repository_fake.dart';
+import 'package:xpense_app/data/auth_repository_firebase.dart';
 import 'package:xpense_app/services/agent_client.dart';
 import 'package:xpense_app/services/agent_client_fake.dart';
 import 'package:xpense_app/services/biometric_lock.dart';
@@ -56,6 +59,32 @@ enum AppEnvironment {
   /// Whether startup initialises Firebase and App Check.
   bool get usesFirebase => this != fakes;
 }
+
+/// `--dart-define=XPENSE_AUTH_EMULATOR=host:port` points Firebase Auth at
+/// the emulator suite (`firebase/firebase.json`: `localhost:9099`). Dev
+/// builds only; ignored in prod.
+const String authEmulatorDefine = String.fromEnvironment(
+  'XPENSE_AUTH_EMULATOR',
+);
+
+/// `--dart-define=XPENSE_FAKE_AUTH=signed_out` starts the `fakes`
+/// environment signed out, to show onboarding. By default the fake is
+/// signed in, so a clean checkout opens on Home.
+const String fakeAuthDefine = String.fromEnvironment('XPENSE_FAKE_AUTH');
+
+/// The auth repository for [environment].
+Future<AuthRepository> connectAuth(AppEnvironment environment) async =>
+    switch (environment) {
+      AppEnvironment.fakes => FakeAuthRepository(
+        signedIn: fakeAuthDefine == 'signed_out'
+            ? null
+            : FakeAuthRepository.providerUser,
+      ),
+      AppEnvironment.dev => await FirebaseAuthRepository.connect(
+        emulator: authEmulatorDefine,
+      ),
+      AppEnvironment.prod => await FirebaseAuthRepository.connect(),
+    };
 
 /// The crash sink the two error handlers write to.
 ///
@@ -144,6 +173,7 @@ Future<Bootstrapped> bootstrap({required AppEnvironment environment}) async {
     );
   }
 
+  final auth = await connectAuth(environment);
   registerFontLicenses();
   final settings = await PrefsSettingsStore.open();
   await GlassSetup.initialize();
@@ -156,6 +186,7 @@ Future<Bootstrapped> bootstrap({required AppEnvironment environment}) async {
       settings: settings,
       biometricLock: LocalAuthBiometricLock(),
       glass: glass,
+      authRepository: auth,
     ),
   );
 }
@@ -171,6 +202,7 @@ List<Override> appOverrides({
   required SettingsStore settings,
   required BiometricLock biometricLock,
   required GlassController glass,
+  required AuthRepository authRepository,
   SecureStore? secureStore,
   AgentClient? agentClient,
   DecisionsClient? decisionsClient,
@@ -182,6 +214,7 @@ List<Override> appOverrides({
   settingsStoreProvider.overrideWithValue(settings),
   biometricLockProvider.overrideWithValue(biometricLock),
   glassControllerProvider.overrideWithValue(glass),
+  authRepositoryProvider.overrideWithValue(authRepository),
   secureStoreProvider.overrideWithValue(secureStore ?? MemorySecureStore()),
   agentClientProvider.overrideWithValue(agentClient ?? FakeAgentClient()),
   decisionsClientProvider.overrideWithValue(
