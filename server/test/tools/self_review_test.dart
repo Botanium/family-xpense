@@ -228,6 +228,50 @@ void main() {
     });
   });
 
+  group('account options and a guessed currency (PR #30 review)', () {
+    // The classifier leans to the IQD cash wallet but below conf_low, so
+    // the account is asked.
+    final lean = FakeEntryClassifier.always(
+      DecideResponse(
+        account: ChoiceAnswer(
+          choice: 'acc_cash_iqd',
+          probabilities: {'acc_cash_iqd': 0.5, 'acc_chk': 0.3, 'acc_visa': 0.2},
+          confidence: 0.5,
+        ),
+      ),
+    );
+
+    test('a guessed currency does not filter the choices', () async {
+      // "groceries 45": the base currency (USD) is only a guess. The old
+      // options dropped the IQD wallet the classifier ranked first.
+      final out = await prepare(
+        ProposedEntry(intent: 'expense', amount: '45', text: 'groceries 45'),
+        'groceries 45',
+        classifier: lean,
+      );
+      expect(out.ask?.field, 'accountId');
+      expect(out.ask?.options?.first.value, 'acc_cash_iqd');
+    });
+
+    test('a written currency still does', () async {
+      final out = await prepare(
+        ProposedEntry(
+          intent: 'expense',
+          amount: '45',
+          currency: 'USD',
+          text: 'groceries 45 dollars',
+        ),
+        'groceries 45 dollars',
+        classifier: lean,
+      );
+      expect(out.ask?.field, 'accountId');
+      expect(
+        out.ask?.options?.map((o) => o.value),
+        isNot(contains('acc_cash_iqd')),
+      );
+    });
+  });
+
   group('written ISO dates (PR #30 review)', () {
     test('an ISO date in the date words or the text is kept', () async {
       final viaWords = await prepare(

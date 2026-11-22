@@ -59,7 +59,12 @@ void main() {
 
         expect(out.ask?.draftId, 'd1');
         expect(out.ask?.field, 'accountId');
-        expect(out.ask?.options?.map((o) => o.value), ['acc_chk', 'acc_visa']);
+        // The currency is only a guess, so every active account is offered.
+        expect(out.ask?.options?.map((o) => o.value), [
+          'acc_chk',
+          'acc_visa',
+          'acc_cash_iqd',
+        ]);
       },
     );
 

@@ -819,9 +819,16 @@ FollowUp? _firstFollowUp(
     final ranked = [...snap.activeAccounts]
       ..sort((a, b) => order(a).compareTo(order(b)));
     final options = switch (field) {
+      // A written currency (a currency word or a named account) rules out
+      // accounts in other currencies. A guessed one does not: the account
+      // and currency are settled together (the slip then shows the
+      // currency to confirm, as `_followAccountCurrency` does for the
+      // classifier's choice).
       'accountId' => [
         for (final a in ranked)
-          if (d.currency == null || a.currency == d.currency)
+          if (!builders[i].currencyFromWords ||
+              d.currency == null ||
+              a.currency == d.currency)
             FollowUpOption(label: a.name, value: a.id),
       ],
       // A transfer may arrive in another currency (`toAmountMinor`,
