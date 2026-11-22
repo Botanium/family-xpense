@@ -2,7 +2,7 @@
 
 The Xpense catalog is the set of components the agent may render and the phone knows how to paint. One catalog serves both sources of UI: surfaces streamed by the cloud agent and surfaces built on the phone by the on-device path. Protocol: A2UI v1.0.
 
-Facts about the protocol and packages were read from the A2UI spec, the package READMEs and changelogs on 2026-11-22 (DECISIONS section 3). Items marked **verify in WP-S1** could not be confirmed from documentation alone and are settled by the first spike.
+Facts about the protocol and packages were read from the A2UI spec, the package READMEs and changelogs on 2026-11-22 (DECISIONS section 3). Items that documentation could not settle were checked by the WP-S1 spike ([docs/spikes/WP-S1.md](spikes/WP-S1.md)); this document reflects its findings.
 
 ## 1. Identity and files
 
@@ -14,7 +14,7 @@ Facts about the protocol and packages were read from the A2UI spec, the package 
 | Source of truth | `packages/xpense_shared/lib/catalog/xpense_catalog.json`, in the A2UI `catalog.json` shape |
 | Server registration | `await loadCatalog(ai, id: 'xpense', file: …)` at startup, before any turn |
 | Phone registration | `CatalogImplementation(id: catalogId, protocolVersion: A2uiProtocolVersion.v1_0, components: xpenseComponents, functions: xpenseFunctions)` inside `XpenseSurfaceHost` |
-| Parity test | a test loads the JSON with `Catalog.fromJson` and asserts every component name and property matches the Dart implementations |
+| Parity test | the same JSON loads with `loadCatalog` (server) and `Catalog.fromJson` (`a2ui_core 0.8`); a test compares each component's `schema.value['properties']` keys with the Dart implementations |
 
 The catalog is loaded from JSON rather than built with `basicCatalog.extend`, because `extend` keeps all 18 basic components and this catalog deliberately leaves some out.
 
@@ -24,9 +24,11 @@ The catalog is loaded from JSON rather than built with `basicCatalog.extend`, be
 2. **Smart where money is written.** `EntryList` and `ReceiptSummary` own editing and saving on the phone. The agent proposes data; it never performs the save.
 3. **Data in the data model, bound by path.** Drafts live at `/drafts`. Components bind to paths, so a follow-up answer updates a field in place and the card redraws without a model call.
 4. **No remote content.** No image, video, audio, modal or link components, and no `openUrl` function.
-5. **Small.** 8 basic components and 16 Xpense components. Fewer components mean a shorter prompt and more consistent output.
+5. **Small.** 8 basic components and 16 Xpense components. Fewer components mean a shorter prompt and more consistent output. Measured in WP-S1: the injected catalog instructions are about 22,000 characters (estimated 5,500 to 6,300 tokens) per model call. Keep descriptions to one line, drop `weight` from the copied basic components, and leave out unused functions.
 6. **Property order is part of the contract.** A2UI Express is positional: the order of properties in the JSON schema is the argument order. Appending an optional property is compatible; reordering is breaking.
 7. **Reserved names.** No property is named `checks`, `metadata`, `accessibility` or `catalogId` (the renderer treats these as envelope keys). Component ids are identifiers with underscores, never hyphens. Surface ids follow the same rule.
+8. **Enum properties are static.** In Express an enum-typed property cannot be bound to the data model. To make a property bindable, type it as a dynamic string and lose the enum check.
+9. **The agent sees only what it wrote.** On later turns a surface is replayed as its original Express. Edits made on the phone are invisible to the agent unless an action's context carries them; `sendDataModel` does not help with `genkit_a2ui 0.6`.
 
 ## 3. Components
 
@@ -54,7 +56,7 @@ Left out on purpose: `Image`, `Icon`, `Video`, `AudioPlayer`, `Card`, `Tabs`, `M
 | Property | Type | Description |
 |---|---|---|
 | `drafts` | dyn (array of `EntryDraft`) | normally `$/drafts` |
-| `status?` | dyn enum `review` \| `saved` | default `review` |
+| `status?` | static enum `review` \| `saved` | default `review`. The agent sets it once; after a save the phone keeps its own state at `/ui/status` |
 | `title?` | dyn string | for example "I found two things in that" |
 
 Behaviour on the phone:
@@ -74,9 +76,11 @@ Behaviour on the phone:
 | `options` | list of `{label, value, hint?}` | 2 to 5 |
 | `value` | writable binding | where the picked value is stored, for example `$/drafts/0/intent` |
 | `allowOther?` | boolean | adds "Other…", which opens a text field |
-| `action?` | action | fired after a pick, only when the agent must react |
+| `action?` | action | fired after a pick, only when the agent must react. See the note on optional actions below |
 
 A pick writes `value` locally. Without `action`, no message is sent to the agent.
+
+**Optional actions (`ChoicePrompt`, `Nudge`, `Notice`).** The contract text that `a2ui()` injects tells the model that every parameter named `action` is required and to supply a dummy `Event("click")`. WP-32's prompt overrides that for these three components, the action router drops events named `click`, and the evaluation checks that a pick without `action` starts no agent turn.
 
 **`Transcript`**: what was heard.
 
@@ -242,7 +246,7 @@ Action names that travel as A2UI events but must stay local are prefixed `xp.loc
 | `xp.refine` | `{note}` | the user asks the agent to redo a proposal |
 | `xp.more` | `{topic, range?}` | a follow-on analytics request from a button |
 
-After a local save, the host records `{draftIds, txnIds}` and attaches a compact `xp.saved` action to the user's next turn, so the agent knows what was confirmed without an extra model call. **Verify in WP-S1** that one user message can carry an action data part together with text; if not, the note is sent as a line of text context.
+After a local save, the host records `{draftIds, txnIds}` and attaches a compact `xp.saved` action to the user's next turn, so the agent knows what was confirmed without an extra model call. It travels as an A2UI data part before the text part in the same user message (verified in WP-S1); the model reads `[UI action "xp.saved" from … context={…}]` followed by the text.
 
 Input values reach the agent only when the bound paths are echoed in the event context, for example `Event("xp.answer", {field: "note", text: $/answer/text})`.
 
@@ -260,9 +264,11 @@ While a turn is streaming, forwarded actions are ignored and controls show a bus
 
 Nothing secret goes into a data model. Anything bound there can come back through an action.
 
+The agent cannot see changes the phone makes to a data model. When the agent needs the current drafts (for example to redo a proposal), the phone sends them in the action context (`xp.refine {drafts}`).
+
 ## 7. What the agent writes
 
-The model writes A2UI Express inside `<a2ui>` blocks; `genkit_a2ui` compiles it to v1.0 messages. Illustrative blocks (exact Express syntax for arrays of objects is **verified in WP-S1**; if Express cannot assign them, the server pushes `/drafts` with an `updateDataModel` message from the `prepareEntries` result instead, and the model writes only the component tree):
+The model writes A2UI Express inside `<a2ui>` blocks; `genkit_a2ui` compiles it to v1.0 messages. `$/path = [...]` assigns arrays and maps (quoted keys, `null` and booleans allowed). In a block with `root` the assignment travels inside `createSurface.dataModel`; otherwise as `updateDataModel` (verified in WP-S1). Illustrative blocks:
 
 Two entries in one message:
 
@@ -354,6 +360,11 @@ Output for one draft with a missing account (one `createSurface` carrying compon
 ```
 
 Other builders: `receiptSurface`, `nudgeSurface`, `queuedSurface` (offline queue placeholder), `noticeSurface`, `savedSurface`.
+
+Rules for local messages (from WP-S1):
+- Bindings are written `{"@path": …}` and function calls `{"@call": …}`; the bare `call` key fails validation in `a2ui_core 0.8`.
+- Local surface ids start with `loc_`.
+- The agent cannot update a local surface: the server validates agent blocks against the surfaces the agent itself created. To hand a local draft to the agent, send it in an action context (`xp.refine {drafts}`) and let the agent render its own surface.
 
 Because the account question is derived by `EntryList` from `missing`, the local builder does not need to emit a `ChoicePrompt` for ordinary missing fields. It emits one only for intent questions, where the options change the draft's meaning.
 

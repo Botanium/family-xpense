@@ -210,7 +210,8 @@ A safety block (HTTP 400 with an `error.code`) is not retried; it goes straight 
 ### Definition
 
 - `ai.definePromptAgent(promptName: 'xpense_agent', store: FirestoreSessionStore(...), ...)` in `server/lib/runtime/agent.dart`, the only file that imports `package:genkit/experimental.dart`.
-- Middleware order in `use`: `householdContext()` (ours; injects the household block from `ctx.context` and Firestore, cached 60 s) → `outputGuard()` (ours; checks emitted surfaces, section 9) → `a2ui(catalog: 'xpense', validate: 'warn', repair: true)` → `retry()`. Development and CI run with `validate: 'strict', repair: false`.
+- Middleware order in `use`: `householdContext()` (ours; injects the household block from `ctx.context` and Firestore, cached 60 s) → `outputGuard()` (ours; checks emitted surfaces, section 9) → `a2ui(catalog: 'xpense', validate: 'warn', repair: true)` → `retry()`. Development and CI run with `validate: 'strict', repair: false`. Verified in WP-S1: a middleware listed before `a2ui()` puts its household block ahead of the A2UI instructions. The context map is recorded in trace attributes, so it holds ids only, never names or text.
+- The prompt overrides the injected contract's "every `action` parameter is required" rule for `ChoicePrompt`, `Nudge` and `Notice`, whose actions are optional (A2UI_CATALOG 3.2).
 - `maxTurns: 6`. Sessions are kept 30 days.
 - Model ids come from `config/runtime`, never from code, and are pinned (no `-latest` aliases, which Google hot-swaps).
 
@@ -425,18 +426,18 @@ On-device extraction cannot run under the CLI. `app/integration_test/on_device_e
 
 ## 12. Cost per 1,000 entries
 
-Prices are the verified paid-tier rates. Token counts are estimates to be replaced with measured `usage` in `WP-35`.
+Prices are the verified paid-tier rates. Token counts are estimates to be replaced with measured `usage` in `WP-35`. Updated after WP-S1, which measured the injected catalog instructions at about 22,000 characters (an estimated 5,500 to 6,300 tokens) on every agent model call; the agent rows below assume 6,000.
 
 ### Unit costs
 
 | Call | Tokens (estimate) | Cost |
 |---|---|---|
 | `/decide` | 1,100 in (message, context, about 45 category and 8 account options) | USD 0.00011 |
-| agent capture turn, Flash-Lite, two model calls + one Decisions call | 7,600 in, 450 out | USD 0.0035 |
-| average agent capture (1.25 turns) | | USD 0.0044 |
+| agent capture turn, Flash-Lite, two model calls + one Decisions call | 16,000 in (about 12,000 of it catalog instructions), 450 out | USD 0.0060 |
+| average agent capture (1.25 turns) | | USD 0.0075 |
 | cloud audio, 8 s | + 256 in (32 tokens per second) | + USD 0.00008 |
 | cloud receipt, Flash-Lite | 4,900 in (image about 1,120), 500 out | USD 0.0028 to 0.004 |
-| question, Flash-Lite, three model calls | 13,000 in, 600 out | USD 0.0054 |
+| question, Flash-Lite, three model calls | 25,000 in, 600 out | USD 0.0090 |
 | monthly report, 3.8 Flash at 2027 prices | 6,000 in, 900 out | USD 0.016 |
 
 ### By privacy mode
@@ -444,16 +445,16 @@ Prices are the verified paid-tier rates. Token counts are estimates to be replac
 | Mode | Assumed mix per 1,000 entries | AI cost |
 |---|---|---|
 | **On-device only** | 1,000 local | USD 0.00 (2.6 GB one-time download if Gemma is chosen) |
-| **Smart** | 450 local (rules, parser, on-device model), 350 Decisions, 200 agent; 50 of the entries are cloud receipts | 0.04 + 0.88 + 0.20 = **about USD 1.12** |
-| **Cloud** | 150 local (rules), 600 Decisions, 250 agent; 80 cloud receipts | 0.07 + 1.10 + 0.32 = **about USD 1.49** |
+| **Smart** | 450 local (rules, parser, on-device model), 350 Decisions, 200 agent; 50 of the entries are cloud receipts | 0.04 + 1.50 + 0.20 = **about USD 1.74** |
+| **Cloud** | 150 local (rules), 600 Decisions, 250 agent; 80 cloud receipts | 0.07 + 1.88 + 0.32 = **about USD 2.27** |
 
 Sensitivities:
 
-- On a phone without on-device speech recognition, every voice entry goes to the agent: about USD 4.50 per 1,000 entries if all captures are spoken.
+- On a phone without on-device speech recognition, every voice entry goes to the agent: about USD 7.60 per 1,000 entries if all captures are spoken.
 - Running agent turns on `gemini-3.8-flash` at 2027 prices instead of Flash-Lite multiplies the agent share by about 4.
-- Replacing the injected catalog instructions with a hand-written compact prompt (`a2ui(instructions: 'none')` plus `renderCatalogInstructions` trimmed to the Xpense components) is expected to cut agent input by about 40%.
+- Replacing the injected catalog instructions with a hand-written compact prompt (`a2ui(instructions: 'none')` plus `renderCatalogInstructions` trimmed to the Xpense components) is expected to cut agent input by about 40%. The catalog instructions are now the largest single cost, so WP-32 should measure them with a real key (`bin/instruction_size.dart` from the spike) and trim them first.
 - As rules accumulate, the local share grows; the 45% figure is a first-month assumption.
 
 ### Per household per month (Smart, 300 entries, 30 questions, one report)
 
-0.34 (entries) + 0.16 (questions) + 0.02 (report) = **about USD 0.52**. Cloud Run scales to zero, and Firestore usage for two people stays inside the free quota, so AI calls are the main variable cost.
+0.52 (entries) + 0.27 (questions) + 0.02 (report) = **about USD 0.81**. Cloud Run scales to zero, and Firestore usage for two people stays inside the free quota, so AI calls are the main variable cost.

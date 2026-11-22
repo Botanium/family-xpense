@@ -76,7 +76,10 @@ Three parts: decisions locked by the owner (L), decisions made while planning (D
 
 **D-10. The phone is the single write path for user-confirmed entries.** The agent proposes drafts; saving happens on the phone through repositories. Reasons: works offline, one path for local and cloud AI, rules remain the enforcement point, and injected text cannot make the server write money data.
 
-**D-11. Agent sessions live in top-level `agentSessions*` collections with a per-household, per-member prefix.** `FirestoreSessionStore` derives three companion collections from one collection name. Whether a nested path under `households/{hid}` works is checked in WP-S1; if it does, move them there (the brief listed `sessions` as a sub-collection). Status: Verify.
+**D-11. Agent sessions live in top-level `agentSessions*` collections with the prefix `{hid}_{uid}`.** Status: Decided (WP-S1).
+- `FirestoreSessionStore(collection: 'agentSessions', snapshotPathPrefix: (c) => '${c?['hid']}_${c?['uid']}')` works unchanged; another household reading the same session id gets nothing. Household deletion removes `agentSessions*/{hid}_*`.
+- A nested layout under `households/{hid}/agentSessions` also works, but needs a per-household store wrapper that must forward the store's optional interfaces for background agents. Not worth it now.
+- On the emulator, reading a snapshot by session id right after a turn sometimes returned the previous one (2 of 12 runs). Resume by `snapshotId`, never assume read-after-write by session id.
 
 **D-12. A transfer is one document with `accountId` and `toAccountId`.** Its `visibleTo` is the union of both accounts' viewers. A partner sees the amount arriving in a joint account and "Private account" as the source. Simpler lists and edits than two linked legs.
 
@@ -183,12 +186,13 @@ Three parts: decisions locked by the owner (L), decisions made while planning (D
 | Liquid Glass packages | pub.dev, READMEs, pubspecs, Flutter 3.50 release notes | see D-07 |
 | Server Firebase packages | pub.dev READMEs and publishers | see D-06 |
 | IQD rates | Shafaq News, CBI site, Frankfurter, open.er-api (research agent) | official rate devalued on 2026-10-07 to 1,500 / 1,510 / 1,520; market about 1,705 to 1,710 on 2026-11-21 |
+| A2UI round trip (WP-S1) | spike with a `genkit_a2ui 0.6.0` server and an `a2ui_flutter 0.4.0` client, Firestore emulator, iOS Simulator; report in `docs/spikes/WP-S1.md` | 0.7-era surfaces render on the 0.8 renderer with a custom JSON catalog; Express assigns arrays to `$/drafts`; write-back works; local and agent surfaces share one processor; action plus text in one message works; context reaches middleware. Not yet tested with a real Gemini model. |
 | Design tokens | Artifact read of the three Signal artboards and the fifteen v1 artboards | tokens in DESIGN_SYSTEM are copied from the artboard source; contrast ratios computed by hand from the hex values |
 | Package resolution (WP-00) | pub.dev API; `pub get` in `app/`, `server/`, `packages/xpense_shared/` | every version in the brief and the D-06/D-07/D-31 corrections still exists and is the latest; all resolve on Dart 3.14.0. The app locks `a2ui_core 0.8.0`, the server `0.7.0` (confirms D-05). **`genkit_otel 0.2.3` requires `dartastic_opentelemetry ^0.11.0`**, so the `0.12.0` named in ARCHITECTURE 4.3 cannot resolve; the server gets 0.11.0 transitively and WP-04 should add it as `^0.11.0` if it imports it directly |
 | Material/Cupertino with A2UI (WP-00) | package source, widget-test probe, iOS simulator build | see D-22 |
 | iOS build location (WP-00) | `flutter build ios --simulator` | fails in the project folder (iCloud-synced `~/Documents`): codesign rejects `Flutter.framework` with "resource fork, Finder information, or similar detritus not allowed". The same build from a copy outside `~/Documents` succeeds. Build in a worktree outside `~/Documents`, or exclude the folder from iCloud |
 
-Not verified, and settled by spikes: items marked Verify above; Express syntax for arrays of objects; behaviour on a physical iPhone (all local probes ran on macOS or not at all).
+Not verified, and settled by spikes: items marked Verify above; how a real Gemini model writes Express for this catalog (WP-32); behaviour on a physical iPhone (all local probes ran on macOS or not at all).
 
 ## 4. Open questions for the owner
 
