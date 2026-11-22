@@ -92,11 +92,23 @@ Not enabled yet (the server deploy needs it): `cloudbuild` (server/DEPLOY.md ste
 - Database `(default)`, Native mode, `me-central1`, delete protection on.
   Created by the planning session on 2026-11-22 after the old one was
   deleted.
-- Rules and indexes: `firebase/firestore.rules` and
-  `firebase/firestore.indexes.json` from WP-05, deployed with
-  `firebase deploy --project expense-family-cc6ee --only firestore,storage`
-  from `firebase/` (status in section 7). A `--dry-run` compiled both rules
-  files against this project first.
+- Rules: `firebase/firestore.rules` (WP-05) released to `cloud.firestore` on
+  2026-11-22 with
+  `firebase deploy --project expense-family-cc6ee --only firestore:rules`
+  from `firebase/`. This replaced a ruleset left over from the old test
+  project. The released source was compared with the repository file and
+  matches.
+- Indexes: the 13 composite indexes in `firebase/firestore.indexes.json`
+  were created on 2026-11-22 with `gcloud firestore indexes composite create`
+  (one call per index, `--database=(default)`). `firebase deploy --only
+  firestore:indexes` could not be used from this Mac: every Firebase CLI
+  15.34.2 request to `firestore.googleapis.com` hung ("HTTP/2 headers
+  timeout"), while gcloud and the CLI's calls to the Rules API worked. Try the
+  CLI again first next time; if it hangs, create each index with gcloud from
+  the JSON, as was done here. No field overrides exist yet.
+- `firebase.json` names no `database`. With `"database": "(default)"` the CLI
+  tried to create the existing `cloud.firestore` release and failed with
+  HTTP 409.
 
 ### 3.5 Cloud Storage for Firebase
 
@@ -107,7 +119,10 @@ Not enabled yet (the server deploy needs it): `cloudbuild` (server/DEPLOY.md ste
   with body `{"location":"me-central1"}`.
 - Public access prevention: **enforced** (receipts are private; Firebase
   access goes through rules, not public URLs). Soft delete: 7 days (default).
-- Rules: `firebase/storage.rules` (WP-05).
+- Rules: `firebase/storage.rules` (WP-05), released to
+  `firebase.storage/expense-family-cc6ee.firebasestorage.app` on 2026-11-22
+  (`firebase deploy --project expense-family-cc6ee --only storage`). The
+  released source matches the repository file.
 - Buckets outside the US have no free tier; usage is billed at standard
   Cloud Storage prices. Expected usage (opt-in receipt backups, ≤ 5 MB each)
   is small.
@@ -300,10 +315,13 @@ Still needed:
    with the App Check wiring).
 4. **App Check debug token** for each simulator or Mac used for development
    (3.8).
-5. **Decide on the leftovers:** the old API key "Family Expense API Key" and
-   its `ais-gemini-key-*` service accounts (delete if the new key replaces
-   it), and the Compute account's `roles/editor` (3.10).
-6. **Budget alert (recommended):** Billing → Budgets & alerts, a monthly
+5. **Old Gemini keys:** the owner confirmed they were used only by the old
+   test app. The owner deletes them in Google AI Studio (project "Expense
+   Family"), which also removes their `ais-gemini-key-*` service accounts,
+   and creates the new paid-tier key there (step 2). The Firebase "iOS key"
+   and "Browser key" stay: the app needs the iOS key.
+6. **Compute account:** decide whether to remove its `roles/editor` (3.10).
+7. **Budget alert (recommended):** Billing → Budgets & alerts, a monthly
    budget on this project with email alerts.
 
 ## 7. Verification (2026-11-22)
@@ -315,7 +333,8 @@ Still needed:
 | Firestore | `gcloud firestore databases list --project=…` | `(default)` · `me-central1` · delete protection enabled |
 | Storage | `gcloud storage buckets describe gs://expense-family-cc6ee.firebasestorage.app --project=…` | `ME-CENTRAL1`, public access prevention enforced |
 | Rules | `firebase deploy --project expense-family-cc6ee --only firestore,storage --dry-run` | both rules files compile; indexes read |
-| Rules deploy | `firebase deploy --project expense-family-cc6ee --only firestore,storage` | see the WP-01 pull request |
+| Rules deploy | `firebase deploy --project expense-family-cc6ee --only firestore:rules` and `--only storage` | released; released source equals the repository files |
+| Indexes | `gcloud firestore indexes composite list --project=… --billing-project=… --database='(default)'` | 13 indexes (see 3.4) |
 | Emulators | `firebase emulators:exec --project demo-xpense --only auth,firestore,storage "echo ok"` | `ok`, exit 0 |
 
 ## 8. Production (later, D-38)
