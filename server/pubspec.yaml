@@ -14,6 +14,9 @@ environment:
 
 dependencies:
   clock: ^1.1.3
+  # SHA-256 of invite codes (D-27; WP-12). Dart team package, already in the
+  # lockfile through genkit.
+  crypto: ^3.0.8
   # OpenTelemetry SDK that genkit_otel plugs into (D-29). Only lib/telemetry/.
   # genkit_otel 0.2.3 requires ^0.11.0, so 0.12.0 (ARCHITECTURE 4.3) cannot
   # resolve.

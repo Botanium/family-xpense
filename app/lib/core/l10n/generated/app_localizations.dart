@@ -234,17 +234,335 @@ abstract class AppLocalizations {
   /// **'The loan\'s balance, due date and repayments will appear here.'**
   String get loansPlaceholder;
 
-  /// Top bar title of the screen that joins a partner's household from an invite link.
+  /// Top bar title of household setup (onboarding screen 3); shown upper-cased.
+  ///
+  /// In en, this message translates to:
+  /// **'Household'**
+  String get householdSetupTitle;
+
+  /// Headline of household setup.
+  ///
+  /// In en, this message translates to:
+  /// **'Set up your household'**
+  String get householdSetupHeadline;
+
+  /// Label of the household name field.
+  ///
+  /// In en, this message translates to:
+  /// **'Household name'**
+  String get householdNameLabel;
+
+  /// Placeholder of the household name field: an example name.
+  ///
+  /// In en, this message translates to:
+  /// **'Our home'**
+  String get householdNameHint;
+
+  /// Error under the household name field when it is empty.
+  ///
+  /// In en, this message translates to:
+  /// **'Give your household a name.'**
+  String get householdNameErrorEmpty;
+
+  /// Error under a name field when the name is too long.
+  ///
+  /// In en, this message translates to:
+  /// **'Use {max} characters or fewer.'**
+  String householdNameErrorLong(int max);
+
+  /// Label of the field for the name the person's partner will see.
+  ///
+  /// In en, this message translates to:
+  /// **'Your name'**
+  String get householdYourNameLabel;
+
+  /// Placeholder of the person's own name field.
+  ///
+  /// In en, this message translates to:
+  /// **'How your partner will see you'**
+  String get householdYourNameHint;
+
+  /// Error under the person's own name field when it is empty.
+  ///
+  /// In en, this message translates to:
+  /// **'Add the name your partner will see.'**
+  String get householdYourNameErrorEmpty;
+
+  /// Section label above the base currency choice (USD or IQD).
+  ///
+  /// In en, this message translates to:
+  /// **'Base currency'**
+  String get householdCurrencyLabel;
+
+  /// Note under the base currency choice.
+  ///
+  /// In en, this message translates to:
+  /// **'Household totals and reports add up in this currency. It can\'t be changed later.'**
+  String get householdCurrencyNote;
+
+  /// Primary button that creates the household from the form.
+  ///
+  /// In en, this message translates to:
+  /// **'Continue'**
+  String get householdCreateAction;
+
+  /// Primary button label while the household is being created.
+  ///
+  /// In en, this message translates to:
+  /// **'Setting up…'**
+  String get householdCreating;
+
+  /// Text button on household setup that opens the join screen, for someone whose partner already made a household.
+  ///
+  /// In en, this message translates to:
+  /// **'I have an invite'**
+  String get householdHaveInvite;
+
+  /// Section label above the invite code.
+  ///
+  /// In en, this message translates to:
+  /// **'Invite your partner'**
+  String get householdInviteLabel;
+
+  /// VoiceOver label of the spinner shown while the invite code is being made.
+  ///
+  /// In en, this message translates to:
+  /// **'Making an invite code'**
+  String get householdInviteLoading;
+
+  /// VoiceOver label of the invite code; the code is read character by character.
+  ///
+  /// In en, this message translates to:
+  /// **'Invite code {spelled}'**
+  String householdInviteCodeSemantics(String spelled);
+
+  /// Button that opens the share sheet with the invite code and link.
+  ///
+  /// In en, this message translates to:
+  /// **'Share'**
+  String get householdInviteShare;
+
+  /// Text put in the share sheet for the partner. {code} is the invite code, {link} the xpense:// link.
+  ///
+  /// In en, this message translates to:
+  /// **'Join our household in Family Xpense with this code: {code}\n\nOr open this link on your iPhone: {link}\n\nThe code works once, for 7 days.'**
+  String householdInviteShareMessage(String code, String link);
+
+  /// Note under the invite code.
+  ///
+  /// In en, this message translates to:
+  /// **'Works once, for 7 days. A new code replaces this one.'**
+  String get householdInviteValidity;
+
+  /// Inline message when the invite code could not be made.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t make an invite code.'**
+  String get householdInviteFailed;
+
+  /// Inline message when the invite code could not be made for lack of a connection.
+  ///
+  /// In en, this message translates to:
+  /// **'You\'re offline. Connect to get an invite code.'**
+  String get householdInviteOffline;
+
+  /// Inline message when the server for invites cannot be reached.
+  ///
+  /// In en, this message translates to:
+  /// **'Invites aren\'t available right now. Try again later.'**
+  String get householdInviteUnavailable;
+
+  /// Inline message when the person asked for too many invite codes.
+  ///
+  /// In en, this message translates to:
+  /// **'Too many new codes. Wait an hour, then try again.'**
+  String get householdInviteRateLimited;
+
+  /// Shown in place of the invite code when the household already has two people.
+  ///
+  /// In en, this message translates to:
+  /// **'Your partner has joined.'**
+  String get householdInviteFull;
+
+  /// Action that repeats a failed household request.
+  ///
+  /// In en, this message translates to:
+  /// **'Try again'**
+  String get householdRetry;
+
+  /// Left side of a row explaining what partners share.
+  ///
+  /// In en, this message translates to:
+  /// **'Shared'**
+  String get householdSharedLabel;
+
+  /// Right side of the Shared row.
+  ///
+  /// In en, this message translates to:
+  /// **'Joint money, goals'**
+  String get householdSharedValue;
+
+  /// Left side of a row explaining what stays private.
+  ///
+  /// In en, this message translates to:
+  /// **'Private'**
+  String get householdPrivateLabel;
+
+  /// Right side of the Private row.
+  ///
+  /// In en, this message translates to:
+  /// **'Your own accounts'**
+  String get householdPrivateValue;
+
+  /// Primary button that leaves household setup for the next onboarding step.
+  ///
+  /// In en, this message translates to:
+  /// **'Continue'**
+  String get householdContinue;
+
+  /// Text button that leaves household setup without sharing the invite.
+  ///
+  /// In en, this message translates to:
+  /// **'Invite later'**
+  String get householdInviteLater;
+
+  /// Banner under the top bar when the household could not be created for lack of a connection.
+  ///
+  /// In en, this message translates to:
+  /// **'You\'re offline. Setting up needs a connection.'**
+  String get householdOffline;
+
+  /// Inline error when the server or database refused the signed-in person.
+  ///
+  /// In en, this message translates to:
+  /// **'Your sign-in has expired. Sign out and sign in again.'**
+  String get householdErrorNotAllowed;
+
+  /// Inline error for an unexpected household failure.
+  ///
+  /// In en, this message translates to:
+  /// **'Something went wrong. Try again.'**
+  String get householdErrorUnknown;
+
+  /// Top bar title of the screen that joins a partner's household from an invite.
   ///
   /// In en, this message translates to:
   /// **'Join'**
   String get householdJoinTitle;
 
-  /// Placeholder line on the join screen until it is built.
+  /// Headline of the join screen.
   ///
   /// In en, this message translates to:
-  /// **'Joining a household from an invite arrives in a later version.'**
-  String get householdJoinPlaceholder;
+  /// **'Join your partner\'s household'**
+  String get householdJoinHeadline;
+
+  /// Paragraph under the join headline.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter the code your partner shared. Each code works once, for 7 days.'**
+  String get householdJoinBody;
+
+  /// Label of the invite code field.
+  ///
+  /// In en, this message translates to:
+  /// **'Invite code'**
+  String get householdJoinCodeLabel;
+
+  /// Placeholder of the invite code field, showing its shape.
+  ///
+  /// In en, this message translates to:
+  /// **'ABCDE-12345'**
+  String get householdJoinCodeHint;
+
+  /// Error under the invite code field when it is empty.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter the code from your partner.'**
+  String get householdJoinCodeErrorEmpty;
+
+  /// Error under the invite code field when it is not 10 letters and digits.
+  ///
+  /// In en, this message translates to:
+  /// **'Codes have 10 letters and numbers.'**
+  String get householdJoinCodeErrorShape;
+
+  /// Primary button that joins the household.
+  ///
+  /// In en, this message translates to:
+  /// **'Join household'**
+  String get householdJoinAction;
+
+  /// Primary button label while joining.
+  ///
+  /// In en, this message translates to:
+  /// **'Joining…'**
+  String get householdJoining;
+
+  /// Error when no invite has the code.
+  ///
+  /// In en, this message translates to:
+  /// **'That code doesn\'t match an invite. Check it with your partner.'**
+  String get householdJoinErrorInvalid;
+
+  /// Error when the invite is more than 7 days old.
+  ///
+  /// In en, this message translates to:
+  /// **'That invite has expired. Ask your partner for a new code.'**
+  String get householdJoinErrorExpired;
+
+  /// Error when someone already joined with the invite.
+  ///
+  /// In en, this message translates to:
+  /// **'That invite was already used. Ask your partner for a new code.'**
+  String get householdJoinErrorUsed;
+
+  /// Error when the household is full.
+  ///
+  /// In en, this message translates to:
+  /// **'That household already has two people.'**
+  String get householdJoinErrorFull;
+
+  /// Error when the person already belongs to another household.
+  ///
+  /// In en, this message translates to:
+  /// **'You\'re already in a household. Each person can be in one.'**
+  String get householdJoinErrorAlready;
+
+  /// Error after too many join attempts.
+  ///
+  /// In en, this message translates to:
+  /// **'Too many tries. Wait an hour, then try again.'**
+  String get householdJoinErrorRateLimited;
+
+  /// Banner under the top bar when joining failed for lack of a connection.
+  ///
+  /// In en, this message translates to:
+  /// **'You\'re offline. Joining needs a connection.'**
+  String get householdJoinOffline;
+
+  /// Headline after joining; {household} is the household's name.
+  ///
+  /// In en, this message translates to:
+  /// **'Welcome to {household}'**
+  String householdJoinedHeadline(String household);
+
+  /// Headline after joining a household that has no name.
+  ///
+  /// In en, this message translates to:
+  /// **'You\'re in'**
+  String get householdJoinedHeadlineUnnamed;
+
+  /// Paragraph after joining.
+  ///
+  /// In en, this message translates to:
+  /// **'You and your partner now share joint money and goals. Your own accounts stay yours.'**
+  String get householdJoinedBody;
+
+  /// Text button on the join screen that goes to household setup.
+  ///
+  /// In en, this message translates to:
+  /// **'Set up a household instead'**
+  String get householdJoinSetUpInstead;
 
   /// Top bar title of Ask, the screen where the user talks, types or scans a receipt.
   ///

@@ -171,6 +171,83 @@ final class _FirestoreDocumentStore implements DocumentStore {
       throw GatewayUnavailable('write', e);
     }
   }
+
+  @override
+  Future<T> transaction<T>(
+    Future<T> Function(DocumentTransaction tx) body,
+  ) async {
+    try {
+      return await _db.runTransaction((t) async {
+        try {
+          return await body(_FirestoreTransaction(_db, t));
+        } on fs.FirestoreException {
+          // Contention and transient errors: the SDK retries the body.
+          rethrow;
+        } on Object catch (e, st) {
+          // The body's own refusal: no retry, roll back, hand it back as is.
+          throw _BodyError(e, st);
+        }
+      });
+    } on _BodyError catch (e) {
+      Error.throwWithStackTrace(e.error, e.stack);
+    } on Exception catch (e) {
+      throw GatewayUnavailable('transaction', e);
+    }
+  }
+}
+
+/// Carries an error thrown by a transaction body past the SDK's retry and
+/// rollback, so the caller receives the original error.
+final class _BodyError implements Exception {
+  new(this.error, this.stack);
+
+  final Object error;
+  final StackTrace stack;
+}
+
+final class _FirestoreTransaction implements DocumentTransaction {
+  new(this._db, this._t);
+
+  final fs.Firestore _db;
+  final fs.Transaction _t;
+
+  @override
+  Future<Map<String, Object?>?> read(String path) async {
+    final data = (await _t.get(_db.doc(path))).data();
+    return data == null ? null : _fromFirestore(data)! as Map<String, Object?>;
+  }
+
+  @override
+  Future<List<StoredDocument>> whereEquals(
+    String collection,
+    String field,
+    Object value, {
+    int limit = 50,
+  }) async {
+    final query = _db
+        .collection(collection)
+        .where(field, fs.WhereFilter.equal, value)
+        .limit(limit);
+    final snapshot = await _t.getQuery(query);
+    return [
+      for (final doc in snapshot.docs)
+        StoredDocument(
+          doc.ref.path,
+          _fromFirestore(doc.data())! as Map<String, Object?>,
+        ),
+    ];
+  }
+
+  @override
+  void write(String path, Map<String, Object?> data, {bool merge = false}) =>
+      _t.set(
+        _db.doc(path),
+        data,
+        options: merge ? const fs.SetOptions.merge() : null,
+      );
+
+  @override
+  void delete(String path) => _t.delete(_db.doc(path));
 }
 
 /// Converts Firestore values to plain Dart (timestamps become UTC DateTimes).

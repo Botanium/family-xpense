@@ -13,6 +13,8 @@ import 'package:xpense_agent/auth/member_directory.dart';
 import 'package:xpense_agent/config/runtime_config.dart';
 import 'package:xpense_agent/config/server_env.dart';
 import 'package:xpense_agent/flows/ping.dart';
+import 'package:xpense_agent/household/household_flows.dart';
+import 'package:xpense_agent/household/household_service.dart';
 import 'package:xpense_agent/http/routes.dart';
 import 'package:xpense_agent/http/server_app.dart';
 import 'package:xpense_agent/telemetry/usage_counters.dart';
@@ -47,9 +49,15 @@ final class XpenseServer {
     // Flows are defined for both roles so the Developer UI lists the same
     // actions; only the agent role mounts the public router.
     final ping = definePingFlow(ai);
+    final household = HouseholdService(gateway.documents, clock: clock);
     final handler = buildHandler(
       role: role,
-      public: buildPublicRouter(auth: auth, ping: ping),
+      public: buildPublicRouter(
+        auth: auth,
+        ping: ping,
+        householdInvite: defineHouseholdInviteFlow(ai, household),
+        householdJoin: defineHouseholdJoinFlow(ai, household, members),
+      ),
       jobs: buildJobsRouter(),
       projectId: projectId,
     );

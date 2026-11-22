@@ -14,6 +14,9 @@ import 'package:xpense_app/core/ui/ui.dart';
 import 'package:xpense_app/data/auth_repository.dart';
 import 'package:xpense_app/data/auth_repository_fake.dart';
 import 'package:xpense_app/data/auth_repository_firebase.dart';
+import 'package:xpense_app/data/household_repository.dart';
+import 'package:xpense_app/data/household_repository_fake.dart';
+import 'package:xpense_app/data/household_repository_firebase.dart';
 import 'package:xpense_app/services/agent_client.dart';
 import 'package:xpense_app/services/agent_client_fake.dart';
 import 'package:xpense_app/services/biometric_lock.dart';
@@ -43,7 +46,13 @@ enum AppEnvironment {
   dev,
 
   /// `xpense-prod`. Needs the Firebase config files from WP-01.
-  prod;
+  prod,
+
+  /// The local Firebase emulator suite and a local server, under the fake
+  /// project `demo-xpense`, so nothing reaches a real project (WP-12). No
+  /// config file is bundled and App Check is off; the local server runs
+  /// with `XPENSE_APP_CHECK=emulator`. Email sign-in only.
+  emulators;
 
   /// The `--dart-define` key that picks the environment.
   static const String defineKey = 'XPENSE_ENV';
@@ -56,9 +65,16 @@ enum AppEnvironment {
   static AppEnvironment fromName(String name) =>
       values.asNameMap()[name] ?? fakes;
 
-  /// Whether startup initialises Firebase and App Check.
+  /// Whether startup initialises Firebase.
   bool get usesFirebase => this != fakes;
+
+  /// Whether startup activates App Check (a real project only).
+  bool get usesAppCheck => this == dev || this == prod;
 }
+
+/// The fake project the [AppEnvironment.emulators] build and the local
+/// server share (`server/lib/config/server_env.dart`).
+const String emulatorProjectId = 'demo-xpense';
 
 /// `--dart-define=XPENSE_AUTH_EMULATOR=host:port` points Firebase Auth at
 /// the emulator suite (`firebase/firebase.json`: `127.0.0.1:9099`). Use the
@@ -68,10 +84,42 @@ const String authEmulatorDefine = String.fromEnvironment(
   'XPENSE_AUTH_EMULATOR',
 );
 
+/// `--dart-define=XPENSE_FIRESTORE_EMULATOR=host:port` points Firestore at
+/// the emulator suite (`firebase/firebase.json`: `127.0.0.1:8280`). Dev
+/// builds only; the `emulators` environment uses it by default.
+const String firestoreEmulatorDefine = String.fromEnvironment(
+  'XPENSE_FIRESTORE_EMULATOR',
+);
+
+/// `--dart-define=XPENSE_SERVER_URL=https://…` is the base address of the
+/// `xpense-agent` service (ARCHITECTURE 4.1). Without it, invites and joins
+/// report the server as unavailable; the `emulators` environment defaults
+/// to a server on this Mac.
+const String serverUrlDefine = String.fromEnvironment('XPENSE_SERVER_URL');
+
+/// The Auth emulator, Firestore emulator and server of the `emulators`
+/// environment when no define overrides them: the ports of
+/// `firebase/firebase.json` and the server's default port.
+const String defaultAuthEmulator = '127.0.0.1:9099';
+
+/// See [defaultAuthEmulator].
+const String defaultFirestoreEmulator = '127.0.0.1:8280';
+
+/// See [defaultAuthEmulator].
+const String defaultLocalServer = 'http://127.0.0.1:8080/';
+
 /// `--dart-define=XPENSE_FAKE_AUTH=signed_out` starts the `fakes`
 /// environment signed out, to show onboarding. By default the fake is
 /// signed in, so a clean checkout opens on Home.
 const String fakeAuthDefine = String.fromEnvironment('XPENSE_FAKE_AUTH');
+
+/// `--dart-define=XPENSE_FAKE_HOUSEHOLD=none` starts the `fakes`
+/// environment signed in but without a household, to show household setup.
+const String fakeHouseholdDefine = String.fromEnvironment(
+  'XPENSE_FAKE_HOUSEHOLD',
+);
+
+String _or(String value, String fallback) => value.isEmpty ? fallback : value;
 
 /// The auth repository for [environment].
 Future<AuthRepository> connectAuth(AppEnvironment environment) async =>
@@ -85,7 +133,44 @@ Future<AuthRepository> connectAuth(AppEnvironment environment) async =>
         emulator: authEmulatorDefine,
       ),
       AppEnvironment.prod => await FirebaseAuthRepository.connect(),
+      AppEnvironment.emulators => await FirebaseAuthRepository.connect(
+        emulator: _or(authEmulatorDefine, defaultAuthEmulator),
+      ),
     };
+
+/// The household repository for [environment], following [auth]. In
+/// `fakes`, a signed-in person starts in a household (so the app opens on
+/// Home) unless [fakeHouseholdDefine] says `none`; signing in later finds
+/// no household, as for someone new.
+HouseholdRepository connectHouseholds(
+  AppEnvironment environment, {
+  required AuthRepository auth,
+}) => switch (environment) {
+  AppEnvironment.fakes => FakeHouseholdRepository(
+    membership: auth.currentUser == null
+        ? const MembershipUnknown()
+        : fakeHouseholdDefine == 'none'
+        ? const NoHousehold()
+        : const InHousehold(FakeHouseholdRepository.sampleHousehold),
+    auth: auth,
+  ),
+  AppEnvironment.dev => FirebaseHouseholdRepository.connect(
+    appCheckToken: FirebaseAppCheck.instance.getToken,
+    serverUrl: Uri.tryParse(serverUrlDefine),
+    emulator: firestoreEmulatorDefine,
+  ),
+  AppEnvironment.prod => FirebaseHouseholdRepository.connect(
+    appCheckToken: FirebaseAppCheck.instance.getToken,
+    serverUrl: Uri.tryParse(serverUrlDefine),
+  ),
+  // App Check cannot be emulated; the local server accepts any non-empty
+  // token (XPENSE_APP_CHECK=emulator), so the request shape stays the same.
+  AppEnvironment.emulators => FirebaseHouseholdRepository.connect(
+    appCheckToken: () async => 'emulator',
+    serverUrl: Uri.tryParse(_or(serverUrlDefine, defaultLocalServer)),
+    emulator: _or(firestoreEmulatorDefine, defaultFirestoreEmulator),
+  ),
+};
 
 /// The crash sink the two error handlers write to.
 ///
@@ -163,10 +248,19 @@ final class Bootstrapped {
 /// Firebase, App Check, then settings, theme and glass restore, all before
 /// the first frame. Post-frame work is started by `XpenseApp`.
 Future<Bootstrapped> bootstrap({required AppEnvironment environment}) async {
-  if (environment.usesFirebase) {
+  if (environment == AppEnvironment.emulators) {
+    // No config file is bundled (copy_firebase_config.sh copies none), so
+    // the default app is made here with demo options.
+    await Firebase.initializeApp(
+      name: defaultFirebaseAppName,
+      demoProjectId: emulatorProjectId,
+    );
+  } else if (environment.usesFirebase) {
     // The config files come from WP-01; without them this throws, which is
     // the right failure for a dev or prod build.
     await Firebase.initializeApp();
+  }
+  if (environment.usesAppCheck) {
     await FirebaseAppCheck.instance.activate(
       providerApple: kDebugMode
           ? const AppleDebugProvider()
@@ -175,6 +269,7 @@ Future<Bootstrapped> bootstrap({required AppEnvironment environment}) async {
   }
 
   final auth = await connectAuth(environment);
+  final households = connectHouseholds(environment, auth: auth);
   registerFontLicenses();
   final settings = await PrefsSettingsStore.open();
   await GlassSetup.initialize();
@@ -188,6 +283,7 @@ Future<Bootstrapped> bootstrap({required AppEnvironment environment}) async {
       biometricLock: LocalAuthBiometricLock(),
       glass: glass,
       authRepository: auth,
+      householdRepository: households,
     ),
   );
 }
@@ -204,6 +300,7 @@ List<Override> appOverrides({
   required BiometricLock biometricLock,
   required GlassController glass,
   required AuthRepository authRepository,
+  required HouseholdRepository householdRepository,
   SecureStore? secureStore,
   AgentClient? agentClient,
   DecisionsClient? decisionsClient,
@@ -216,6 +313,7 @@ List<Override> appOverrides({
   biometricLockProvider.overrideWithValue(biometricLock),
   glassControllerProvider.overrideWithValue(glass),
   authRepositoryProvider.overrideWithValue(authRepository),
+  householdRepositoryProvider.overrideWithValue(householdRepository),
   secureStoreProvider.overrideWithValue(secureStore ?? MemorySecureStore()),
   agentClientProvider.overrideWithValue(agentClient ?? FakeAgentClient()),
   decisionsClientProvider.overrideWithValue(

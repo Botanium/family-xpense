@@ -8,8 +8,10 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-tests="-t emulator"
-if [[ "${1:-}" == "--all" ]]; then tests=""; fi
+# One test file at a time: each emulator test file clears the shared
+# emulators in setUp, so files running side by side would wipe each other.
+tests="-j 1 -t emulator"
+if [[ "${1:-}" == "--all" ]]; then tests="-j 1"; fi
 
 exec firebase emulators:exec \
   --project demo-xpense \

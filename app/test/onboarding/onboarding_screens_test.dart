@@ -8,12 +8,15 @@ import 'package:xpense_app/core/routing/routing.dart';
 import 'package:xpense_app/core/ui/ui.dart';
 import 'package:xpense_app/data/auth_repository.dart';
 import 'package:xpense_app/data/auth_repository_fake.dart';
+import 'package:xpense_app/data/household_repository.dart';
+import 'package:xpense_app/data/household_repository_fake.dart';
 import 'package:xpense_app/features/onboarding/onboarding_gate.dart';
 import 'package:xpense_app/services/service_failure.dart';
 import 'package:xpense_app/services/speech_capture.dart';
 
 import '../routing/router_test.dart' show openLink;
 import '../support/test_app.dart';
+import '../ui/ui_harness.dart' show loadSignalFonts;
 
 /// An iPhone 12 to 14 class screen, as on the reference artboards.
 void usePhone(WidgetTester tester) {
@@ -81,6 +84,10 @@ Iterable<String>? autofill(WidgetTester tester, String label) => tester
     .autofillHints;
 
 void main() {
+  // Real glyph widths: sign-in now lands on household setup, whose ledger
+  // rows fit with Geist Mono as on the artboard but not with the test font.
+  setUpAll(loadSignalFonts);
+
   group('Welcome (screen 1)', () {
     testWidgets('signed out, the app opens on Welcome, not Home', (
       tester,
@@ -172,7 +179,7 @@ void main() {
       expect(find.text('PRIVACY POLICY'), findsOneWidget);
     });
 
-    testWidgets('Apple signs in and the gate moves on to Try it', (
+    testWidgets('Apple signs in and the gate moves on to household setup', (
       tester,
     ) async {
       final services = TestServices(signedIn: false);
@@ -181,8 +188,8 @@ void main() {
       await tapLabel(tester, 'Continue with Apple');
 
       expect(services.auth.calls, ['apple']);
-      expect(location(container).path, OnboardingRoutes.tryIt);
-      expect(find.text('TRY IT'), findsOneWidget);
+      expect(location(container).path, AppRoutes.householdSetup);
+      expect(find.text('HOUSEHOLD'), findsOneWidget);
     });
 
     testWidgets('while signing in: a spinner, every button disabled', (
@@ -213,7 +220,7 @@ void main() {
 
       services.auth.hold!.complete();
       await tester.pumpAndSettle();
-      expect(location(container).path, OnboardingRoutes.tryIt);
+      expect(location(container).path, AppRoutes.householdSetup);
     });
 
     testWidgets('closing the Google sheet shows nothing', (tester) async {
@@ -270,7 +277,7 @@ void main() {
       );
       await tapLabel(tester, 'Try again');
       expect(services.auth.calls, ['google', 'google']);
-      expect(location(container).path, OnboardingRoutes.tryIt);
+      expect(location(container).path, AppRoutes.householdSetup);
     });
 
     testWidgets('the invite path signs in, then opens the join screen', (
@@ -309,7 +316,9 @@ void main() {
   });
 
   group('Email form', () {
-    testWidgets('creates an account and moves on to Try it', (tester) async {
+    testWidgets('creates an account and moves on to household setup', (
+      tester,
+    ) async {
       final services = TestServices(signedIn: false);
       final container = await openEmail(tester, services);
       expect(find.text('Your email and a password'), findsOneWidget);
@@ -319,7 +328,7 @@ void main() {
       await tapLabel(tester, 'Create account');
 
       expect(services.auth.accounts, {'ada@example.com': 'secret1'});
-      expect(location(container).path, OnboardingRoutes.tryIt);
+      expect(location(container).path, AppRoutes.householdSetup);
     });
 
     testWidgets('the password is hidden and autofill knows the fields', (
@@ -400,7 +409,7 @@ void main() {
       await tester.enterText(field('Password'), 'secret1');
       await tester.testTextInput.receiveAction(TextInputAction.done);
       await tester.pumpAndSettle();
-      expect(location(container).path, OnboardingRoutes.tryIt);
+      expect(location(container).path, AppRoutes.householdSetup);
     });
 
     testWidgets('forgot password sends a reset and says so', (tester) async {
@@ -461,7 +470,7 @@ void main() {
 
       services.auth.hold!.complete();
       await tester.pumpAndSettle();
-      expect(location(container).path, OnboardingRoutes.tryIt);
+      expect(location(container).path, AppRoutes.householdSetup);
     });
 
     testWidgets('offline: banner; Try again sends the form again', (
@@ -477,7 +486,7 @@ void main() {
       expect(find.byType(OfflineBanner), findsOneWidget);
 
       await tapLabel(tester, 'Try again');
-      expect(location(container).path, OnboardingRoutes.tryIt);
+      expect(location(container).path, AppRoutes.householdSetup);
     });
 
     testWidgets('offline reset: Try again resends the reset, not sign-in', (
@@ -526,7 +535,7 @@ void main() {
 
       await tapLabel(tester, 'Try again');
       expect(services.auth.calls.last, 'signInWithEmail');
-      expect(location(container).path, OnboardingRoutes.tryIt);
+      expect(location(container).path, AppRoutes.householdSetup);
     });
   });
 
@@ -534,9 +543,16 @@ void main() {
     Future<(ProviderContainer, TestServices)> openTryIt(
       WidgetTester tester,
     ) async {
-      final services = TestServices(signedIn: false);
+      // A member who signed in and opens Try it from the onboarding flow.
+      final services = TestServices(
+        signedIn: false,
+        onSignIn: const InHousehold(FakeHouseholdRepository.sampleHousehold),
+      );
       final container = await openCreateAccount(tester, services);
       await tapLabel(tester, 'Continue with Apple');
+      expect(location(container).path, AppRoutes.home);
+      container.read(routerProvider).go(OnboardingRoutes.tryIt);
+      await tester.pumpAndSettle();
       expect(location(container).path, OnboardingRoutes.tryIt);
       return (container, services);
     }
@@ -558,7 +574,7 @@ void main() {
       expect(find.text('Type instead'), findsOneWidget);
       expect(find.text('Skip for now'), findsOneWidget);
       expect(find.byType(CaptureDock), findsOneWidget);
-      // Nothing to go back to right after signing in.
+      // Opened with go: nothing to go back to.
       expect(find.bySemanticsLabel('Back'), findsNothing);
     });
 
@@ -666,8 +682,11 @@ void main() {
         await tester.pumpAndSettle();
 
         await tapLabel(tester, 'Continue with Apple');
-        expect(location(container).path, OnboardingRoutes.tryIt);
-        expect(find.byType(CaptureDock), findsOneWidget);
+        expect(location(container).path, AppRoutes.householdSetup);
+        expect(
+          find.text('Set up your household', skipOffstage: false),
+          findsOneWidget,
+        );
         expect(services.auth.currentUser, FakeAuthRepository.providerUser);
       });
     }

@@ -6,6 +6,8 @@ import 'package:xpense_app/app.dart';
 import 'package:xpense_app/bootstrap.dart';
 import 'package:xpense_app/core/ui/ui.dart';
 import 'package:xpense_app/data/auth_repository_fake.dart';
+import 'package:xpense_app/data/household_repository.dart';
+import 'package:xpense_app/data/household_repository_fake.dart';
 import 'package:xpense_app/services/biometric_lock.dart';
 import 'package:xpense_app/services/biometric_lock_fake.dart';
 import 'package:xpense_app/services/on_device_llm/on_device_llm_fake.dart';
@@ -30,20 +32,48 @@ final class TestClock {
 
 /// The fakes behind one test app, for arranging and asserting.
 final class TestServices {
-  /// Creates fakes; [settings], [unlock] and [signedIn] set the starting
-  /// state. Signed in by default, so the app opens on Home.
-  new({
+  /// Creates fakes; [settings], [unlock], [signedIn] and [membership] set
+  /// the starting state. Signed in to a household by default, so the app
+  /// opens on Home. [onSignIn] is the membership a later sign-in finds:
+  /// none, as for someone new.
+  factory({
     AppSettings settings = AppSettings.defaults,
     UnlockOutcome unlock = const Unlocked(),
     bool signedIn = true,
-  }) : settingsStore = MemorySettingsStore(settings),
-       biometricLock = FakeBiometricLock(outcome: unlock),
-       auth = FakeAuthRepository(
-         signedIn: signedIn ? FakeAuthRepository.providerUser : null,
-       );
+    Membership? membership,
+    Membership onSignIn = const NoHousehold(),
+  }) {
+    final auth = FakeAuthRepository(
+      signedIn: signedIn ? FakeAuthRepository.providerUser : null,
+    );
+    return TestServices._(
+      settingsStore: MemorySettingsStore(settings),
+      biometricLock: FakeBiometricLock(outcome: unlock),
+      auth: auth,
+      households: FakeHouseholdRepository(
+        membership:
+            membership ??
+            (signedIn
+                ? const InHousehold(FakeHouseholdRepository.sampleHousehold)
+                : const MembershipUnknown()),
+        auth: auth,
+        onSignIn: onSignIn,
+      ),
+    );
+  }
+
+  new _({
+    required this.settingsStore,
+    required this.biometricLock,
+    required this.auth,
+    required this.households,
+  });
 
   /// Sign-in.
   final FakeAuthRepository auth;
+
+  /// Households: membership, creating, inviting, joining.
+  final FakeHouseholdRepository households;
 
   /// Settings, in memory.
   final MemorySettingsStore settingsStore;
@@ -70,6 +100,7 @@ final class TestServices {
     biometricLock: biometricLock,
     glass: glass,
     authRepository: auth,
+    householdRepository: households,
     onDeviceLlm: onDeviceLlm,
     speechCapture: speech,
   );

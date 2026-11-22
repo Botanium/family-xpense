@@ -1,5 +1,60 @@
 // Test doubles for the admin gateway.
+import 'dart:async';
+
 import 'package:xpense_agent/admin/admin_gateway.dart';
+
+/// A transaction over [FakeDocumentStore]: reads see the committed
+/// documents, writes are buffered and applied when the body returns, and a
+/// read after a write is refused, as in Firestore.
+final class _FakeTransaction implements DocumentTransaction {
+  new(this._store);
+
+  final FakeDocumentStore _store;
+  final _writes = <void Function()>[];
+
+  void _checkReadable() {
+    if (_writes.isNotEmpty) {
+      throw StateError('Firestore transactions read before they write');
+    }
+  }
+
+  @override
+  Future<Map<String, Object?>?> read(String path) {
+    _checkReadable();
+    return _store.read(path);
+  }
+
+  @override
+  Future<List<StoredDocument>> whereEquals(
+    String collection,
+    String field,
+    Object value, {
+    int limit = 50,
+  }) async {
+    _checkReadable();
+    final depth = collection.split('/').length + 1;
+    return [
+      for (final MapEntry(key: path, value: data) in _store.docs.entries)
+        if (path.startsWith('$collection/') &&
+            path.split('/').length == depth &&
+            data[field] == value)
+          StoredDocument(path, Map.of(data)),
+    ].take(limit).toList();
+  }
+
+  @override
+  void write(String path, Map<String, Object?> data, {bool merge = false}) =>
+      _writes.add(() => unawaited(_store.write(path, data, merge: merge)));
+
+  @override
+  void delete(String path) => _writes.add(() => _store.docs.remove(path));
+
+  void _apply() {
+    for (final write in _writes) {
+      write();
+    }
+  }
+}
 
 /// In-memory documents keyed by path.
 final class FakeDocumentStore implements DocumentStore {
@@ -42,6 +97,31 @@ final class FakeDocumentStore implements DocumentStore {
       docs.putIfAbsent(path, () => {}).addAll(data);
     } else {
       docs[path] = Map.of(data);
+    }
+  }
+
+  /// Transactions run one at a time, like Firestore's serialisable ones.
+  Future<void> _lock = Future.value();
+
+  /// Number of transactions that committed.
+  int commits = 0;
+
+  @override
+  Future<T> transaction<T>(
+    Future<T> Function(DocumentTransaction tx) body,
+  ) async {
+    final previous = _lock;
+    final done = Completer<void>();
+    _lock = done.future;
+    await previous;
+    try {
+      final tx = _FakeTransaction(this);
+      final result = await body(tx);
+      tx._apply();
+      commits++;
+      return result;
+    } finally {
+      done.complete();
     }
   }
 
