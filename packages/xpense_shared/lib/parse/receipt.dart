@@ -182,7 +182,7 @@ ReceiptParse parseReceipt(
   final lex = lexicon;
   final rows = mergeRows(lines);
   final lower = [for (final r in rows) normalizeText(r)];
-  final prices = [for (final r in lower) _prices(r)];
+  final prices = [for (final r in lower) _prices(r, lex)];
 
   // Merchant.
   String? merchant;
@@ -322,12 +322,12 @@ ReceiptParse parseReceipt(
 bool _hasAny(String row, List<String> phrases) =>
     phrases.any((p) => findWholeWord(row, p).isNotEmpty);
 
-List<_Price> _prices(String row) {
+List<_Price> _prices(String row, ParserLexicon lex) {
   final masked = row.replaceAllMapped(_time, (m) => ' ' * (m.end - m.start));
   final found = <_Price>[];
   for (final m in _priceToken.allMatches(masked)) {
     final digits = m.group(2)!;
-    if (_overlapsDate(row, m.start, m.end)) continue;
+    if (_overlapsDate(row, m.start, m.end, lex)) continue;
     if (digits.length >= 7 && digits.startsWith('0')) continue;
     final value = parseDigitGroup(digits);
     if (value == null) continue;
@@ -342,11 +342,18 @@ List<_Price> _prices(String row) {
   return found;
 }
 
-bool _overlapsDate(String row, int start, int end) {
+bool _overlapsDate(String row, int start, int end, ParserLexicon lex) {
+  bool overlaps(RegExpMatch m) => start < m.end && end > m.start;
   for (final pattern in [_dateNumeric, _dateIso]) {
-    for (final m in pattern.allMatches(row)) {
-      if (start < m.end && end > m.start) return true;
-    }
+    if (pattern.allMatches(row).any(overlaps)) return true;
+  }
+  // Written months count only when the word really is a month, so
+  // "rice 5 bags 12,000" keeps its prices.
+  for (final m in _dateDayMonth.allMatches(row)) {
+    if (lex.months.containsKey(m.group(2)) && overlaps(m)) return true;
+  }
+  for (final m in _dateMonthDay.allMatches(row)) {
+    if (lex.months.containsKey(m.group(1)) && overlaps(m)) return true;
   }
   return false;
 }

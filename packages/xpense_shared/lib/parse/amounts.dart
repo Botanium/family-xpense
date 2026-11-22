@@ -165,14 +165,14 @@ List<AmountMention> findAmounts(
     found.add(mention);
     i = end;
   }
-  final merged = _mergeCents(tokens, found, lex);
-  if (counted.isEmpty || merged.length != found.length) return merged;
-  // Drop counted quantities only when another amount remains.
+  // Drop counted quantities only when another amount remains, then join
+  // dollars and cents; removing a quantity never changes which mentions
+  // are adjacent.
   final kept = [
     for (var k = 0; k < found.length; k++)
       if (!counted.contains(k)) found[k],
   ];
-  return kept.isEmpty ? found : kept;
+  return _mergeCents(tokens, kept.isEmpty ? found : kept, lex);
 }
 
 bool _anyBlocked(Set<int> blocked, int from, int to) {

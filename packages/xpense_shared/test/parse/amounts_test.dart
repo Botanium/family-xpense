@@ -94,6 +94,15 @@ void main() {
       (text: 'a coffee and a cake 4000', spans: ['4000']),
       (text: 'paid 3000 on the 5th', spans: ['3000']),
       (text: 'two coffees', spans: ['two']),
+      // Review on PR #7: the cents merge must not undo quantity filtering.
+      (
+        text: '2 coffees for 5 dollars and 50 cents',
+        spans: ['5 dollars and 50 cents'],
+      ),
+      (
+        text: 'two coffees 5 dollars and 50 cents',
+        spans: ['5 dollars and 50 cents'],
+      ),
     ];
     for (final c in cases) {
       test('"${c.text}" → ${c.spans}', () {

@@ -39,6 +39,10 @@ void main() {
       (text: 'dec 1 3000', date: '2025-12-01'),
       (text: 'the 5th', date: '2026-11-05'),
       (text: 'the 25th', date: '2026-10-25'),
+      // Review on PR #7: an explicit month beats the ordinal fallback.
+      (text: 'spent 20 on the 5th of March', date: '2026-03-05'),
+      (text: 'the 5th march', date: '2026-03-05'),
+      (text: 'the 5th of march 2025', date: '2025-03-05'),
       // Not dates.
       (text: '31/02', date: null),
       (text: '5-10', date: null),

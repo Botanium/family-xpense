@@ -387,6 +387,11 @@ int? _yearAt(List<Token> tokens, int i) {
   if (!suffix.glued || !lex.ordinalSuffixes.contains(suffix.text)) {
     return null;
   }
+  // "the 5th of march", "the 5th march": the written month wins.
+  var at = i + 3;
+  if (at < tokens.length && tokens[at].text == 'of') at++;
+  final month = at < tokens.length ? lex.months[tokens[at].text] : null;
+  if (month != null) return _withMonth(tokens, at + 1, day, month, today);
   var date = LocalDate.tryCreate(today.year, today.month, day);
   if (date == null || date.isAfter(today)) {
     final previous = DateTime.utc(today.year, today.month - 1);
