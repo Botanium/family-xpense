@@ -41,6 +41,15 @@ enum PasswordProblem {
   wrong,
 }
 
+/// What the form sent, so "Try again" repeats the same request.
+enum EmailAction {
+  /// Create the account or sign in.
+  submit,
+
+  /// Send a password reset.
+  reset,
+}
+
 /// Shortest new password the form accepts; Firebase's default policy.
 const int minPasswordLength = 6;
 
@@ -75,6 +84,7 @@ final class EmailFormState {
     this.emailProblem,
     this.passwordProblem,
     this.failure,
+    this.failedAction,
     this.resetSentTo,
   });
 
@@ -99,6 +109,9 @@ final class EmailFormState {
   /// A failure that belongs to neither field (offline, too many attempts).
   final AuthFailure? failure;
 
+  /// The request that ended in [failure], which "Try again" repeats.
+  final EmailAction? failedAction;
+
   /// The address a password reset was sent to.
   final String? resetSentTo;
 
@@ -118,6 +131,7 @@ final class EmailFormState {
       other.emailProblem == emailProblem &&
       other.passwordProblem == passwordProblem &&
       other.failure == failure &&
+      other.failedAction == failedAction &&
       other.resetSentTo == resetSentTo;
 
   @override
@@ -129,6 +143,7 @@ final class EmailFormState {
     emailProblem,
     passwordProblem,
     failure,
+    failedAction,
     resetSentTo,
   );
 }
@@ -163,6 +178,7 @@ final class EmailViewModel extends Notifier<EmailFormState> {
       mode: state.mode,
       passwordProblem: state.passwordProblem,
       failure: state.failure,
+      failedAction: state.failedAction,
     );
   }
 
@@ -173,6 +189,7 @@ final class EmailViewModel extends Notifier<EmailFormState> {
       mode: state.mode,
       emailProblem: state.emailProblem,
       failure: state.failure,
+      failedAction: state.failedAction,
       resetSentTo: state.resetSentTo,
     );
   }
@@ -199,7 +216,7 @@ final class EmailViewModel extends Notifier<EmailFormState> {
     if (!ref.mounted) return;
     state = switch (result) {
       Ok() => EmailFormState(mode: mode, signedIn: true),
-      Err(:final failure) => _failed(mode, failure),
+      Err(:final failure) => _failed(mode, failure, EmailAction.submit),
     };
   }
 
@@ -219,36 +236,51 @@ final class EmailViewModel extends Notifier<EmailFormState> {
     if (!ref.mounted) return;
     state = switch (result) {
       Ok() => EmailFormState(mode: mode, resetSentTo: email.trim()),
-      Err(:final failure) => _failed(mode, failure),
+      Err(:final failure) => _failed(mode, failure, EmailAction.reset),
     };
   }
 
-  static EmailFormState _failed(EmailMode mode, AuthFailure failure) =>
-      switch (failure) {
-        AuthInvalidEmail() => EmailFormState(
-          mode: mode,
-          emailProblem: EmailProblem.invalid,
-        ),
-        AuthEmailInUse() => EmailFormState(
-          mode: mode,
-          emailProblem: EmailProblem.inUse,
-        ),
-        AuthWeakPassword() => EmailFormState(
-          mode: mode,
-          passwordProblem: PasswordProblem.weak,
-        ),
-        AuthWrongCredentials() => EmailFormState(
-          mode: mode,
-          passwordProblem: PasswordProblem.wrong,
-        ),
-        AuthCancelled() => EmailFormState(mode: mode),
-        AuthOffline() ||
-        AuthTooManyAttempts() ||
-        AuthAccountDisabled() ||
-        AuthOtherMethod() ||
-        AuthMethodUnavailable() ||
-        AuthUnknown() => EmailFormState(mode: mode, failure: failure),
+  /// "Try again" on the offline banner: repeats the request that failed,
+  /// with what the fields hold now (PR #19 review).
+  Future<void> retry({required String email, required String password}) =>
+      switch (state.failedAction) {
+        EmailAction.reset => forgotPassword(email),
+        EmailAction.submit || null => submit(email: email, password: password),
       };
+
+  static EmailFormState _failed(
+    EmailMode mode,
+    AuthFailure failure,
+    EmailAction action,
+  ) => switch (failure) {
+    AuthInvalidEmail() => EmailFormState(
+      mode: mode,
+      emailProblem: EmailProblem.invalid,
+    ),
+    AuthEmailInUse() => EmailFormState(
+      mode: mode,
+      emailProblem: EmailProblem.inUse,
+    ),
+    AuthWeakPassword() => EmailFormState(
+      mode: mode,
+      passwordProblem: PasswordProblem.weak,
+    ),
+    AuthWrongCredentials() => EmailFormState(
+      mode: mode,
+      passwordProblem: PasswordProblem.wrong,
+    ),
+    AuthCancelled() => EmailFormState(mode: mode),
+    AuthOffline() ||
+    AuthTooManyAttempts() ||
+    AuthAccountDisabled() ||
+    AuthOtherMethod() ||
+    AuthMethodUnavailable() ||
+    AuthUnknown() => EmailFormState(
+      mode: mode,
+      failure: failure,
+      failedAction: action,
+    ),
+  };
 }
 
 /// The email form's view model by the mode the route opened it in,

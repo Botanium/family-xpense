@@ -45,6 +45,9 @@ class _EmailScreenState extends ConsumerState<EmailScreen> {
     _viewModel.submit(email: _email.text, password: _password.text),
   );
 
+  void _retry() =>
+      unawaited(_viewModel.retry(email: _email.text, password: _password.text));
+
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
@@ -64,7 +67,7 @@ class _EmailScreenState extends ConsumerState<EmailScreen> {
           ? OfflineBanner(
               message: l10n.onboardingOffline,
               actionLabel: l10n.onboardingRetry,
-              onAction: state.locked ? null : _submit,
+              onAction: state.locked ? null : _retry,
             )
           : null,
       content: AutofillGroup(

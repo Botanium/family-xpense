@@ -479,6 +479,55 @@ void main() {
       await tapLabel(tester, 'Try again');
       expect(location(container).path, OnboardingRoutes.tryIt);
     });
+
+    testWidgets('offline reset: Try again resends the reset, not sign-in', (
+      tester,
+    ) async {
+      final services = TestServices(signedIn: false);
+      final container = await openEmail(tester, services);
+      await tapLabel(tester, 'I already have an account');
+      services.auth.nextFailure = const AuthOffline();
+
+      await tester.enterText(field('Email'), 'ada@example.com');
+      await tapLabel(tester, 'Forgot password?');
+      expect(find.byType(OfflineBanner), findsOneWidget);
+      expect(services.auth.resets, isEmpty);
+
+      await tapLabel(tester, 'Try again');
+
+      expect(services.auth.calls, ['sendPasswordReset', 'sendPasswordReset']);
+      expect(services.auth.resets, ['ada@example.com']);
+      expect(find.text('Enter your password.'), findsNothing);
+      expect(find.byType(OfflineBanner), findsNothing);
+      expect(
+        find.text(
+          "If there's an account for ada@example.com, a link to reset the "
+          'password is on its way.',
+        ),
+        findsOneWidget,
+      );
+      expect(location(container).path, OnboardingRoutes.email);
+    });
+
+    testWidgets('a failed sign-in is retried as a sign-in after a reset', (
+      tester,
+    ) async {
+      final services = TestServices(signedIn: false);
+      services.auth.accounts['ada@example.com'] = 'secret1';
+      final container = await openEmail(tester, services);
+      await tapLabel(tester, 'I already have an account');
+      await tester.enterText(field('Email'), 'ada@example.com');
+      await tapLabel(tester, 'Forgot password?');
+
+      services.auth.nextFailure = const AuthOffline();
+      await tester.enterText(field('Password'), 'secret1');
+      await tapLabel(tester, 'Sign in');
+      expect(find.byType(OfflineBanner), findsOneWidget);
+
+      await tapLabel(tester, 'Try again');
+      expect(services.auth.calls.last, 'signInWithEmail');
+      expect(location(container).path, OnboardingRoutes.tryIt);
+    });
   });
 
   group('Try it (screen 5)', () {
