@@ -39,7 +39,9 @@ final class AskActions implements XpenseActions {
   });
 
   final XpenseActions _inner;
-  final RulesRepository _rules;
+  /// The rules store, read when a lesson arrives: it changes with the
+  /// membership, and the thread must not.
+  final RulesRepository Function() _rules;
   final void Function(String text) _send;
 
   /// The rule kind of each local draft's title, by draft id. Agent drafts
@@ -77,7 +79,7 @@ final class AskActions implements XpenseActions {
       kind: ruleKinds[correction.draftId] ?? RuleKind.merchant,
     );
     if (lesson == null) return;
-    await _rules.learn(lesson);
+    await _rules().learn(lesson);
     await _inner.learn(correction);
   }
 

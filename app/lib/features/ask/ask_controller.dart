@@ -38,7 +38,9 @@ final class AskController extends Notifier<AskState> {
   AskState build() {
     _actions = AskActions(
       inner: ref.watch(xpenseActionsProvider),
-      rules: ref.watch(rulesRepositoryProvider),
+      // Read when used: a new rules store (the membership changed) must
+      // not reset the thread.
+      rules: () => ref.read(rulesRepositoryProvider),
       send: (text) => unawaited(send(text)),
       ruleKinds: _ruleKinds,
     );
