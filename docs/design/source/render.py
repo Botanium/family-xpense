@@ -56,8 +56,10 @@ def main():
     parser.add_argument("--dest", required=True)
     parser.add_argument("--only", nargs="*")
     args = parser.parse_args()
-    out = pathlib.Path(args.out)
-    dest = pathlib.Path(args.dest)
+    # Absolute, because pages are opened as file:// URIs and Chrome and sips
+    # get the PNG paths; relative ones fail in Path.as_uri().
+    out = pathlib.Path(args.out).resolve()
+    dest = pathlib.Path(args.dest).resolve()
     dest.mkdir(parents=True, exist_ok=True)
     manifest = json.loads((out / "manifest.json").read_text(encoding="utf-8"))
     binary = chrome()
