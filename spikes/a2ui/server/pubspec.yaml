@@ -1,0 +1,15 @@
+name: wp_s1_server
+description: WP-S1 spike server (throwaway). Genkit Dart agent with a2ui() and a custom catalog.
+publish_to: none
+version: 0.0.1
+
+environment:
+  sdk: ^3.14.0
+
+dependencies:
+  genkit: ^1.0.3
+  genkit_a2ui: 0.6.0
+  genkit_google_cloud: 0.3.3
+  genkit_google_genai: ^1.2.0
+  schemantic: ^1.0.0
+  google_cloud_firestore: ^0.5.2
