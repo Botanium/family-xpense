@@ -213,7 +213,7 @@ Not verified, and settled by spikes: items marked Verify above; how a real Gemin
 
 **D-40. Catalog id uses the owner's domain.** `https://bitrelia.com/xpense/a2ui/catalogs/xpense/v1/catalog.json`, matching the bundle id `com.bitrelia.familyxpense`. Status: Locked by the owner on 2026-11-22. It is an identifier only and never has to resolve.
 
-**D-41. Category tree changes.** Status: Locked by the owner on 2026-11-22. `rent` removed; `apartment_gas` added under Home. The owner also asked for "Internet fee" and "Online subscriptions", which overlap the existing `internet_phone` and `subscriptions`; how to resolve the overlap is open (section 4). Categories stay editable in the app (story S2.7).
+**D-41. Category tree changes.** Status: Locked by the owner on 2026-11-22. `rent` removed; `apartment_gas` added under Home. On the owner's follow-up the same day, `internet_phone` was replaced by `internet_fee` and a new `phone_mobile_credit`, and `subscriptions` by `online_subscriptions`. Categories stay editable in the app (story S2.7).
 
 **D-42. The app is planned to go public as a paid subscription** after the owner and partner use it themselves. Status: Stated by the owner on 2026-11-22; not yet planned in detail. Consequences to plan before M8: in-app subscriptions and a paywall, a separate production Firebase project (already planned), per-user cost limits that fit the price, App Store review for a subscription finance app, and probably Kurdish and Arabic for the local market (D-36 deferred them). A planning pass is added as WP-P1 in DELEGATION.
 
@@ -223,6 +223,5 @@ Answered on 2026-11-22: region is Doha (D-18); English only for now (D-36); the 
 
 Still open:
 
-1. **Category overlaps.** Does "Internet fee" replace `internet_phone` (leaving phone separate), and does "Online subscriptions" replace `subscriptions`?
-2. **Apple Intelligence on the iPhone 17 Pro.** Not yet checked.
-3. **Apple Developer Program.** Enrollment in progress; recheck the Team ID after approval (D-39).
+1. **Apple Intelligence on the iPhone 17 Pro.** Not yet checked.
+2. **Apple Developer Program.** Enrollment in progress; recheck the Team ID after approval (D-39).
