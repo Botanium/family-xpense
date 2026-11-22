@@ -47,6 +47,7 @@ import 'package:xpense_app/services/settings_store.dart';
 import 'package:xpense_app/services/settings_store_prefs.dart';
 import 'package:xpense_app/services/speech_capture.dart';
 import 'package:xpense_app/services/speech_capture_fake.dart';
+import 'package:xpense_shared/xpense_shared.dart';
 
 /// Which backend a build talks to, from `--dart-define=XPENSE_ENV=…`.
 enum AppEnvironment {
@@ -265,6 +266,50 @@ HouseholdRepository connectHouseholds(
   );
 }
 
+/// `--dart-define=XPENSE_DEMO_HOUSEHOLD=true` (dev and emulators only)
+/// gives the in-memory write path the household that
+/// `server/tool/seed_demo_household.dart` writes to the emulator, so the
+/// agent's and Decisions' ids resolve on the phone in a local end-to-end
+/// run. Until the household cache arrives (WP-13, WP-20) the phone does not
+/// read accounts and categories from Firestore.
+const String demoHouseholdDefine = String.fromEnvironment(
+  'XPENSE_DEMO_HOUSEHOLD',
+);
+
+/// The server's demo household (`server/lib/runtime/demo_household.dart`)
+/// as the member `u_dara` sees it.
+final XpenseHousehold demoXpenseHousehold = XpenseHousehold(
+  baseCurrency: 'USD',
+  accounts: const [
+    HouseholdAccount(id: 'acc_chk', name: 'Checking', currency: 'USD'),
+    HouseholdAccount(
+      id: 'acc_visa',
+      name: 'Joint Visa ••4021',
+      currency: 'USD',
+    ),
+    HouseholdAccount(id: 'acc_cash_iqd', name: 'Cash wallet', currency: 'IQD'),
+  ],
+  categories: [
+    for (final c in defaultCategories)
+      if (!c.isGroup) HouseholdCategory(id: c.slug, name: c.nameIn('en')),
+  ],
+  people: const [HouseholdItem(id: 'p_alex', name: 'Alex')],
+  loans: const [HouseholdItem(id: 'loan_alex', name: 'Alex')],
+  partnerName: 'Shilan',
+  latestRate: '1520',
+);
+
+/// The household cache and write path for [environment]: the in-memory
+/// fake until WP-20, over the demo household when [demoHouseholdDefine]
+/// asks for it outside prod.
+XpenseActions connectXpenseActions(AppEnvironment environment) =>
+    FakeXpenseActions(
+      household:
+          demoHouseholdDefine == 'true' && environment != AppEnvironment.prod
+          ? demoXpenseHousehold
+          : sampleHousehold,
+    );
+
 /// The learned rules for the signed-in member (story S3.11): in Firestore
 /// once the member is in a household, in memory in `fakes` and until the
 /// membership is known.
@@ -405,6 +450,7 @@ Future<Bootstrapped> bootstrap({required AppEnvironment environment}) async {
       authRepository: auth,
       householdRepository: households,
       featureFlags: flags,
+      xpenseActions: connectXpenseActions(environment),
       agentClient: capture?.agent,
       decisionsClient: capture?.decisions,
       rules: (ref) => connectRules(ref, environment: environment),

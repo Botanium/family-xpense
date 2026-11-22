@@ -220,6 +220,12 @@ void main() {
       await tester.pump();
       await tester.pump();
       expect(find.text('Working on it…'), findsOneWidget);
+      // A message typed meanwhile waits in the field, unsent.
+      await _type(tester, 'and on rent?');
+      await tester.testTextInput.receiveAction(TextInputAction.send);
+      await tester.pump();
+      expect(services.agent.turns, hasLength(1));
+      expect(find.text('and on rent?'), findsOneWidget);
       await tester.tap(find.text('Stop'));
       await tester.pumpAndSettle();
       expect(services.agent.conversations.single.cancelCalled, isTrue);

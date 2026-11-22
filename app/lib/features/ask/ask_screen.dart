@@ -64,7 +64,8 @@ class _AskScreenState extends ConsumerState<AskScreen> {
   }
 
   void _send(String text) {
-    if (text.trim().isEmpty) return;
+    // While a request runs the text stays in the field, unsent.
+    if (text.trim().isEmpty || ref.read(askControllerProvider).busy) return;
     _text.clear();
     unawaited(ref.read(askControllerProvider.notifier).send(text));
   }
