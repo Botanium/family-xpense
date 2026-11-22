@@ -39,7 +39,10 @@ Future<({XpenseAgentRuntime rt, Genkit ai, List<String> turns})> _runtime({
     sessions: const MemorySessions(),
     modelName: (id) => 'test/$id',
     clock: fixedClock,
-    onTurn: (c, r) => turns.add('${c.hid}:${r.finishReason.value}'),
+    onTurn: (c, r) => turns.add(
+      '${c.hid}:${r.finishReason?.value}:${r.modelCalls}'
+      '${r.escalated ? ':escalated' : ''}',
+    ),
   );
   return (rt: rt, ai: ai, turns: turns);
 }
@@ -74,7 +77,7 @@ void main() {
       ['acc_chk', 'acc_chk'],
     );
     expect(summary['text'], 'I found two things in that:');
-    expect(turns, ['hh_demo:stop']);
+    expect(turns, ['hh_demo:stop:2']);
 
     // Two model calls: the tool request, then the render.
     expect(lite.requests, hasLength(2));
@@ -128,7 +131,7 @@ void main() {
     expect(_creates(summary).single['surfaceId'], 'cap_test');
     expect(lite.requests, hasLength(2));
     expect(flash.requests, hasLength(2));
-    expect(turns, ['hh_demo:stop']);
+    expect(turns, ['hh_demo:stop:4:escalated']);
   });
 
   test('liteOnly stops escalation', () async {
@@ -151,7 +154,7 @@ void main() {
         )
         .then((_) {}, onError: (_) {});
     expect(flash.requests, isEmpty);
-    expect(turns, ['hh_demo:failed']);
+    expect(turns, ['hh_demo:failed:2']);
   });
 
   test('a later turn resumes the session by snapshot id', () async {

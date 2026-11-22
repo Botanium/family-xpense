@@ -29,6 +29,9 @@ import 'package:xpense_shared/xpense_shared.dart';
 
 final _log = Logger('xpense.tools.prepareEntries');
 
+/// The Decisions catch-all option key (`decide/question_set.dart`).
+const unspecifiedChoice = 'unspecified';
+
 /// The order follow-ups are asked in (AI_PIPELINE 9).
 const followUpOrder = [
   'intent',
@@ -183,6 +186,7 @@ final class _DraftBuilder {
   final confidence = <String, double>{};
   final guessed = <String>{};
   final listedMissing = <String>{};
+  HouseholdCategory? modelCategory;
   FxQuote? fx;
   DuplicateHint? duplicate;
   RecurringHint? recurring;
@@ -255,12 +259,18 @@ final class _DraftBuilder {
         toAccountId = to.single.id;
       }
     }
-    // Category words.
+    // Category words. Only words the member wrote settle the category; a
+    // slug the model picked ("rent" → `apartment_gas`) is its reading, kept
+    // as a guess unless the classifier answers.
     if (_hasCategory) {
       final c = _matchCategory(entry.categoryHint);
       if (c != null) {
-        categoryId = c.id;
-        confidence['category'] = 1;
+        if (_mentions(text, entry.categoryHint!) || _mentions(text, c.name)) {
+          categoryId = c.id;
+          confidence['category'] = 1;
+        } else {
+          modelCategory = c;
+        }
       }
     }
     // Who.
@@ -337,6 +347,11 @@ final class _DraftBuilder {
   }) async {
     final candidates = await _duplicateCandidates(context, deps);
     await _classify(context, deps, thresholds, candidates);
+    // The model's category stands in, as a guess, when nothing better came.
+    if (categoryId == null && modelCategory != null) {
+      categoryId = modelCategory!.id;
+      guessed.add('categoryId');
+    }
     await _convert(context, deps);
   }
 
@@ -429,7 +444,11 @@ final class _DraftBuilder {
     }
 
     String? pick(ChoiceAnswer? a, String field, String confKey) {
-      if (a == null || a.choice == null) return null;
+      // `unspecified` is the catch-all "the message does not say"
+      // (AI_PIPELINE 7): an answer about the message, not about the field.
+      if (a == null || a.choice == null || a.choice == unspecifiedChoice) {
+        return null;
+      }
       final c = conf(a.confidence);
       confidence[confKey] = c;
       if (c < low) return null;
@@ -584,6 +603,12 @@ String _norm(String s) => s
     .trim();
 
 Iterable<String> _words(String s) => s.split(' ');
+
+/// Whether [text] contains [phrase] (a slug's underscores read as spaces).
+bool _mentions(String text, String phrase) {
+  final p = _norm(phrase.replaceAll('_', ' '));
+  return p.isNotEmpty && ' ${_norm(text)} '.contains(' $p ');
+}
 
 /// Fields a follow-up question may ask. Amount, currency and date are
 /// edited on the slip itself (A2UI_CATALOG 3.2).

@@ -132,8 +132,7 @@ final class XpenseAgentRuntime {
     bool strict = true,
     ModelNamer modelName = googleAiModel,
     Clock clock = const Clock(),
-    void Function(XpenseContext context, GenerateResult<dynamic> result)?
-    onTurn,
+    TurnObserver? onTurn,
   }) {
     registerXpenseCatalog(ai, catalogJson);
     final snapshots = HouseholdSnapshots(reader, clock: clock);

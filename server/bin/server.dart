@@ -176,12 +176,12 @@ Future<AgentFactory> _agentFactory(
     strict: strict,
     onTurn: demo
         ? null
-        : (context, result) => unawaited(
+        : (context, stats) => unawaited(
             usage
                 .add(context.hid, {
                   UsageCounter.agentTurns: 1,
-                  UsageCounter.inputTokens: result.usage?.inputTokens ?? 0,
-                  UsageCounter.outputTokens: result.usage?.outputTokens ?? 0,
+                  UsageCounter.inputTokens: stats.inputTokens,
+                  UsageCounter.outputTokens: stats.outputTokens,
                 })
                 .catchError(
                   (Object e) => _log.warning('usage not recorded', e),

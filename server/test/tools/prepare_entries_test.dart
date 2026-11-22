@@ -318,6 +318,56 @@ void main() {
       },
     );
 
+    test('a category the member did not name is only a guess', () async {
+      final out = await prepareEntries(
+        PrepareEntriesInput(
+          entries: [
+            ProposedEntry(
+              intent: 'expense',
+              amount: '1400',
+              text: 'I paid rent 1400',
+              categoryHint: 'apartment_gas',
+            ),
+            ProposedEntry(
+              intent: 'expense',
+              amount: '12',
+              text: 'taxi 12',
+              categoryHint: 'taxi',
+            ),
+          ],
+        ),
+        dara,
+        demoDeps(texts: ['I paid rent 1400 and taxi 12']),
+      );
+      final [rent, taxi] = out.drafts;
+      expect(rent.categoryId, 'apartment_gas');
+      expect(rent.guessed, contains('categoryId'));
+      expect(rent.confidence?.category, isNull);
+      expect(taxi.categoryId, 'taxi');
+      expect(taxi.confidence?.category, 1);
+    });
+
+    test('an unspecified answer is not a confidence in the field', () async {
+      final out = await prepareEntries(
+        PrepareEntriesInput(
+          entries: [
+            ProposedEntry(intent: 'expense', amount: '9', text: 'tea 9'),
+          ],
+        ),
+        dara,
+        demoDeps(
+          texts: ['tea 9'],
+          classifier: FakeEntryClassifier.always(
+            DecideResponse(
+              account: ChoiceAnswer(choice: 'unspecified', confidence: 0.9),
+            ),
+          ),
+        ),
+      );
+      expect(out.drafts.single.accountId, isNull);
+      expect(out.drafts.single.confidence?.account, isNull);
+    });
+
     test(
       'missing fields from the model become questions, not errors',
       () async {

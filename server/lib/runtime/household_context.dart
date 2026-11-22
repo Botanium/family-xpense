@@ -54,10 +54,27 @@ GenerateMiddlewareDef<void> defineHouseholdContext(
 );
 
 /// Observes a finished agent turn (usage counters).
-typedef TurnObserver = void Function(
-  XpenseContext context,
-  GenerateResult<dynamic> result,
-);
+typedef TurnObserver = void Function(XpenseContext context, TurnStats stats);
+
+/// What one agent turn cost, summed over every model call of its tool loop
+/// (and of the escalated re-run). A `GenerateResult`'s own `usage` covers
+/// only the last model call.
+final class TurnStats {
+  /// How the turn ended.
+  FinishReason? finishReason;
+
+  /// Model calls made.
+  int modelCalls = 0;
+
+  /// Input tokens over all model calls.
+  int inputTokens = 0;
+
+  /// Output tokens over all model calls.
+  int outputTokens = 0;
+
+  /// Whether the turn was re-run on the escalation model.
+  bool escalated = false;
+}
 
 /// The middleware instance (one per generate call).
 final class HouseholdContextMiddleware extends GenerateMiddleware {
@@ -72,6 +89,9 @@ final class HouseholdContextMiddleware extends GenerateMiddleware {
 
   /// Observes each finished turn.
   final TurnObserver? onTurn;
+
+  // One instance per generate call, so these are per turn.
+  final TurnStats _stats = TurnStats();
 
   /// Household views.
   final HouseholdSnapshots snapshots;
@@ -112,9 +132,11 @@ final class HouseholdContextMiddleware extends GenerateMiddleware {
         'to': escalation,
         'status': result.error?.status,
       });
+      _stats.escalated = true;
       result = await next(_withModel(envelope, escalation), ctx);
     }
-    onTurn?.call(context, result);
+    _stats.finishReason = result.finishReason;
+    onTurn?.call(context, _stats);
     return result;
   }
 
@@ -145,7 +167,14 @@ final class HouseholdContextMiddleware extends GenerateMiddleware {
       thresholds: cfg.confidence,
       today: localToday(clock, context.tz),
     );
-    return await next(appendToSystem(request, block), ctx);
+    // A call that a2ui fails in strict mode still happened (and was
+    // billed), but its usage is lost with the response.
+    _stats.modelCalls += 1;
+    final response = await next(appendToSystem(request, block), ctx);
+    _stats
+      ..inputTokens += response.usage?.inputTokens ?? 0
+      ..outputTokens += response.usage?.outputTokens ?? 0;
+    return response;
   }
 }
 
