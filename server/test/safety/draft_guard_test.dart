@@ -202,12 +202,50 @@ void main() {
       );
     });
 
+    test('puts back the prepared draft even without a violation', () {
+      final prepared = GuardFacts.fromMessages([
+        {
+          'role': 'tool',
+          'content': [
+            {
+              'toolResponse': {
+                'name': 'prepareEntries',
+                'output': {
+                  'drafts': [
+                    {
+                      ..._draft('d1', 140000),
+                      'guessed': ['currency'],
+                    },
+                  ],
+                },
+              },
+            },
+          ],
+        },
+      ]);
+      final result = guardParts([
+        _part([
+          _create([_draft('d1', 140000)]),
+        ], r'$/drafts = [{id: "d1"}]'),
+      ], prepared);
+      expect(result.violations, isEmpty);
+      expect(result.changed, isTrue);
+      final create =
+          ((result.parts.single['data'] as Map)['messages'] as List).single
+              as Map;
+      final drafts =
+          ((create['createSurface'] as Map)['dataModel'] as Map)['drafts']
+              as List;
+      expect((drafts.single as Map)['guessed'], ['currency']);
+    });
+
     test('leaves clean parts untouched', () {
       final part = _part([
         _create([_draft('d1', 140000)]),
       ], 'x');
       final result = guardParts([part], facts);
       expect(result.violations, isEmpty);
+      expect(result.changed, isFalse);
       expect(result.parts.single, part);
     });
   });

@@ -126,6 +126,31 @@ void main() {
     },
   );
 
+  test('fields the model drops while copying come back', () async {
+    List<Object?>? toolDrafts;
+    final lite = Script(
+      entries: salaryRent,
+      render: (drafts) {
+        toolDrafts = drafts;
+        return scriptedCapture([
+          for (final d in drafts)
+            {...(d! as Map)}
+              ..remove('confidence')
+              ..remove('origin'),
+        ]);
+      },
+    );
+    final (:rt, ai: _, turns: _) = await _runtime(lite: lite);
+    final summary = await rt.runTurn(
+      'Salary came in 3200 and I paid rent 1400',
+      context: demoContext,
+    );
+    final drafts =
+        (_creates(summary).single['dataModel'] as Map)['drafts'] as List;
+    expect(drafts, toolDrafts);
+    expect((drafts.first as Map)['origin'], 'agent');
+  });
+
   test('a failed turn is re-run once on the escalation model', () async {
     final lite = Script(
       entries: salaryRent,

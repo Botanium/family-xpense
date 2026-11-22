@@ -66,7 +66,7 @@ final class OutputGuardMiddleware extends GenerateMiddleware {
     if (content == null) return response;
     final result = guardParts(content, facts);
     _report(result.violations);
-    if (result.violations.isEmpty) return response;
+    if (!result.changed) return response;
     return ModelResponse.fromJson({
       ...json,
       'message': <String, dynamic>{
@@ -82,7 +82,7 @@ final class OutputGuardMiddleware extends GenerateMiddleware {
     if (content == null) return chunk;
     final result = guardParts(content, facts);
     // Chunk violations are reported again on the final message; log once.
-    if (result.violations.isEmpty) return chunk;
+    if (!result.changed) return chunk;
     return ModelResponseChunk.fromJson({...json, 'content': result.parts});
   }
 

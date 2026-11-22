@@ -160,8 +160,14 @@ final class GuardViolation {
 }
 
 /// Applies [facts] to the A2UI parts in [parts] (JSON form) and returns the
-/// cleaned parts plus what was removed. Parts other than A2UI pass through.
-({List<Map<String, dynamic>> parts, List<GuardViolation> violations})
+/// cleaned parts, what was removed, and whether anything changed (drafts
+/// put back to the tool's version change parts without a violation). Parts
+/// other than A2UI pass through.
+({
+  List<Map<String, dynamic>> parts,
+  List<GuardViolation> violations,
+  bool changed,
+})
 guardParts(List<Map<String, dynamic>> parts, GuardFacts facts) {
   final violations = <GuardViolation>[];
   final out = <Map<String, dynamic>>[];
@@ -218,7 +224,11 @@ guardParts(List<Map<String, dynamic>> parts, GuardFacts facts) {
       },
     });
   }
-  return (parts: out, violations: violations);
+  return (
+    parts: out,
+    violations: violations,
+    changed: jsonEncode(out) != jsonEncode(parts),
+  );
 }
 
 /// Data-model keys whose contents are checked as drafts, not as figures.
