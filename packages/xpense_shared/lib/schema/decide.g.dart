@@ -104,16 +104,16 @@ base class DecideRequest {
     _json['ask'] = value;
   }
 
-  /// Deterministic duplicate candidates (same account and amount, date
-  /// within one day). The `duplicate` question is asked only with these.
+  /// Ignored by the server since WP-33: it finds duplicate candidates itself
+  /// among the saved entries the speaker can see. Kept for compatibility.
   List<DuplicateCandidate>? get candidates {
     return (_json['candidates'] as List?)
         ?.map((e) => DuplicateCandidate.fromJson(e as Map<String, dynamic>))
         .toList();
   }
 
-  /// Deterministic duplicate candidates (same account and amount, date
-  /// within one day). The `duplicate` question is asked only with these.
+  /// Ignored by the server since WP-33: it finds duplicate candidates itself
+  /// among the saved entries the speaker can see. Kept for compatibility.
   set candidates(List<DuplicateCandidate>? value) {
     if (value == null) {
       _json.remove('candidates');

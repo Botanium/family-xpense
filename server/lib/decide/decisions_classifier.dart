@@ -109,14 +109,7 @@ final class DecisionsClassifier implements EntryClassifier {
       _log.warning({'message': 'decide: unknown time zone', 'tz': context.tz});
     }
     final found = ask.contains(DecideQuestion.duplicate)
-        ? await _candidates(
-            context,
-            profile,
-            now.day,
-            parsed,
-            hints,
-            candidates,
-          )
+        ? await _candidates(context, profile, now.day, parsed, hints)
         : const <DuplicateCandidate>[];
 
     final plan = buildPlan(
@@ -133,10 +126,14 @@ final class DecisionsClassifier implements EntryClassifier {
     }
 
     final body = plan.body(config.model('decide'));
+    // The body describes candidates without their ids, and the response's
+    // `duplicate_of` is an id, so the ids are part of the key: an entry
+    // deleted and saved again with the same description is a miss.
     final cacheKey = DecideCache.keyFor(
       hid: context.hid,
       uid: context.uid,
       body: _canonical(body),
+      candidateIds: [for (final c in found) c.txnId],
     );
     if (_cache.get(cacheKey) case final cached?) {
       return cached;
@@ -252,7 +249,6 @@ final class DecisionsClassifier implements EntryClassifier {
     LocalDay today,
     DecideParsed? parsed,
     List<ParseHint> hints,
-    List<DuplicateCandidate> fromCaller,
   ) async {
     final amount = parsed?.amountMinor;
     final currency = parsed?.currency;
@@ -273,7 +269,7 @@ final class DecisionsClassifier implements EntryClassifier {
         toDay: window.to,
       );
     } on GatewayUnavailable catch (e) {
-      // The caller's own candidates still count.
+      // No candidates: `duplicate` is not asked.
       _log.warning({
         'message': 'decide: duplicate search failed',
         'op': e.operation,
@@ -281,7 +277,6 @@ final class DecisionsClassifier implements EntryClassifier {
     }
     return selectCandidates(
       entries: entries,
-      fromCaller: fromCaller,
       profile: profile,
       amountMinor: amount,
       currency: currency,

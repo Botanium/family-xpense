@@ -2,9 +2,10 @@
 ///
 /// WP-S4 found the API deterministic (two passes, 439 answers, no change),
 /// so a repeat of the same request can be answered from memory. The key is
-/// the household, the speaker and the exact request body, which holds the
-/// date, the message, every option and every candidate: any change to the
-/// household's lists or a new day is a different key. Only calibrated
+/// the household, the speaker, the duplicate candidates' ids and the exact
+/// request body, which holds the date, the message, every option and every
+/// candidate's description: any change to the household's lists, a new day
+/// or a different candidate is a different key. Only calibrated
 /// Decisions answers are stored, never fallback or unavailable responses.
 library;
 
@@ -38,7 +39,8 @@ final class DecideCache {
     required String hid,
     required String uid,
     required String body,
-  }) => '$hid\u0000$uid\u0000$body';
+    List<String> candidateIds = const [],
+  }) => [hid, uid, candidateIds.join(','), body].join('\u0000');
 
   /// The cached response for [key], or null.
   DecideResponse? get(String key) {

@@ -36,12 +36,15 @@ bool isCandidate(
   return iso.compareTo(w.from) >= 0 && iso.compareTo(w.to) <= 0;
 }
 
-/// The candidates for one message: the household's matching entries
-/// (titled with the account name) merged with [fromCaller] that pass the
-/// same rule, without repeats, nearest date first, at most [maxCandidates].
+/// The candidates for one message: the household's saved entries visible
+/// to the speaker that pass the rule (titled with the account name),
+/// nearest date first, at most [maxCandidates].
+///
+/// Only entries the server read itself count. Candidates a caller sends are
+/// never merged in: a stale phone cache could otherwise bring back a deleted
+/// entry, one on another account, or an id the household does not have.
 List<DuplicateCandidate> selectCandidates({
   required List<RecentEntry> entries,
-  required List<DuplicateCandidate> fromCaller,
   required HouseholdProfile profile,
   required int amountMinor,
   required String currency,
@@ -71,17 +74,6 @@ List<DuplicateCandidate> selectCandidates({
       candidateAccountId: e.accountId,
     )) {
       out[e.id] = c;
-    }
-  }
-  for (final c in fromCaller) {
-    if (out.containsKey(c.txnId)) continue;
-    if (isCandidate(
-      c,
-      amountMinor: amountMinor,
-      currency: currency,
-      day: day,
-    )) {
-      out[c.txnId] = c;
     }
   }
   int distance(DuplicateCandidate c) {

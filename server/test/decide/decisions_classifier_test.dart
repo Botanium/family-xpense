@@ -245,6 +245,34 @@ void main() {
       expect(net.requests, hasLength(2));
     });
 
+    test('a replaced candidate with the same description misses', () async {
+      final (c0, net0) = build([
+        ok({'duplicate': yesNo(0.9)}),
+        ok({'duplicate': yesNo(0.9)}),
+      ]);
+      RecentEntry generator(String id) => RecentEntry(
+        id: id,
+        amountMinor: 50000,
+        currency: 'IQD',
+        occurredOn: '2026-11-21',
+        accountId: cashId,
+        title: 'Generator',
+      );
+      Future<DecideResponse> ask() => classify(
+        c0,
+        ask: {.duplicate},
+        text: 'Paid the generator 50,000',
+        parsed: DecideParsed(amountMinor: 50000, currency: 'IQD'),
+      );
+      households.entries = [generator('t-old')];
+      expect((await ask()).duplicateOf, 't-old');
+      // Deleted and saved again: same amount, date, title and account.
+      households.entries = [generator('t-new')];
+      final again = await ask();
+      expect(net0.requests, hasLength(2));
+      expect(again.duplicateOf, 't-new');
+    });
+
     test('fallback answers are not cached', () async {
       fallback.result = const FallbackAnswers(
         answers: {},
@@ -523,41 +551,62 @@ void main() {
       },
     );
 
-    test("the caller's candidates count when they pass the rule", () async {
-      final (c, net) = build([ok({})]);
-      await classify(
-        c,
-        ask: {.duplicate},
-        candidates: [
-          DuplicateCandidate(
-            txnId: 'local-1',
+    test(
+      'caller candidates are ignored: only visible saved entries count',
+      () async {
+        // The server's search finds a deleted entry and one on another
+        // account; the phone sends the same ids back, plus an id the
+        // household does not have.
+        households.entries = [
+          const RecentEntry(
+            id: 'deleted',
             amountMinor: 15000,
             currency: 'IQD',
             occurredOn: '2026-11-22',
-            title: 'Lunch',
+            accountId: cashId,
+            title: 'Deleted lunch',
+            deleted: true,
           ),
-          DuplicateCandidate(
-            txnId: 'local-2',
-            amountMinor: 99,
+          const RecentEntry(
+            id: 'other-account',
+            amountMinor: 15000,
             currency: 'IQD',
             occurredOn: '2026-11-22',
-            title: 'Not the same amount',
+            accountId: jointCardId,
+            title: 'Card lunch',
           ),
-        ],
-      );
-      expect(
-        net.bodyOf(0)['input'],
-        contains('- IQD 15,000, 2026-11-22, Lunch'),
-      );
-      expect(net.bodyOf(0)['input'], isNot(contains('Not the same amount')));
-    });
+        ];
+        final (c, net) = build([ok({})]);
+        await classify(
+          c,
+          ask: {.intent, .duplicate},
+          hints: [ParseHint(kind: 'account', id: cashId)],
+          candidates: [
+            for (final (id, title) in [
+              ('deleted', 'Deleted lunch'),
+              ('other-account', 'Card lunch'),
+              ('not-in-household', 'Invented lunch'),
+            ])
+              DuplicateCandidate(
+                txnId: id,
+                amountMinor: 15000,
+                currency: 'IQD',
+                occurredOn: '2026-11-22',
+                title: title,
+              ),
+          ],
+        );
+        expect(asked(net), {'intent'}, reason: 'no valid candidate');
+        expect(net.bodyOf(0)['input'], isNot(contains('lunch')));
+      },
+    );
 
-    test('a failed search still uses the caller candidates', () async {
+    test('a failed search asks no duplicate question', () async {
       households.failEntries = true;
       final (c, net) = build([ok({})]);
-      await classify(
+      final r = await classify(
         c,
-        ask: {.duplicate},
+        ask: {.intent, .duplicate},
         candidates: [
           DuplicateCandidate(
             txnId: 'local-1',
@@ -567,7 +616,8 @@ void main() {
           ),
         ],
       );
-      expect(asked(net), {'duplicate'});
+      expect(asked(net), {'intent'});
+      expect(r.duplicateOf, isNull);
     });
 
     test('at most five, nearest first', () async {

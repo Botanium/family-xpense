@@ -183,7 +183,7 @@ Only a string code from the safety list is a block, so a request error is never 
 
 ### The proxy
 
-The phone calls `POST /v1/decide` (Genkit flow `decide`, behind the context provider, metered on `decisions`) with `{text, lang, parsed: {amountMinor, currency, date}, hints, ask: [question keys], candidates?}`. The agent's `prepareEntries` tool (WP-32) calls the same `EntryClassifier` in process. The server builds the request from the household's own categories, accounts, members and people, limited to what the speaker may see (`visibleTo`), so the phone cannot inject options and the key stays server-side.
+The phone calls `POST /v1/decide` (Genkit flow `decide`, behind the context provider, metered on `decisions`) with `{text, lang, parsed: {amountMinor, currency, date}, hints, ask: [question keys], candidates?}` (`candidates` is ignored; see the duplicate rule below). The agent's `prepareEntries` tool (WP-32) calls the same `EntryClassifier` in process. The server builds the request from the household's own categories, accounts, members and people, limited to what the speaker may see (`visibleTo`), so the phone cannot inject options and the key stays server-side.
 
 - An unknown question key or empty or over-long text (over 2,000 characters) is refused with 400. A `lang` other than `en` gets `{unavailable: true}`. An On-device member is refused by the context provider (403 `on_device_mode`), and a household at its daily `decisions` limit gets 429 `over_limit`.
 - One REST call per message: every question goes in one request. The only second call is the retry.
@@ -226,7 +226,7 @@ Rules of use:
 
 - Ask only the keys in `ask`; a field already settled by a rule or explicit words is not asked. Ask `to_account` only when the parser's cue is a transfer or savings move: asked on a plain expense it picked the paying account again at 0.51 instead of `unspecified` (WP-33 live check). Ask `repayable` and `person` only when the parser finds a person.
 - If `multi_entry ≥ 0.5`, the phone discards the result and re-routes to path A.
-- Duplicate candidates are found deterministically first: the household's entries visible to the speaker with the same amount and currency, dated within one day of the message's date, not deleted, and on the same account when a hint names one (Firestore index `visibleTo`, `amountMinor`, `occurredOn`). Candidates the phone sends are kept only if they pass the same rule. At most five, nearest date first. The model judges only when there is at least one; otherwise `duplicate` is dropped from the request.
+- Duplicate candidates are found deterministically first: the household's entries visible to the speaker with the same amount and currency, dated within one day of the message's date, not deleted, and on the same account when a hint names one (Firestore index `visibleTo`, `amountMinor`, `occurredOn`). Only entries the server reads itself count: candidates the phone sends are ignored, so a stale phone cache cannot bring back a deleted entry, one on another account or an id the household does not have (WP-33 review). If the search fails, `duplicate` is not asked. At most five, nearest date first. The model judges only when there is at least one; otherwise `duplicate` is dropped from the request.
 - The response's `duplicate_of` is the nearest candidate's id, set whenever `duplicate` is answered. The phone shows "Looks like one you already saved" on the slip (`EntryDraft.duplicate`) when P(yes) reaches `dup_warn` (`duplicateHintFrom` in the app client).
 - An answer whose choice is not one of the options sent, or whose numbers are outside 0 to 1, is dropped.
 - Option keys match `[A-Za-z0-9_-]+`; an id that does not is left out of the options. A choice is capped at 255 options with the catch-alls kept.
@@ -242,7 +242,7 @@ The switch `decideEnabled` in `config/runtime` turns step 1 to 3 off (`{unavaila
 
 ### Cache and usage
 
-- **Cache:** in memory per instance, LRU of 500, 10 minutes. The key is the household, the speaker and the exact request body, which holds the date, the message, every option and every candidate, so a change to the household's lists or a new day is a miss. Only calibrated Decisions answers are stored. A hit makes no call and counts no usage.
+- **Cache:** in memory per instance, LRU of 500, 10 minutes. The key is the household, the speaker, the duplicate candidates' ids (the body describes candidates without ids, and `duplicate_of` is an id) and the exact request body, which holds the date, the message, every option and every candidate, so a change to the household's lists or a new day is a miss. Only calibrated Decisions answers are stored. A hit makes no call and counts no usage.
 - **Usage** (`households/{hid}/usage/{day}`), added after each classification that called out: `decisions` +1; `inputTokens`; `outputTokens` (fallback only); `costMicrosUsd`, at USD 0.10 per 1M input for `gemini-decision-1` and USD 0.30 in / 2.50 out per 1M for `gemini-3.5-flash-lite`. A block counts one decision and no tokens. A failed usage write is logged and does not fail the answer.
 - Logs carry the household id, question keys, status, codes and token counts, never the message, a name or the key.
 
