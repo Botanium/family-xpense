@@ -1,0 +1,66 @@
+[
+  {
+    "version": "1.0",
+    "deleteSurface": {
+      "surfaceId": "cap_k3m9"
+    }
+  },
+  {
+    "version": "1.0",
+    "createSurface": {
+      "surfaceId": "cap_k3m9",
+      "catalogId": "https://familyxpense.app/a2ui/catalogs/xpense/v1/catalog.json",
+      "sendDataModel": false,
+      "components": [
+        {
+          "id": "root",
+          "component": "EntryList",
+          "drafts": {
+            "@path": "/drafts"
+          },
+          "status": "review",
+          "title": "I found two things in that:"
+        }
+      ],
+      "dataModel": {
+        "drafts": [
+          {
+            "id": "d1",
+            "intent": "income",
+            "amountMinor": 320000,
+            "currency": "USD",
+            "categoryId": "salary",
+            "accountId": "acc_chk",
+            "who": "me",
+            "occurredOn": "2026-11-22",
+            "title": "Salary",
+            "confidence": {
+              "intent": 0.99,
+              "category": 0.97,
+              "account": 0.96
+            }
+          },
+          {
+            "id": "d2",
+            "intent": "expense",
+            "amountMinor": 140000,
+            "currency": "USD",
+            "categoryId": "rent",
+            "accountId": "acc_chk",
+            "who": "joint",
+            "occurredOn": "2026-11-22",
+            "title": "Rent",
+            "confidence": {
+              "intent": 0.98,
+              "category": 0.99,
+              "account": 0.97
+            },
+            "guessed": [
+              "who"
+            ]
+          }
+        ]
+      }
+    }
+  }
+]

@@ -1,0 +1,26 @@
+[
+  {
+    "version": "1.0",
+    "createSurface": {
+      "surfaceId": "loc_nudge_internet",
+      "catalogId": "https://familyxpense.app/a2ui/catalogs/xpense/v1/catalog.json",
+      "components": [
+        {
+          "id": "root",
+          "component": "Nudge",
+          "text": "Internet is usually paid by the 5th.",
+          "kind": "bill",
+          "actionLabel": "Add",
+          "action": {
+            "event": {
+              "name": "xp.local.sendText",
+              "context": {
+                "message": "Paid the internet bill, 45 dollars"
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+]

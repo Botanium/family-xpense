@@ -1,0 +1,126 @@
+[
+  {
+    "version": "1.0",
+    "deleteSurface": {
+      "surfaceId": "ans_people"
+    }
+  },
+  {
+    "version": "1.0",
+    "createSurface": {
+      "surfaceId": "ans_people",
+      "catalogId": "https://familyxpense.app/a2ui/catalogs/xpense/v1/catalog.json",
+      "sendDataModel": false,
+      "components": [
+        {
+          "id": "root",
+          "component": "Column",
+          "children": [
+            "loan",
+            "goal",
+            "people",
+            "recent"
+          ]
+        },
+        {
+          "id": "loan",
+          "component": "LoanCard",
+          "personName": "Alex",
+          "direction": "given",
+          "outstandingMinor": 20000,
+          "principalMinor": 30000,
+          "currency": "USD",
+          "dueOn": "2026-12-15",
+          "loanId": "loan_7"
+        },
+        {
+          "id": "goal",
+          "component": "GoalCard",
+          "name": "Holiday",
+          "savedMinor": 120000,
+          "targetMinor": 300000,
+          "currency": "USD",
+          "pace": "On track, 120/mo",
+          "goalId": "goal_2"
+        },
+        {
+          "id": "people",
+          "component": "List",
+          "children": {
+            "componentId": "person",
+            "path": "/result/rows"
+          }
+        },
+        {
+          "id": "person",
+          "component": "Row",
+          "children": [
+            "who",
+            "owed"
+          ],
+          "justify": "spaceBetween"
+        },
+        {
+          "id": "who",
+          "component": "Text",
+          "text": {
+            "@path": "label"
+          }
+        },
+        {
+          "id": "owed",
+          "component": "MoneyText",
+          "amountMinor": {
+            "@path": "amountMinor"
+          },
+          "currency": "USD",
+          "size": "small",
+          "sign": "none",
+          "tone": "loan"
+        },
+        {
+          "id": "recent",
+          "component": "TransactionList",
+          "items": {
+            "@path": "/result/txns"
+          },
+          "emptyText": "Nothing yet."
+        }
+      ],
+      "dataModel": {
+        "result": {
+          "txns": [
+            {
+              "txnId": "t_101",
+              "title": "Lunch with the kids",
+              "subtitle": "Dining · Cash",
+              "amountMinor": 10000,
+              "currency": "IQD",
+              "type": "expense",
+              "occurredOn": "2026-11-22"
+            },
+            {
+              "txnId": "t_102",
+              "title": "Salary",
+              "subtitle": "Income · Checking",
+              "amountMinor": 320000,
+              "currency": "USD",
+              "type": "income",
+              "occurredOn": "2026-11-21"
+            }
+          ],
+          "rows": [
+            {
+              "label": "Alex",
+              "amountMinor": 20000
+            },
+            {
+              "label": "Sam",
+              "amountMinor": 5000
+            }
+          ]
+        }
+      }
+    }
+  }
+]

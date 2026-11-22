@@ -1,0 +1,46 @@
+[
+  {
+    "version": "1.0",
+    "deleteSurface": {
+      "surfaceId": "cap_bad"
+    }
+  },
+  {
+    "version": "1.0",
+    "createSurface": {
+      "surfaceId": "cap_bad",
+      "catalogId": "https://familyxpense.app/a2ui/catalogs/xpense/v1/catalog.json",
+      "sendDataModel": false,
+      "components": [
+        {
+          "id": "root",
+          "component": "EntryList",
+          "drafts": {
+            "@path": "/drafts"
+          }
+        }
+      ],
+      "dataModel": {
+        "drafts": [
+          {
+            "id": "d1",
+            "intent": "gift",
+            "amountMinor": "ten thousand",
+            "currency": "IQD"
+          },
+          {
+            "id": "d2",
+            "intent": "expense",
+            "amountMinor": 2500,
+            "currency": "USD",
+            "categoryId": "transport",
+            "accountId": "acc_chk",
+            "who": "me",
+            "occurredOn": "2026-11-22",
+            "title": "Taxi"
+          }
+        ]
+      }
+    }
+  }
+]

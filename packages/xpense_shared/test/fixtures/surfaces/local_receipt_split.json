@@ -1,0 +1,100 @@
+[
+  {
+    "version": "1.0",
+    "createSurface": {
+      "surfaceId": "loc_rcpt_fm",
+      "catalogId": "https://familyxpense.app/a2ui/catalogs/xpense/v1/catalog.json",
+      "components": [
+        {
+          "id": "root",
+          "component": "ReceiptSummary",
+          "receipt": {
+            "@path": "/receipt"
+          },
+          "drafts": {
+            "@path": "/drafts"
+          },
+          "split": {
+            "@path": "/ui/split"
+          },
+          "source": "device"
+        }
+      ],
+      "dataModel": {
+        "receipt": {
+          "merchant": "Family Mart",
+          "occurredOn": "2026-11-22",
+          "occurredTime": "18:05",
+          "currency": "IQD",
+          "totalMinor": 60500,
+          "lines": [
+            {
+              "text": "Rice 5kg",
+              "amountMinor": 18000,
+              "categoryId": "groceries"
+            },
+            {
+              "text": "Chicken",
+              "amountMinor": 14500,
+              "categoryId": "groceries"
+            },
+            {
+              "text": "Dish soap",
+              "amountMinor": 4000,
+              "categoryId": "household"
+            },
+            {
+              "text": "Birthday card",
+              "amountMinor": 19000,
+              "categoryId": "gifts"
+            }
+          ]
+        },
+        "drafts": [
+          {
+            "id": "r_1",
+            "intent": "expense",
+            "amountMinor": 35428,
+            "currency": "IQD",
+            "accountId": "acc_cash",
+            "who": "joint",
+            "occurredOn": "2026-11-22",
+            "occurredTime": "18:05",
+            "title": "Family Mart",
+            "origin": "parser",
+            "categoryId": "groceries"
+          },
+          {
+            "id": "r_2",
+            "intent": "expense",
+            "amountMinor": 4360,
+            "currency": "IQD",
+            "accountId": "acc_cash",
+            "who": "joint",
+            "occurredOn": "2026-11-22",
+            "occurredTime": "18:05",
+            "title": "Family Mart",
+            "origin": "parser",
+            "categoryId": "household"
+          },
+          {
+            "id": "r_3",
+            "intent": "expense",
+            "amountMinor": 20712,
+            "currency": "IQD",
+            "accountId": "acc_cash",
+            "who": "joint",
+            "occurredOn": "2026-11-22",
+            "occurredTime": "18:05",
+            "title": "Family Mart",
+            "origin": "parser",
+            "categoryId": "gifts"
+          }
+        ],
+        "ui": {
+          "split": true
+        }
+      }
+    }
+  }
+]

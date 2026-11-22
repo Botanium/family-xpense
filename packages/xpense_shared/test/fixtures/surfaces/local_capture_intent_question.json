@@ -1,0 +1,69 @@
+[
+  {
+    "version": "1.0",
+    "createSurface": {
+      "surfaceId": "loc_cap_p7x2",
+      "catalogId": "https://familyxpense.app/a2ui/catalogs/xpense/v1/catalog.json",
+      "components": [
+        {
+          "id": "root",
+          "component": "Column",
+          "children": [
+            "ask",
+            "list"
+          ]
+        },
+        {
+          "id": "ask",
+          "component": "ChoicePrompt",
+          "question": "Quick check, so I file it right: will Alex pay this back?",
+          "options": [
+            {
+              "label": "Yes, it's a loan",
+              "value": "loan_given",
+              "hint": "Alex owes us"
+            },
+            {
+              "label": "No, gift or payment",
+              "value": "expense",
+              "hint": "Expense"
+            },
+            {
+              "label": "I was paying Alex back",
+              "value": "repayment_made",
+              "hint": "Debt"
+            }
+          ],
+          "value": {
+            "@path": "/drafts/0/intent"
+          }
+        },
+        {
+          "id": "list",
+          "component": "EntryList",
+          "drafts": {
+            "@path": "/drafts"
+          },
+          "status": "review"
+        }
+      ],
+      "dataModel": {
+        "drafts": [
+          {
+            "id": "d1",
+            "intent": "loan_given",
+            "amountMinor": 30000,
+            "currency": "USD",
+            "accountId": "acc_chk",
+            "occurredOn": "2026-11-22",
+            "personName": "Alex",
+            "missing": [
+              "intent"
+            ],
+            "origin": "parser"
+          }
+        ]
+      }
+    }
+  }
+]

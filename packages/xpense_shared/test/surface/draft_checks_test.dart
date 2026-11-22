@@ -1,0 +1,159 @@
+import 'package:test/test.dart';
+import 'package:xpense_shared/xpense_shared.dart';
+
+const _refs = HouseholdRefs(
+  accountCurrencies: {'acc_chk': 'USD', 'acc_cash': 'IQD'},
+  categoryIds: {'dining', 'rent', 'salary'},
+  personIds: {'p_alex'},
+  loanIds: {'loan_7'},
+  goalIds: {'goal_2'},
+);
+
+Map<String, Object?> _ok([Map<String, Object?> overrides = const {}]) => {
+  'id': 'd1',
+  'intent': 'expense',
+  'amountMinor': 10000,
+  'currency': 'IQD',
+  'accountId': 'acc_cash',
+  'categoryId': 'dining',
+  'occurredOn': '2026-11-22',
+  ...overrides,
+};
+
+void main() {
+  test('a complete draft can be saved', () {
+    final check = checkDraft(_ok(), _refs);
+    expect(check.issues, isEmpty);
+    expect(check.canSave, isTrue);
+    expect(check.draft!.amountMinor, 10000);
+  });
+
+  test('explicit nulls are tolerated as empty', () {
+    final check = checkDraft(_ok({'note': null, 'fx': null}), _refs);
+    expect(check.canSave, isTrue);
+  });
+
+  group('shape (malformed drafts need the manual form)', () {
+    final cases = <String, Object?>{
+      'not a map': 'd1',
+      'unknown intent': _ok({'intent': 'gift'}),
+      'text amount': _ok({'amountMinor': 'ten'}),
+      'fractional amount': _ok({'amountMinor': 10.5}),
+      'unknown currency': _ok({'currency': 'EUR'}),
+      'bad date': _ok({'occurredOn': '22/11/2026'}),
+      'bad who': _ok({'who': 'kids'}),
+      'guessed not strings': _ok({
+        'guessed': [1],
+      }),
+      'fx without a rate': _ok({
+        'fx': {'pair': 'USD/IQD'},
+      }),
+      'empty id': _ok({'id': ''}),
+    };
+    for (final MapEntry(key: name, value: raw) in cases.entries) {
+      test(name, () {
+        final check = checkDraft(raw, _refs);
+        expect(check.isMalformed, isTrue);
+        expect(check.canSave, isFalse);
+        expect(check.issues, everyElement(isA<MalformedField>()));
+      });
+    }
+
+    test('an amount encoded as 1250.0 is an integer', () {
+      expect(checkDraft(_ok({'amountMinor': 1250.0}), _refs).canSave, isTrue);
+    });
+  });
+
+  group('missing fields', () {
+    test('listed fields come first, then empty required ones', () {
+      final check = checkDraft(
+        _ok({
+          'accountId': null,
+          'categoryId': null,
+          'missing': ['accountId'],
+        }),
+        _refs,
+      );
+      expect(check.missing, ['accountId', 'categoryId']);
+      expect(check.canSave, isFalse);
+    });
+
+    test('a listed field stays missing even with a provisional value', () {
+      // The intent question: "loan_given" is a guess until answered.
+      final check = checkDraft(
+        _ok({
+          'intent': 'loan_given',
+          'categoryId': null,
+          'personName': 'Alex',
+          'missing': ['intent'],
+        }),
+        _refs,
+      );
+      expect(check.missing, ['intent']);
+    });
+
+    test('each intent requires its own fields', () {
+      List<String> missing(Map<String, Object?> o) =>
+          checkDraft(_ok({'categoryId': null, ...o}), _refs).missing;
+      expect(missing({'intent': 'expense'}), ['categoryId']);
+      expect(missing({'intent': 'transfer'}), ['toAccountId']);
+      expect(missing({'intent': 'savings_move'}), ['toAccountId']);
+      expect(missing({'intent': 'savings_move', 'goalId': 'goal_2'}), isEmpty);
+      expect(missing({'intent': 'loan_given'}), ['personName']);
+      expect(missing({'intent': 'loan_given', 'personId': 'p_alex'}), isEmpty);
+      expect(missing({'intent': 'adjustment'}), isEmpty);
+    });
+  });
+
+  group('household references', () {
+    test('unknown ids are reported by field', () {
+      final check = checkDraft(
+        _ok({'accountId': 'acc_x', 'categoryId': 'cat_x', 'loanId': 'l_x'}),
+        _refs,
+      );
+      expect(check.issues.map((i) => i.field), [
+        'accountId',
+        'categoryId',
+        'loanId',
+      ]);
+      expect(check.issues.first, isA<UnknownReference>());
+    });
+
+    test('amount must be within 1 … 10^12', () {
+      expect(
+        checkDraft(_ok({'amountMinor': 0}), _refs).issues.single,
+        isA<DraftAmountOutOfRange>(),
+      );
+      expect(
+        checkDraft(
+          _ok({'amountMinor': maxDraftAmountMinor + 1}),
+          _refs,
+        ).issues.single,
+        isA<DraftAmountOutOfRange>(),
+      );
+      expect(
+        checkDraft(_ok({'amountMinor': maxDraftAmountMinor}), _refs).canSave,
+        isTrue,
+      );
+    });
+
+    test("currency must match the account's", () {
+      final issue = checkDraft(_ok({'currency': 'USD'}), _refs).issues.single;
+      expect(issue, isA<CurrencyMismatch>());
+      expect((issue as CurrencyMismatch).accountCurrency, 'IQD');
+    });
+  });
+
+  test('a surface with more than 20 drafts cannot be saved', () {
+    final ok = checkDrafts([
+      for (var i = 0; i < 20; i++) _ok({'id': 'd$i'}),
+    ], _refs);
+    expect(ok.canSave, isTrue);
+    final tooMany = checkDrafts([
+      for (var i = 0; i < 21; i++) _ok({'id': 'd$i'}),
+    ], _refs);
+    expect(tooMany.tooMany, isTrue);
+    expect(tooMany.canSave, isFalse);
+    expect(checkDrafts(null, _refs).canSave, isFalse);
+  });
+}

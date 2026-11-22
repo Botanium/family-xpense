@@ -1,0 +1,75 @@
+[
+  {
+    "version": "1.0",
+    "createSurface": {
+      "surfaceId": "loc_cap_two",
+      "catalogId": "https://familyxpense.app/a2ui/catalogs/xpense/v1/catalog.json",
+      "components": [
+        {
+          "id": "root",
+          "component": "Column",
+          "children": [
+            "heard",
+            "list"
+          ]
+        },
+        {
+          "id": "heard",
+          "component": "Transcript",
+          "text": "Got my salary, 3,200, and paid the rent, 1,400"
+        },
+        {
+          "id": "list",
+          "component": "EntryList",
+          "drafts": {
+            "@path": "/drafts"
+          },
+          "status": "review",
+          "title": "I found two things in that:"
+        }
+      ],
+      "dataModel": {
+        "drafts": [
+          {
+            "id": "d1",
+            "intent": "income",
+            "amountMinor": 320000,
+            "currency": "USD",
+            "accountId": "acc_chk",
+            "categoryId": "salary",
+            "who": "me",
+            "occurredOn": "2026-11-22",
+            "title": "Salary",
+            "confidence": {
+              "intent": 0.99,
+              "category": 0.97,
+              "account": 0.96
+            },
+            "origin": "parser"
+          },
+          {
+            "id": "d2",
+            "intent": "expense",
+            "amountMinor": 140000,
+            "currency": "USD",
+            "accountId": "acc_chk",
+            "categoryId": "rent",
+            "who": "joint",
+            "occurredOn": "2026-11-22",
+            "title": "Rent",
+            "confidence": {
+              "intent": 0.98,
+              "category": 0.99,
+              "account": 0.97,
+              "who": 0.62
+            },
+            "guessed": [
+              "who"
+            ],
+            "origin": "decisions"
+          }
+        ]
+      }
+    }
+  }
+]

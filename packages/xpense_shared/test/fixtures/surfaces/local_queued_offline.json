@@ -1,0 +1,40 @@
+[
+  {
+    "version": "1.0",
+    "createSurface": {
+      "surfaceId": "loc_queue_q1",
+      "catalogId": "https://familyxpense.app/a2ui/catalogs/xpense/v1/catalog.json",
+      "components": [
+        {
+          "id": "root",
+          "component": "Column",
+          "children": [
+            "heard",
+            "notice"
+          ]
+        },
+        {
+          "id": "heard",
+          "component": "Transcript",
+          "text": "Taxi home, 6,000 dinars",
+          "seconds": 3
+        },
+        {
+          "id": "notice",
+          "component": "Notice",
+          "text": "You're offline. This will be read when you're back online.",
+          "kind": "offline",
+          "actionLabel": "Retry",
+          "action": {
+            "event": {
+              "name": "xp.local.retryQueued",
+              "context": {
+                "captureId": "q1"
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+]

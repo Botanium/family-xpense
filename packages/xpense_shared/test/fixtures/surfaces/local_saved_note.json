@@ -1,0 +1,17 @@
+[
+  {
+    "version": "1.0",
+    "createSurface": {
+      "surfaceId": "loc_saved_two",
+      "catalogId": "https://familyxpense.app/a2ui/catalogs/xpense/v1/catalog.json",
+      "components": [
+        {
+          "id": "root",
+          "component": "SavedNote",
+          "text": "Saved 2 entries.",
+          "tone": "ok"
+        }
+      ]
+    }
+  }
+]
