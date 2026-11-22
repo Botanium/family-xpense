@@ -99,23 +99,32 @@ void main() {
     expect(text, isNot(contains('DateTimeInput(')));
   });
 
-  test('outputGuard drops a draft whose amount the model changed', () async {
-    final lite = Script(
-      entries: salaryRent,
-      render: (drafts) => scriptedCapture([
-        drafts[0],
-        {...(drafts[1]! as Map), 'amountMinor': 1400000},
-      ]),
-    );
-    final (:rt, ai: _, turns: _) = await _runtime(lite: lite);
-    final summary = await rt.runTurn(
-      'Salary came in 3200 and I paid rent 1400',
-      context: demoContext,
-    );
-    final drafts =
-        (_creates(summary).single['dataModel'] as Map)['drafts'] as List;
-    expect(drafts.single, containsPair('id', 'd1'));
-  });
+  test(
+    "outputGuard restores the tool's drafts and drops invented ones",
+    () async {
+      List<Object?>? toolDrafts;
+      final lite = Script(
+        entries: salaryRent,
+        render: (drafts) {
+          toolDrafts = drafts;
+          final first = {...(drafts[0]! as Map)}..remove('accountId');
+          return scriptedCapture([
+            first, // a field dropped while copying
+            {...(drafts[1]! as Map), 'amountMinor': 1400000}, // amount changed
+            {'id': 'd9', 'intent': 'expense', 'amountMinor': 77700}, // invented
+          ]);
+        },
+      );
+      final (:rt, ai: _, turns: _) = await _runtime(lite: lite);
+      final summary = await rt.runTurn(
+        'Salary came in 3200 and I paid rent 1400',
+        context: demoContext,
+      );
+      final drafts =
+          (_creates(summary).single['dataModel'] as Map)['drafts'] as List;
+      expect(drafts, toolDrafts);
+    },
+  );
 
   test('a failed turn is re-run once on the escalation model', () async {
     final lite = Script(

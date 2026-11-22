@@ -1,8 +1,10 @@
 /// The checks `outputGuard` applies to every surface the agent emits
 /// (AI_PIPELINE 10, "Model invents an amount").
 ///
-/// A draft in a surface is kept only when it parses as an `EntryDraft` and
-/// its amount is backed by something the model did not make up:
+/// A draft whose id the latest `prepareEntries` returned is replaced by the
+/// tool's exact draft. Any other draft is kept only when it parses as an
+/// `EntryDraft` and its amount is backed by something the model did not
+/// make up:
 /// - the same draft (id, amount, currency) in the latest `prepareEntries`
 ///   result of this model call, or
 /// - a figure the fast parser finds in the user's own messages, or
@@ -285,7 +287,7 @@ _guardMessage(
     final drafts = model['drafts'];
     if (drafts is List) {
       final kept = _filter(drafts, facts, '${create['surfaceId']}', violations);
-      if (kept.length == drafts.length) {
+      if (_same(kept, drafts)) {
         return (message: message, keptDrafts: null, draftsPath: null);
       }
       return (
@@ -311,7 +313,7 @@ _guardMessage(
     if (path == '/drafts' && update['value'] is List) {
       final drafts = update['value'] as List;
       final kept = _filter(drafts, facts, surfaceId, violations);
-      if (kept.length == drafts.length) {
+      if (_same(kept, drafts)) {
         return (message: message, keptDrafts: null, draftsPath: null);
       }
       return (
@@ -347,6 +349,10 @@ _guardMessage(
   return (message: message, keptDrafts: null, draftsPath: null);
 }
 
+/// The drafts a surface may show: a draft whose id `prepareEntries`
+/// returned is replaced by the tool's exact draft (the model drops or
+/// rewrites fields when it copies: confidence, guessed, recurring); any
+/// other draft is kept only when [GuardFacts.reject] passes it.
 List<Object?> _filter(
   List<Object?> drafts,
   GuardFacts facts,
@@ -354,11 +360,19 @@ List<Object?> _filter(
   List<GuardViolation> violations,
 ) => [
   for (final d in drafts)
-    if (facts.reject(d) case final reason?)
+    if (_prepared(d, facts) case final prepared?)
+      prepared
+    else if (facts.reject(d) case final reason?)
       ..._record(violations, surfaceId, d, reason)
     else
       d,
 ];
+
+Map<String, dynamic>? _prepared(Object? draft, GuardFacts facts) =>
+    draft is Map ? facts.preparedDrafts[draft['id']] : null;
+
+/// Whether two draft lists are the same JSON (key order included).
+bool _same(List<Object?> a, List<Object?> b) => jsonEncode(a) == jsonEncode(b);
 
 List<Object?> _record(
   List<GuardViolation> violations,
