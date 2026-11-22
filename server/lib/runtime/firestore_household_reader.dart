@@ -17,11 +17,19 @@ final _log = Logger('xpense.runtime.reader');
 /// Reads household data with admin rights, filtered per member.
 final class FirestoreHouseholdReader implements HouseholdReader {
   /// Creates a reader over [_db].
-  new(this._db, {this.maxTransactions = 5000});
+  new(
+    this._db, {
+    this.pageSize = 1000,
+    this.maxTransactions = HouseholdReader.maxRangeTransactions,
+  });
 
   final fs.Firestore _db;
 
-  /// Upper bound on transactions read per query.
+  /// Transactions read per page.
+  final int pageSize;
+
+  /// The most transactions one range read returns before it reports
+  /// `complete: false`.
   final int maxTransactions;
 
   /// How far back a missing day's rate is looked for.
@@ -163,68 +171,93 @@ final class FirestoreHouseholdReader implements HouseholdReader {
                 id: doc.id,
                 categoryId: _str(doc.data()['categoryId']) ?? 'total',
                 limitMinor: limit,
+                scope: _str(doc.data()['scope']) ?? householdBudgetScope,
               ),
         ];
       });
 
   @override
-  Future<List<LedgerTxn>> transactions(
+  Future<TxnRead> transactions(
     String hid, {
     required String uid,
     required String fromOn,
     required String toOn,
-    int limit = 2000,
   }) => _guard('transactions', () async {
-    // Index: visibleTo (array) + occurredOn asc (DATA_MODEL 6).
-    final docs =
-        (await _db
-                .collection('${_h(hid)}/transactions')
-                .where('visibleTo', fs.WhereFilter.arrayContains, uid)
-                .where('occurredOn', fs.WhereFilter.greaterThanOrEqual, fromOn)
-                .where('occurredOn', fs.WhereFilter.lessThanOrEqual, toOn)
-                .orderBy('occurredOn')
-                .limit(maxTransactions)
-                .get())
-            .docs;
+    // Index: visibleTo (array) + occurredOn asc (DATA_MODEL 6). Read in
+    // pages; the cursor (startAfterDocument) also orders by document id, so
+    // entries sharing a day are neither skipped nor repeated. One document
+    // past the cap is read to tell a full range from a cut one.
+    final query = _db
+        .collection('${_h(hid)}/transactions')
+        .where('visibleTo', fs.WhereFilter.arrayContains, uid)
+        .where('occurredOn', fs.WhereFilter.greaterThanOrEqual, fromOn)
+        .where('occurredOn', fs.WhereFilter.lessThanOrEqual, toOn)
+        .orderBy('occurredOn');
+    final docs = <fs.QueryDocumentSnapshot<fs.DocumentData>>[];
+    fs.QueryDocumentSnapshot<fs.DocumentData>? last;
+    while (docs.length <= maxTransactions) {
+      final page = last == null ? query : query.startAfterDocument(last);
+      final remaining = maxTransactions + 1 - docs.length;
+      final got =
+          (await page.limit(remaining < pageSize ? remaining : pageSize).get())
+              .docs;
+      docs.addAll(got);
+      if (got.length < pageSize || got.isEmpty) break;
+      last = got.last;
+    }
+    final complete = docs.length <= maxTransactions;
     final out = <LedgerTxn>[];
-    for (final doc in docs.reversed) {
+    for (final doc in docs.take(maxTransactions).toList().reversed) {
       final d = doc.data();
       if (d['deletedAt'] != null) continue;
-      final amount = _int(d['amountMinor']);
-      final currency = _str(d['currency']);
-      final type = _str(d['type']);
-      final occurredOn = _str(d['occurredOn']);
-      final accountId = _str(d['accountId']);
-      if (amount == null ||
-          currency == null ||
-          type == null ||
-          occurredOn == null ||
-          accountId == null) {
-        continue;
-      }
-      out.add(
-        LedgerTxn(
-          id: doc.id,
-          type: type,
-          amountMinor: amount,
-          currency: currency,
-          baseAmountMinor: _int(d['baseAmountMinor']) ?? amount,
-          accountId: accountId,
-          toAccountId: _str(d['toAccountId']),
-          categoryId: _str(d['categoryId']),
-          whoUid: _str(d['whoUid']),
-          whoScope: _str(d['whoScope']),
-          occurredOn: occurredOn,
-          title: _str(d['title']) ?? '',
-          note: _str(d['note']),
-          personId: _str(d['personId']),
-          loanId: _str(d['loanId']),
-        ),
-      );
-      if (out.length >= limit) break;
+      if (_txn(doc.id, d) case final txn?) out.add(txn);
     }
-    return out;
+    return TxnRead(out, complete: complete);
   });
+
+  static LedgerTxn? _txn(String id, Map<String, Object?> d) {
+    final amount = _int(d['amountMinor']);
+    final currency = _str(d['currency']);
+    final type = _str(d['type']);
+    final occurredOn = _str(d['occurredOn']);
+    final accountId = _str(d['accountId']);
+    if (amount == null ||
+        currency == null ||
+        type == null ||
+        occurredOn == null ||
+        accountId == null) {
+      return null;
+    }
+    return LedgerTxn(
+      id: id,
+      type: type,
+      amountMinor: amount,
+      currency: currency,
+      baseAmountMinor: _int(d['baseAmountMinor']) ?? amount,
+      accountId: accountId,
+      toAccountId: _str(d['toAccountId']),
+      categoryId: _str(d['categoryId']),
+      whoUid: _str(d['whoUid']),
+      whoScope: _str(d['whoScope']),
+      occurredOn: occurredOn,
+      title: _str(d['title']) ?? '',
+      note: _str(d['note']),
+      personId: _str(d['personId']),
+      loanId: _str(d['loanId']),
+    );
+  }
+
+  @override
+  Future<bool> hasHiddenAccounts(String hid, {required String uid}) =>
+      _guard('accounts', () async {
+        // Admin read of every account; only the yes or no leaves here.
+        final docs = (await _db.collection('${_h(hid)}/accounts').get()).docs;
+        return docs.any((doc) {
+          final d = doc.data();
+          final visibleTo = _list(d['visibleTo']);
+          return d['archived'] != true && !visibleTo.contains(uid);
+        });
+      });
 
   @override
   Future<FxDay?> fxRateOn(String hid, String date) =>

@@ -950,6 +950,8 @@ base class LedgerResult {
     required int count,
     required List<LedgerRow> rows,
     List<int>? daily,
+    required bool complete,
+    required bool partialView,
   }) {
     _json = {
       'currency': currency,
@@ -960,6 +962,8 @@ base class LedgerResult {
       'count': count,
       'rows': rows.map((e) => e.toJson()).toList(),
       'daily': ?daily,
+      'complete': complete,
+      'partialView': partialView,
     };
   }
 
@@ -1061,6 +1065,30 @@ base class LedgerResult {
     }
   }
 
+  /// False when the range held too many entries to read in full; the
+  /// figures are then left out.
+  bool get complete {
+    return _json['complete'] as bool;
+  }
+
+  /// False when the range held too many entries to read in full; the
+  /// figures are then left out.
+  set complete(bool value) {
+    _json['complete'] = value;
+  }
+
+  /// True when the partner has private accounts, so household figures are
+  /// the member's own view.
+  bool get partialView {
+    return _json['partialView'] as bool;
+  }
+
+  /// True when the partner has private accounts, so household figures are
+  /// the member's own view.
+  set partialView(bool value) {
+    _json['partialView'] = value;
+  }
+
   @override
   String toString() {
     return _json.toString();
@@ -1101,8 +1129,26 @@ base class _LedgerResultTypeFactory extends SchemanticType<LedgerResult> {
           'type': 'array',
           'items': <String, Object?>{'type': 'integer'},
         },
+        'complete': <String, Object?>{
+          'type': 'boolean',
+          'description': 'False: too many entries to total; no figures given.',
+        },
+        'partialView': <String, Object?>{
+          'type': 'boolean',
+          'description':
+              'True: the partner\'s private accounts are not included.',
+        },
       },
-      'required': ['currency', 'metric', 'from', 'to', 'count', 'rows'],
+      'required': [
+        'currency',
+        'metric',
+        'from',
+        'to',
+        'count',
+        'rows',
+        'complete',
+        'partialView',
+      ],
     },
     dependencies: [LedgerRow.$schema],
   );
@@ -1614,11 +1660,15 @@ base class BudgetsResult {
     required String month,
     required String currency,
     required List<BudgetStatus> budgets,
+    required bool complete,
+    required bool partialView,
   }) {
     _json = {
       'month': month,
       'currency': currency,
       'budgets': budgets.map((e) => e.toJson()).toList(),
+      'complete': complete,
+      'partialView': partialView,
     };
   }
 
@@ -1660,6 +1710,30 @@ base class BudgetsResult {
     _json['budgets'] = value.map((e) => e.toJson()).toList();
   }
 
+  /// False when the month held too many entries to read in full; spending
+  /// is then left out.
+  bool get complete {
+    return _json['complete'] as bool;
+  }
+
+  /// False when the month held too many entries to read in full; spending
+  /// is then left out.
+  set complete(bool value) {
+    _json['complete'] = value;
+  }
+
+  /// True when the partner has private accounts: a household budget's
+  /// spending is the member's own view.
+  bool get partialView {
+    return _json['partialView'] as bool;
+  }
+
+  /// True when the partner has private accounts: a household budget's
+  /// spending is the member's own view.
+  set partialView(bool value) {
+    _json['partialView'] = value;
+  }
+
   @override
   String toString() {
     return _json.toString();
@@ -1692,8 +1766,10 @@ base class _BudgetsResultTypeFactory extends SchemanticType<BudgetsResult> {
           'type': 'array',
           'items': <String, Object?>{r'$ref': r'#/$defs/BudgetStatus'},
         },
+        'complete': <String, Object?>{'type': 'boolean'},
+        'partialView': <String, Object?>{'type': 'boolean'},
       },
-      'required': ['month', 'currency', 'budgets'],
+      'required': ['month', 'currency', 'budgets', 'complete', 'partialView'],
     },
     dependencies: [BudgetStatus.$schema],
   );
@@ -1711,15 +1787,17 @@ base class BudgetStatus {
     required String budgetId,
     required String label,
     required int limitMinor,
-    required int spentMinor,
-    required int remainingMinor,
+    required String scope,
+    int? spentMinor,
+    int? remainingMinor,
   }) {
     _json = {
       'budgetId': budgetId,
       'label': label,
       'limitMinor': limitMinor,
-      'spentMinor': spentMinor,
-      'remainingMinor': remainingMinor,
+      'scope': scope,
+      'spentMinor': ?spentMinor,
+      'remainingMinor': ?remainingMinor,
     };
   }
 
@@ -1759,24 +1837,42 @@ base class BudgetStatus {
     _json['limitMinor'] = value;
   }
 
-  /// Spent this month.
-  int get spentMinor {
-    return (_json['spentMinor'] as num).toInt();
+  /// `household`, or `personal` for a budget on one member's own spending.
+  String get scope {
+    return _json['scope'] as String;
   }
 
-  /// Spent this month.
-  set spentMinor(int value) {
-    _json['spentMinor'] = value;
+  /// `household`, or `personal` for a budget on one member's own spending.
+  set scope(String value) {
+    _json['scope'] = value;
   }
 
-  /// Limit minus spent (negative when over).
-  int get remainingMinor {
-    return (_json['remainingMinor'] as num).toInt();
+  /// Spent this month; null when the month could not be read in full.
+  int? get spentMinor {
+    return (_json['spentMinor'] as num?)?.toInt();
   }
 
-  /// Limit minus spent (negative when over).
-  set remainingMinor(int value) {
-    _json['remainingMinor'] = value;
+  /// Spent this month; null when the month could not be read in full.
+  set spentMinor(int? value) {
+    if (value == null) {
+      _json.remove('spentMinor');
+    } else {
+      _json['spentMinor'] = value;
+    }
+  }
+
+  /// Limit minus spent (negative when over); null with [spentMinor].
+  int? get remainingMinor {
+    return (_json['remainingMinor'] as num?)?.toInt();
+  }
+
+  /// Limit minus spent (negative when over); null with [spentMinor].
+  set remainingMinor(int? value) {
+    if (value == null) {
+      _json.remove('remainingMinor');
+    } else {
+      _json['remainingMinor'] = value;
+    }
   }
 
   @override
@@ -1808,16 +1904,14 @@ base class _BudgetStatusTypeFactory extends SchemanticType<BudgetStatus> {
         'budgetId': <String, Object?>{'type': 'string'},
         'label': <String, Object?>{'type': 'string'},
         'limitMinor': <String, Object?>{'type': 'integer'},
+        'scope': <String, Object?>{
+          'type': 'string',
+          'enum': ['household', 'personal'],
+        },
         'spentMinor': <String, Object?>{'type': 'integer'},
         'remainingMinor': <String, Object?>{'type': 'integer'},
       },
-      'required': [
-        'budgetId',
-        'label',
-        'limitMinor',
-        'spentMinor',
-        'remainingMinor',
-      ],
+      'required': ['budgetId', 'label', 'limitMinor', 'scope'],
     },
     dependencies: [],
   );
@@ -2462,8 +2556,11 @@ base class FoundEntries {
 
   FoundEntries._(this._json);
 
-  FoundEntries({required List<FoundEntry> items}) {
-    _json = {'items': items.map((e) => e.toJson()).toList()};
+  FoundEntries({required List<FoundEntry> items, required bool complete}) {
+    _json = {
+      'items': items.map((e) => e.toJson()).toList(),
+      'complete': complete,
+    };
   }
 
   late final Map<String, dynamic> _json;
@@ -2482,6 +2579,16 @@ base class FoundEntries {
   /// The entries.
   set items(List<FoundEntry> value) {
     _json['items'] = value.map((e) => e.toJson()).toList();
+  }
+
+  /// False when the range held too many entries to search in full.
+  bool get complete {
+    return _json['complete'] as bool;
+  }
+
+  /// False when the range held too many entries to search in full.
+  set complete(bool value) {
+    _json['complete'] = value;
   }
 
   @override
@@ -2514,8 +2621,9 @@ base class _FoundEntriesTypeFactory extends SchemanticType<FoundEntries> {
           'type': 'array',
           'items': <String, Object?>{r'$ref': r'#/$defs/FoundEntry'},
         },
+        'complete': <String, Object?>{'type': 'boolean'},
       },
-      'required': ['items'],
+      'required': ['items', 'complete'],
     },
     dependencies: [FoundEntry.$schema],
   );

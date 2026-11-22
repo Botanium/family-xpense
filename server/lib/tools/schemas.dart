@@ -204,6 +204,16 @@ abstract class $LedgerResult {
 
   /// Daily totals for MiniBars, oldest first (only for `groupBy: day`).
   List<int>? get daily;
+
+  /// False when the range held too many entries to read in full; the
+  /// figures are then left out.
+  @Field(description: 'False: too many entries to total; no figures given.')
+  bool get complete;
+
+  /// True when the partner has private accounts, so household figures are
+  /// the member's own view.
+  @Field(description: "True: the partner's private accounts are not included.")
+  bool get partialView;
 }
 
 /// One grouped row.
@@ -296,6 +306,14 @@ abstract class $BudgetsResult {
 
   /// The budgets.
   List<$BudgetStatus> get budgets;
+
+  /// False when the month held too many entries to read in full; spending
+  /// is then left out.
+  bool get complete;
+
+  /// True when the partner has private accounts: a household budget's
+  /// spending is the member's own view.
+  bool get partialView;
 }
 
 /// One budget.
@@ -310,11 +328,15 @@ abstract class $BudgetStatus {
   /// Monthly limit.
   int get limitMinor;
 
-  /// Spent this month.
-  int get spentMinor;
+  /// `household`, or `personal` for a budget on one member's own spending.
+  @StringField(enumValues: ['household', 'personal'])
+  String get scope;
 
-  /// Limit minus spent (negative when over).
-  int get remainingMinor;
+  /// Spent this month; null when the month could not be read in full.
+  int? get spentMinor;
+
+  /// Limit minus spent (negative when over); null with [spentMinor].
+  int? get remainingMinor;
 }
 
 // ---------------------------------------------------------------------------
@@ -427,6 +449,9 @@ abstract class $FindEntriesQuery {
 abstract class $FoundEntries {
   /// The entries.
   List<$FoundEntry> get items;
+
+  /// False when the range held too many entries to search in full.
+  bool get complete;
 }
 
 /// One entry, in the `TransactionList` item shape.

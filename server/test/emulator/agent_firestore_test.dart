@@ -18,6 +18,7 @@ import 'package:xpense_agent/config/runtime_config.dart';
 import 'package:xpense_agent/decide/classifier.dart';
 import 'package:xpense_agent/runtime/agent.dart';
 import 'package:xpense_agent/runtime/firestore_household_reader.dart';
+import 'package:xpense_agent/tools/household_reader.dart';
 
 import '../runtime/scripted_model.dart';
 import '../tools/support.dart';
@@ -133,12 +134,99 @@ void _tests() {
       fromOn: '2026-11-01',
       toOn: '2026-11-30',
     );
-    expect(txns.map((t) => t.id), ['t1']);
+    expect(txns.items.map((t) => t.id), ['t1']);
+    expect(txns.complete, isTrue);
     final rate = await reader.fxRateOn('hh1', '2026-11-08');
     expect(rate?.usdIqd, '1520');
     expect(rate?.date, '2026-11-01');
     expect((await reader.fxRateOn('hh1', '2026-11-10'))?.kind, 'official');
     expect(await reader.fxRateOn('hh1', '2026-10-01'), isNull);
+  });
+
+  test(
+    'range reads page through everything, and say when they are cut',
+    () async {
+      const h = 'households/hh2';
+      await db.doc(h).set({'baseCurrency': 'USD'});
+      for (var i = 1; i <= 7; i++) {
+        await db.doc('$h/transactions/p$i').set({
+          'type': 'expense',
+          'amountMinor': i * 100,
+          'currency': 'USD',
+          'accountId': 'a',
+          // Two per day, so the cursor must order by document id as well.
+          'occurredOn': '2026-11-0${(i + 1) ~/ 2}',
+          'title': 'x',
+          'visibleTo': ['u1'],
+        });
+      }
+      final paged = FirestoreHouseholdReader(db, pageSize: 2);
+      final all = await paged.transactions(
+        'hh2',
+        uid: 'u1',
+        fromOn: '2026-11-01',
+        toOn: '2026-11-30',
+      );
+      expect(all.complete, isTrue);
+      expect(all.items.map((t) => t.id).toSet(), {
+        for (var i = 1; i <= 7; i++) 'p$i',
+      });
+      expect(all.items, hasLength(7));
+      expect(all.items.first.occurredOn, '2026-11-04');
+
+      final capped = FirestoreHouseholdReader(
+        db,
+        pageSize: 2,
+        maxTransactions: 5,
+      );
+      final cut = await capped.transactions(
+        'hh2',
+        uid: 'u1',
+        fromOn: '2026-11-01',
+        toOn: '2026-11-30',
+      );
+      expect(cut.complete, isFalse);
+      expect(cut.items, hasLength(5));
+
+      final exact = FirestoreHouseholdReader(
+        db,
+        pageSize: 2,
+        maxTransactions: 7,
+      );
+      expect(
+        (await exact.transactions(
+          'hh2',
+          uid: 'u1',
+          fromOn: '2026-11-01',
+          toOn: '2026-11-30',
+        )).complete,
+        isTrue,
+      );
+    },
+  );
+
+  test('hidden accounts and budget scope come from Firestore', () async {
+    final reader = FirestoreHouseholdReader(db);
+    // hh1 has a private account of u2 (seeded above).
+    expect(await reader.hasHiddenAccounts('hh1', uid: 'u1'), isTrue);
+    expect(await reader.hasHiddenAccounts('hh1', uid: 'u2'), isFalse);
+    await db.doc('households/hh1/budgets/b1').set({
+      'categoryId': 'total',
+      'limitMinor': 5000,
+      'scope': 'u1',
+      'visibleTo': ['u1'],
+    });
+    await db.doc('households/hh1/budgets/b2').set({
+      'categoryId': 'total',
+      'limitMinor': 9000,
+      'visibleTo': ['u1', 'u2'],
+    });
+    final budgets = {
+      for (final b in await reader.budgets('hh1', uid: 'u1')) b.id: b,
+    };
+    expect(budgets['b1']!.scope, 'u1');
+    expect(budgets['b1']!.isPersonal, isTrue);
+    expect(budgets['b2']!.scope, householdBudgetScope);
   });
 
   test('sessions are stored under agentSessions/{hid}_{uid}', () async {

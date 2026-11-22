@@ -2,6 +2,7 @@ import 'package:genkit/genkit.dart';
 import 'package:test/test.dart';
 import 'package:xpense_agent/runtime/demo_household.dart';
 import 'package:xpense_agent/tools/household_reader.dart';
+import 'package:xpense_agent/tools/in_memory_reader.dart';
 import 'package:xpense_agent/tools/ledger_tools.dart';
 import 'package:xpense_agent/tools/schemas.dart';
 import 'package:xpense_agent/tools/xpense_tools.dart';
@@ -114,34 +115,159 @@ void main() {
     });
   });
 
-  test(
-    'getBalances converts to the base currency and flags a partial view',
-    () async {
-      final r = await getBalances(BalancesQuery(), dara, demoDeps());
-      expect(r.accounts.map((a) => a.accountId), [
-        'acc_chk',
-        'acc_visa',
-        'acc_cash_iqd',
-      ]);
-      // 4120.50 − 386.40 + 185,000 IQD at 1520 (121.71).
-      expect(r.totalBaseMinor, 412050 - 38640 + 12171);
-      expect(r.partialView, isFalse);
-      final mine = await getBalances(
-        BalancesQuery(scope: 'mine'),
-        dara,
-        demoDeps(),
-      );
-      expect(mine.accounts.single.accountId, 'acc_cash_iqd');
-    },
-  );
+  test('getBalances converts to the base currency', () async {
+    final r = await getBalances(BalancesQuery(), dara, demoDeps());
+    expect(r.accounts.map((a) => a.accountId), [
+      'acc_chk',
+      'acc_visa',
+      'acc_cash_iqd',
+    ]);
+    // 4120.50 − 386.40 + 185,000 IQD at 1520 (121.71).
+    expect(r.totalBaseMinor, 412050 - 38640 + 12171);
+    final mine = await getBalances(
+      BalancesQuery(scope: 'mine'),
+      dara,
+      demoDeps(),
+    );
+    expect(mine.accounts.single.accountId, 'acc_cash_iqd');
+  });
 
-  test('getBudgets sums food including sub-categories', () async {
-    final r = await getBudgets(BudgetsQuery(), dara, demoDeps());
-    final food = r.budgets.single;
-    expect(r.month, '2026-11');
-    expect(food.label, 'Food');
-    expect(food.spentMinor, 32515);
-    expect(food.remainingMinor, 60000 - 32515);
+  group('partialView (PR #30 review)', () {
+    test('is true when the partner has a private account', () async {
+      // Shilan's savings account is private: Dara's total leaves it out.
+      // The old check compared two member-filtered lists and said false.
+      final r = await getBalances(BalancesQuery(), dara, demoDeps());
+      expect(r.partialView, isTrue);
+      final q = await queryLedger(LedgerQuery(), dara, demoDeps());
+      expect(q.partialView, isTrue);
+      final b = await getBudgets(BudgetsQuery(), dara, demoDeps());
+      expect(b.partialView, isTrue);
+    });
+
+    test('is false when the member sees every account', () async {
+      // Every account shared with both members.
+      final h = demoHousehold('2026-11-22');
+      final shared = InMemoryHousehold(
+        profile: h.profile,
+        members: h.members,
+        categories: h.categories,
+        accounts: [
+          for (final a in h.accounts)
+            (item: a.item, visibleTo: const [demoUid, demoPartnerUid]),
+        ],
+      );
+      final r = await getBalances(
+        BalancesQuery(),
+        dara,
+        demoDeps(reader: InMemoryHouseholdReader({demoHid: shared})),
+      );
+      expect(r.partialView, isFalse);
+    });
+
+    test('an archived private account does not count', () async {
+      final h = demoHousehold('2026-11-22');
+      final archived = InMemoryHousehold(
+        profile: h.profile,
+        members: h.members,
+        categories: h.categories,
+        accounts: [
+          for (final a in h.accounts)
+            if (a.item.id == 'acc_shilan_savings')
+              (
+                item: HouseholdAccount(
+                  id: a.item.id,
+                  name: a.item.name,
+                  currency: a.item.currency,
+                  scope: a.item.scope,
+                  ownerUid: a.item.ownerUid,
+                  archived: true,
+                ),
+                visibleTo: a.visibleTo,
+              )
+            else if (a.item.id != 'acc_cash_iqd')
+              a,
+        ],
+      );
+      final r = await getBalances(
+        BalancesQuery(),
+        dara,
+        demoDeps(reader: InMemoryHouseholdReader({demoHid: archived})),
+      );
+      expect(r.partialView, isFalse);
+    });
+  });
+
+  group('budget scope (PR #30 review)', () {
+    test('a household budget counts every visible expense', () async {
+      final r = await getBudgets(BudgetsQuery(), dara, demoDeps());
+      final food = r.budgets.firstWhere((b) => b.budgetId == 'b_food');
+      expect(r.month, '2026-11');
+      expect(r.complete, isTrue);
+      expect(food.label, 'Food');
+      expect(food.scope, 'household');
+      expect(food.spentMinor, 32515);
+      expect(food.remainingMinor, 60000 - 32515);
+    });
+
+    test("a personal budget counts only that member's own entries", () async {
+      // This month's groceries (128.50 + 84.20) are joint. The old code
+      // counted them against Dara's personal budget.
+      final r = await getBudgets(BudgetsQuery(), dara, demoDeps());
+      final mine = r.budgets.firstWhere(
+        (b) => b.budgetId == 'b_dara_groceries',
+      );
+      expect(mine.scope, 'personal');
+      expect(mine.spentMinor, 0);
+      expect(mine.remainingMinor, 15000);
+      // The partner does not see Dara's personal budget at all.
+      final hers = await getBudgets(BudgetsQuery(), shilan, demoDeps());
+      expect(hers.budgets.map((b) => b.budgetId), ['b_food']);
+    });
+  });
+
+  group('truncated reads (PR #30 review)', () {
+    // A reader that returns at most 3 transactions per range.
+    InMemoryHouseholdReader capped() => InMemoryHouseholdReader({
+      demoHid: demoHousehold('2026-11-22'),
+    }, maxRangeTransactions: 3);
+
+    test('queryLedger gives no total from a partial read', () async {
+      final r = await queryLedger(
+        LedgerQuery(categories: ['food'], groupBy: 'category'),
+        dara,
+        demoDeps(reader: capped()),
+      );
+      expect(r.complete, isFalse);
+      expect(r.totalMinor, isNull);
+      expect(r.rows, isEmpty);
+      expect(r.daily, isNull);
+    });
+
+    test('getBudgets gives no spending from a partial read', () async {
+      final r = await getBudgets(
+        BudgetsQuery(),
+        dara,
+        demoDeps(reader: capped()),
+      );
+      expect(r.complete, isFalse);
+      expect(r.budgets.map((b) => b.spentMinor), everyElement(isNull));
+      expect(r.budgets.map((b) => b.remainingMinor), everyElement(isNull));
+    });
+
+    test('findEntries says its search was partial', () async {
+      final r = await findEntries(
+        FindEntriesQuery(),
+        dara,
+        demoDeps(reader: capped()),
+      );
+      expect(r.complete, isFalse);
+    });
+
+    test('a full read is complete', () async {
+      final r = await queryLedger(LedgerQuery(), dara, demoDeps());
+      expect(r.complete, isTrue);
+      expect(r.totalMinor, isNotNull);
+    });
   });
 
   test('findLoans, getFxRate and findEntries', () async {

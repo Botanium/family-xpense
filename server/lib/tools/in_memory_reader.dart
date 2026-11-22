@@ -55,8 +55,15 @@ final class InMemoryHousehold {
 
 /// Reads [InMemoryHousehold]s by id.
 final class InMemoryHouseholdReader implements HouseholdReader {
-  /// Creates a reader over [households].
-  new(this.households);
+  /// Creates a reader over [households]. [maxRangeTransactions] stands in
+  /// for the Firestore reader's cap (tests set it low).
+  new(
+    this.households, {
+    this.maxRangeTransactions = HouseholdReader.maxRangeTransactions,
+  });
+
+  /// The most transactions one read returns.
+  final int maxRangeTransactions;
 
   /// The data, by household id.
   final Map<String, InMemoryHousehold> households;
@@ -113,12 +120,11 @@ final class InMemoryHouseholdReader implements HouseholdReader {
   }) async => _visible(_h('budgets', hid)?.budgets, uid);
 
   @override
-  Future<List<LedgerTxn>> transactions(
+  Future<TxnRead> transactions(
     String hid, {
     required String uid,
     required String fromOn,
     required String toOn,
-    int limit = 2000,
   }) async {
     final all = _visible(_h('transactions', hid)?.transactions, uid);
     final inRange = [
@@ -127,8 +133,21 @@ final class InMemoryHouseholdReader implements HouseholdReader {
             t.occurredOn.compareTo(toOn) <= 0)
           t,
     ]..sort((a, b) => b.occurredOn.compareTo(a.occurredOn));
-    return inRange.take(limit).toList();
+    if (inRange.length > maxRangeTransactions) {
+      return TxnRead(
+        inRange.take(maxRangeTransactions).toList(),
+        complete: false,
+      );
+    }
+    return TxnRead(inRange);
   }
+
+  @override
+  Future<bool> hasHiddenAccounts(String hid, {required String uid}) async => [
+    for (final a
+        in _h('hiddenAccounts', hid)?.accounts ?? <Visible<HouseholdAccount>>[])
+      if (!a.item.archived && !a.visibleTo.contains(uid)) a,
+  ].isNotEmpty;
 
   @override
   Future<FxDay?> fxRateOn(String hid, String date) async {

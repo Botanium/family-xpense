@@ -368,10 +368,9 @@ final class _DraftBuilder {
         uid: context.uid,
         fromOn: addDays(day, -1),
         toOn: addDays(day, 1),
-        limit: 200,
       );
       return [
-        for (final t in txns)
+        for (final t in txns.items)
           if (t.amountMinor == amount &&
               t.currency == currency &&
               (accountId == null || t.accountId == accountId))

@@ -176,6 +176,16 @@ InMemoryHousehold demoHousehold(String today) {
         ),
         visibleTo: both,
       ),
+      // Dara's own grocery budget; this month's groceries are all joint.
+      (
+        item: HouseholdBudget(
+          id: 'b_dara_groceries',
+          categoryId: 'groceries',
+          limitMinor: 15000,
+          scope: demoUid,
+        ),
+        visibleTo: daraOnly,
+      ),
     ],
     transactions: [
       t('income', 320000, early(1), 'Salary', categoryId: 'salary'),

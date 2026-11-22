@@ -43,12 +43,30 @@ Future<LedgerResult> queryLedger(
     from = addDays(to, -maxQueryDays);
   }
 
-  final txns = await deps.reader.transactions(
+  // Sequential awaits keep a HouseholdUnavailable unwrapped (a record's
+  // `.wait` would wrap it in a ParallelWaitError).
+  final read = await deps.reader.transactions(
     c.hid,
     uid: c.uid,
     fromOn: from,
     toOn: to,
   );
+  final partialView = await deps.reader.hasHiddenAccounts(c.hid, uid: c.uid);
+  // Never a total from a partial read: the model is told the range is too
+  // large instead (_rules_ui.prompt).
+  if (!read.complete) {
+    return LedgerResult(
+      currency: snap.baseCurrency,
+      metric: q.metric ?? 'sum',
+      from: from,
+      to: to,
+      count: read.items.length,
+      rows: [],
+      complete: false,
+      partialView: partialView,
+    );
+  }
+  final txns = read.items;
   final types = q.types?.isNotEmpty ?? false ? q.types!.toSet() : {'expense'};
   final categoryIds = _expandCategories(q.categories, snap);
   final accountIds = q.accountIds?.toSet();
@@ -146,6 +164,8 @@ Future<LedgerResult> queryLedger(
     count: matching.length,
     rows: rows,
     daily: daily,
+    complete: true,
+    partialView: partialView,
   );
 }
 
@@ -258,11 +278,9 @@ Future<BalancesResult> getBalances(
         total = null;
     }
   }
-  // Private partner accounts are not in the snapshot; say so.
-  final allVisible =
-      snap.members.length < 2 ||
-      (await deps.reader.accounts(c.hid, uid: c.uid)).length ==
-          snap.accounts.length;
+  // Private partner accounts are in neither the snapshot nor the total;
+  // ask the reader, which alone sees them, whether any exist.
+  final partialView = await deps.reader.hasHiddenAccounts(c.hid, uid: c.uid);
   return BalancesResult(
     baseCurrency: snap.baseCurrency,
     accounts: [
@@ -276,7 +294,7 @@ Future<BalancesResult> getBalances(
         ),
     ],
     totalBaseMinor: total,
-    partialView: !allVisible,
+    partialView: partialView,
   );
 }
 
@@ -297,37 +315,49 @@ Future<BudgetsResult> getBudgets(
     DateTime.utc(next.year, next.month + 1).subtract(const Duration(days: 1)),
   );
   final budgets = await deps.reader.budgets(c.hid, uid: c.uid);
-  final txns = await deps.reader.transactions(
+  final read = await deps.reader.transactions(
     c.hid,
     uid: c.uid,
     fromOn: first,
     toOn: last,
   );
+  final partialView = await deps.reader.hasHiddenAccounts(c.hid, uid: c.uid);
   final expenses = [
-    for (final t in txns)
+    for (final t in read.items)
       if (t.type == 'expense') t,
   ];
   return BudgetsResult(
     month: month,
     currency: snap.baseCurrency,
+    complete: read.complete,
+    partialView: partialView,
     budgets: [
       for (final b in budgets)
         () {
           final ids = b.categoryId == 'total'
               ? null
               : _expandCategories([b.categoryId], snap);
-          final spent = _sum([
-            for (final t in expenses)
-              if (ids == null || ids.contains(t.categoryId)) t,
-          ]);
+          // A personal budget limits one member's own spending: their
+          // member entries, not joint ones and not the partner's
+          // (DATA_MODEL 2.10).
+          final spent = read.complete
+              ? _sum([
+                  for (final t in expenses)
+                    if ((ids == null || ids.contains(t.categoryId)) &&
+                        (!b.isPersonal ||
+                            (t.whoScope != 'joint' && t.whoUid == b.scope)))
+                      t,
+                ])
+              : null;
           return BudgetStatus(
             budgetId: b.id,
             label: b.categoryId == 'total'
                 ? 'Total'
                 : snap.category(b.categoryId)?.name ?? b.categoryId,
             limitMinor: b.limitMinor,
+            scope: b.isPersonal ? 'personal' : 'household',
             spentMinor: spent,
-            remainingMinor: b.limitMinor - spent,
+            remainingMinor: spent == null ? null : b.limitMinor - spent,
           );
         }(),
     ],
@@ -398,12 +428,13 @@ Future<FoundEntries> findEntries(
   final today = localToday(deps.clock, c.tz).iso;
   final to = parseIsoDay(q.to) != null ? q.to! : today;
   final from = parseIsoDay(q.from) != null ? q.from! : addDays(to, -60);
-  final txns = await deps.reader.transactions(
+  final read = await deps.reader.transactions(
     c.hid,
     uid: c.uid,
     fromOn: from,
     toOn: to,
   );
+  final txns = read.items;
   final text = q.text?.toLowerCase().trim();
   final amount = parseWrittenAmount(q.amount);
   bool amountMatches(LedgerTxn t) {
@@ -429,6 +460,7 @@ Future<FoundEntries> findEntries(
         t,
   ].take(10);
   return FoundEntries(
+    complete: read.complete,
     items: [
       for (final t in found)
         FoundEntry(

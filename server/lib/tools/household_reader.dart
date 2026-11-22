@@ -204,6 +204,7 @@ final class HouseholdBudget {
     required this.id,
     required this.categoryId,
     required this.limitMinor,
+    this.scope = householdBudgetScope,
   });
 
   /// The budget id.
@@ -214,7 +215,17 @@ final class HouseholdBudget {
 
   /// Monthly limit in base-currency minor units.
   final int limitMinor;
+
+  /// [householdBudgetScope], or the uid of the member whose own spending
+  /// the budget limits (DATA_MODEL 2.10).
+  final String scope;
+
+  /// Whether the budget limits one member's own spending.
+  bool get isPersonal => scope != householdBudgetScope;
 }
+
+/// `budgets.scope` for a budget over the household's spending.
+const householdBudgetScope = 'household';
 
 /// A saved transaction (DATA_MODEL 2.5), the fields the tools read.
 @immutable
@@ -284,6 +295,21 @@ final class LedgerTxn {
   final String? loanId;
 }
 
+/// The transactions of a date range.
+@immutable
+final class TxnRead {
+  /// Creates a read.
+  const new(this.items, {this.complete = true});
+
+  /// The transactions, newest first.
+  final List<LedgerTxn> items;
+
+  /// False when the range held more transactions than one read may return
+  /// ([HouseholdReader.maxRangeTransactions]); [items] is then a part of the
+  /// range, and no total may be presented as complete from it.
+  final bool complete;
+}
+
 /// `fxRates/{yyyy-mm-dd}` (DATA_MODEL 2.13).
 @immutable
 final class FxDay {
@@ -327,15 +353,25 @@ abstract interface class HouseholdReader {
   /// Budgets visible to [uid].
   Future<List<HouseholdBudget>> budgets(String hid, {required String uid});
 
-  /// Transactions visible to [uid] with `occurredOn` in `[fromOn, toOn]`
-  /// (inclusive, `YYYY-MM-DD`), newest first, at most [limit].
-  Future<List<LedgerTxn>> transactions(
+  /// The most transactions one [transactions] read returns.
+  static const maxRangeTransactions = 10000;
+
+  /// Every transaction visible to [uid] with `occurredOn` in
+  /// `[fromOn, toOn]` (inclusive, `YYYY-MM-DD`), newest first, read in pages.
+  /// A range with more than [maxRangeTransactions] comes back with
+  /// `complete: false`.
+  Future<TxnRead> transactions(
     String hid, {
     required String uid,
     required String fromOn,
     required String toOn,
-    int limit = 2000,
   });
+
+  /// Whether the household has a non-archived account that [uid] cannot see
+  /// (a partner's private account). Only this yes or no leaves the reader,
+  /// never the account itself; it tells the member that totals are "your
+  /// view" (DATA_MODEL 4).
+  Future<bool> hasHiddenAccounts(String hid, {required String uid});
 
   /// The day's rate, or the most recent earlier one, or null.
   Future<FxDay?> fxRateOn(String hid, String date);
