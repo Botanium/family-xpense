@@ -1,0 +1,52 @@
+# OS / editors
+.DS_Store
+Thumbs.db
+*.swp
+.idea/
+*.iml
+.vscode/*
+!.vscode/extensions.json
+
+# Claude Code: keep project skills and shared settings, not personal ones
+.claude/settings.local.json
+.claude/worktrees/
+
+# FVM
+.fvm/flutter_sdk
+.fvm/versions
+.fvm/release
+.fvm/fvm_config.json
+
+# Dart / Flutter (every package)
+.dart_tool/
+.packages
+build/
+coverage/
+.flutter-plugins
+.flutter-plugins-dependencies
+*.g.dart.tmp
+pubspec_overrides.yaml
+
+# Secrets and environment files (never commit)
+.env
+.env.*
+!.env.example
+*.pem
+*.p12
+*.p8
+*.mobileprovision
+service-account*.json
+*-service-account.json
+GoogleService-Info.plist
+google-services.json
+firebase-debug.log
+firestore-debug.log
+ui-debug.log
+database-debug.log
+pubsub-debug.log
+
+# Node (firebase/ rules tests)
+node_modules/
+
+# Genkit local runtime
+.genkit/

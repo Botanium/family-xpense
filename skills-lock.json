@@ -1,0 +1,37 @@
+{
+  "version": 2,
+  "skills": {
+    "a2ui": {
+      "source": "a2ui-project/a2ui",
+      "commit": "5ff1b05f02d39f969b52a942e78e864ef3ac01fa",
+      "sourceType": "github",
+      "skillPath": "skills/a2ui/SKILL.md",
+      "computedHash": "d29de8b9d6daddb3191ad1e011adb3881bd46454c90be7fb63d67c701b4f767d",
+      "installMode": "copy"
+    },
+    "a2ui-migration": {
+      "source": "a2ui-project/a2ui",
+      "commit": "5ff1b05f02d39f969b52a942e78e864ef3ac01fa",
+      "sourceType": "github",
+      "skillPath": ".agents/skills/a2ui-migration/SKILL.md",
+      "computedHash": "3cf891edc57fdb58a3b0337265db64c42fa0b063c0c1e16e3ce76fc08f7a1d3b",
+      "installMode": "copy"
+    },
+    "developing-genkit-dart": {
+      "source": "genkit-ai/skills",
+      "commit": "d12c988b141a0a50ab2d895733204a37b5192793",
+      "sourceType": "github",
+      "skillPath": "skills/developing-genkit-dart/SKILL.md",
+      "computedHash": "f3e611da6654452f225f8c3e4abd2ff27726eed42049e7639f35f63853ff2478",
+      "installMode": "copy"
+    },
+    "developing-genkit-js": {
+      "source": "genkit-ai/skills",
+      "commit": "d12c988b141a0a50ab2d895733204a37b5192793",
+      "sourceType": "github",
+      "skillPath": "skills/developing-genkit-js/SKILL.md",
+      "computedHash": "c5f719f36ad09b0d4e6b66315be222a41e964fd7f849f91b99c95c32a1a74936",
+      "installMode": "copy"
+    }
+  }
+}
