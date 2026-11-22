@@ -1,0 +1,35 @@
+rules_version = '2';
+
+// Family Xpense Storage rules. Design: docs/DATA_MODEL.md section 5.
+// Receipt images are backed up only when the member turns receipt backup on.
+// A file is readable and writable by a household member who can see the
+// transaction it belongs to. Storage rules may read at most two Firestore
+// documents per evaluation; these rules read exactly two.
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    function signedIn() { return request.auth != null; }
+
+    function isMember(hid) {
+      return request.auth.uid in firestore.get(
+        /databases/(default)/documents/households/$(hid)).data.memberIds;
+    }
+
+    function canSeeTxn(hid, txnId) {
+      return request.auth.uid in firestore.get(
+        /databases/(default)/documents/households/$(hid)/transactions/$(txnId)).data.visibleTo;
+    }
+
+    function canAccess(hid, txnId) {
+      return signedIn() && isMember(hid) && canSeeTxn(hid, txnId);
+    }
+
+    match /households/{hid}/receipts/{txnId}/{file} {
+      allow read: if canAccess(hid, txnId);
+      allow create, update: if canAccess(hid, txnId)
+        && request.resource.contentType.matches('image/.*')
+        && request.resource.size <= 5 * 1024 * 1024;
+      allow delete: if canAccess(hid, txnId);
+    }
+  }
+}

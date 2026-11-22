@@ -1,0 +1,288 @@
+rules_version = '2';
+
+// Family Xpense Firestore rules. Design: docs/DATA_MODEL.md section 5.
+// Tests: firebase/test/ (`cd firebase && npm test`).
+//
+// Rules are not filters: every list query on a privacy-scoped collection must
+// include `where('visibleTo', arrayContains: uid)` (notifications:
+// `where('targetUids', arrayContains: uid)`), or it is refused.
+//
+// Anything not matched below is denied, so server-only data needs no rule.
+// Explicit `if false` blocks are kept for the server-only collections named in
+// DATA_MODEL so the intent is visible here.
+service cloud.firestore {
+  match /databases/{db}/documents {
+
+    // ---------------------------------------------------------------- helpers
+
+    function signedIn() { return request.auth != null; }
+    function uid() { return request.auth.uid; }
+
+    function householdPath(hid) {
+      return /databases/$(db)/documents/households/$(hid);
+    }
+    function household(hid) { return get(householdPath(hid)).data; }
+    function isMember(hid) {
+      return signedIn() && uid() in household(hid).memberIds;
+    }
+
+    // The batch that creates a household (BACKLOG S1.4) also writes the
+    // founder's member document and the default categories. During that batch
+    // the household does not exist yet, so `isMember` cannot hold; this checks
+    // the state the batch will leave instead.
+    function isFoundingBatch(hid) {
+      return signedIn()
+        && !exists(householdPath(hid))
+        && getAfter(householdPath(hid)).data.memberIds == [uid()];
+    }
+
+    function canSee() { return uid() in resource.data.visibleTo; }
+    function willSee() { return uid() in request.resource.data.visibleTo; }
+    function visibleToIsMembers(hid) {
+      return request.resource.data.visibleTo is list
+        && request.resource.data.visibleTo.size() >= 1
+        && request.resource.data.visibleTo.hasOnly(household(hid).memberIds);
+    }
+
+    function changed() {
+      return request.resource.data.diff(resource.data).affectedKeys();
+    }
+
+    // Audit stamps (DATA_MODEL section 2): server timestamps and the caller.
+    function createStamps() {
+      return request.resource.data.createdBy == uid()
+        && request.resource.data.createdAt == request.time
+        && request.resource.data.updatedBy == uid()
+        && request.resource.data.updatedAt == request.time;
+    }
+    function updateStamps() {
+      return request.resource.data.updatedBy == uid()
+        && request.resource.data.updatedAt == request.time
+        && !changed().hasAny(['createdBy', 'createdAt']);
+    }
+
+    // Shared visibility pattern for documents that inherit account privacy.
+    function canReadVisible(hid) { return isMember(hid) && canSee(); }
+    function canCreateVisible(hid) {
+      return isMember(hid) && willSee() && visibleToIsMembers(hid) && createStamps();
+    }
+    function canUpdateVisible(hid) {
+      return isMember(hid) && canSee() && willSee() && visibleToIsMembers(hid)
+        && updateStamps();
+    }
+
+    // A personal (owned) document must stay visible to its owner, and only the
+    // owner may change who can see it.
+    function ownerKeepsAccess() {
+      return request.resource.data.get('scope', 'joint') != 'personal'
+        || request.resource.data.ownerUid in request.resource.data.visibleTo;
+    }
+    // A joint document is visible to every member of the household.
+    function jointIsEveryone(hid) {
+      return request.resource.data.get('scope', null) != 'joint'
+        || request.resource.data.visibleTo.hasAll(household(hid).memberIds);
+    }
+    function sharingChangedOnlyByOwner() {
+      return !changed().hasAny(['visibleTo', 'sharedWithPartner', 'scope'])
+        || resource.data.get('ownerUid', null) == null
+        || resource.data.ownerUid == uid();
+    }
+
+    // ------------------------------------------------------------------ users
+
+    match /users/{userId} {
+      allow read, write: if signedIn() && uid() == userId;
+
+      match /devices/{deviceId} {
+        allow read, write: if signedIn() && uid() == userId;
+      }
+    }
+
+    // ---------------------------------------------------- server-only, global
+
+    match /invites/{code} { allow read, write: if false; }
+    match /config/{doc=**} { allow read, write: if false; }
+
+    // Genkit FirestoreSessionStore data (D-11). Written as explicit matches:
+    // a top-level `/{collection}/{doc=**}` would also match every other
+    // top-level path. Any differently named session collection is denied by
+    // default as well.
+    match /agentSessions/{doc=**} { allow read, write: if false; }
+    match /agentSessions-pointers/{doc=**} { allow read, write: if false; }
+    match /agentSessions-shards/{doc=**} { allow read, write: if false; }
+
+    // -------------------------------------------------------------- household
+
+    match /households/{hid} {
+      allow get: if isMember(hid);
+      allow list: if false;
+      allow create: if signedIn()
+        && request.resource.data.memberIds == [uid()]
+        && request.resource.data.baseCurrency in ['USD', 'IQD'];
+      allow update: if isMember(hid)
+        && !changed().hasAny(['memberIds', 'baseCurrency', 'moneySchema', 'cloudInsights']);
+      allow delete: if false;
+
+      match /members/{memberId} {
+        allow read: if isMember(hid);
+        // The partner's member document is written by the server (join
+        // endpoint). The founder writes their own in the creation batch.
+        allow create: if uid() == memberId
+          && isFoundingBatch(hid)
+          && request.resource.data.role == 'owner';
+        allow update: if isMember(hid) && uid() == memberId
+          && !changed().hasAny(['role']);
+        allow delete: if false;
+      }
+
+      match /accounts/{id} {
+        allow read: if canReadVisible(hid);
+        allow create: if canCreateVisible(hid)
+          && request.resource.data.currency in ['USD', 'IQD']
+          && request.resource.data.scope in ['personal', 'joint']
+          && (request.resource.data.scope == 'joint'
+              || request.resource.data.ownerUid == uid())
+          && ownerKeepsAccess()
+          && jointIsEveryone(hid);
+        allow update: if canUpdateVisible(hid)
+          && request.resource.data.currency == resource.data.currency
+          && request.resource.data.get('ownerUid', null) == resource.data.get('ownerUid', null)
+          && ownerKeepsAccess()
+          && jointIsEveryone(hid)
+          && sharingChangedOnlyByOwner();
+        allow delete: if false;                       // archive instead
+      }
+
+      match /transactions/{id} {
+        function accountPath(accountId) {
+          return /databases/$(db)/documents/households/$(hid)/accounts/$(accountId);
+        }
+        function txnAccountVisibleTo(field) {
+          return get(accountPath(request.resource.data[field])).data.visibleTo;
+        }
+        // The transaction's visibleTo is the union of its accounts' visibleTo
+        // (DATA_MODEL 2.5), and the caller can see every account it touches.
+        function visibleToMatchesAccounts() {
+          let d = request.resource.data;
+          let from = txnAccountVisibleTo('accountId');
+          let isTransfer = d.get('toAccountId', null) != null;
+          let to = isTransfer ? txnAccountVisibleTo('toAccountId') : from;
+          return uid() in from && uid() in to
+            && d.visibleTo.hasAll(from) && d.visibleTo.hasAll(to)
+            && d.visibleTo.hasOnly(from.concat(to));
+        }
+
+        allow read: if canReadVisible(hid);
+        allow create: if canCreateVisible(hid)
+          && request.resource.data.amountMinor is int
+          && request.resource.data.amountMinor > 0
+          && request.resource.data.baseAmountMinor is int
+          && request.resource.data.currency in ['USD', 'IQD']
+          && request.resource.data.type in ['expense', 'income', 'transfer',
+               'loan_given', 'loan_taken', 'repayment_received',
+               'repayment_made', 'adjustment']
+          && request.resource.data.rev == 0
+          && request.resource.data.get('deletedAt', null) == null
+          && exists(accountPath(request.resource.data.accountId))
+          && request.resource.data.currency
+               == get(accountPath(request.resource.data.accountId)).data.currency
+          && visibleToMatchesAccounts();
+        // Moving an entry to another account, or changing who sees it,
+        // re-checks the accounts. Server jobs (visibility backfill) bypass rules.
+        allow update: if canUpdateVisible(hid)
+          && request.resource.data.rev == resource.data.rev + 1
+          && request.resource.data.amountMinor is int
+          && request.resource.data.amountMinor > 0
+          && (!changed().hasAny(['accountId', 'toAccountId', 'visibleTo', 'currency'])
+              || (request.resource.data.currency
+                    == get(accountPath(request.resource.data.accountId)).data.currency
+                  && visibleToMatchesAccounts()));
+        allow delete: if false;                       // soft delete only
+
+        match /revisions/{rev} {
+          function txnPath() {
+            return /databases/$(db)/documents/households/$(hid)/transactions/$(id);
+          }
+          allow read: if isMember(hid) && uid() in get(txnPath()).data.visibleTo;
+          // getAfter: the revision is written in the same batch as the edit.
+          allow create: if isMember(hid)
+            && uid() in getAfter(txnPath()).data.visibleTo
+            && request.resource.data.changedBy == uid()
+            && request.resource.data.changedAt == request.time;
+          allow update, delete: if false;             // append-only
+        }
+      }
+
+      // Same visibility pattern as accounts; no extra field checks.
+      match /loans/{id} {
+        allow read: if canReadVisible(hid);
+        allow create: if canCreateVisible(hid) && ownerKeepsAccess()
+          && jointIsEveryone(hid);
+        allow update: if canUpdateVisible(hid) && ownerKeepsAccess()
+          && jointIsEveryone(hid) && sharingChangedOnlyByOwner();
+        allow delete: if false;
+      }
+      match /goals/{id} {
+        allow read: if canReadVisible(hid);
+        allow create: if canCreateVisible(hid);
+        allow update: if canUpdateVisible(hid);
+        allow delete: if false;                       // archive instead
+      }
+      match /people/{id} {
+        allow read: if canReadVisible(hid);
+        allow create: if canCreateVisible(hid);
+        allow update: if canUpdateVisible(hid);
+        allow delete: if false;
+      }
+      match /budgets/{id} {
+        allow read: if canReadVisible(hid);
+        allow create: if canCreateVisible(hid);
+        allow update: if canUpdateVisible(hid);
+        allow delete: if canReadVisible(hid);
+      }
+      match /recurring/{id} {
+        allow read: if canReadVisible(hid);
+        allow create: if canCreateVisible(hid);
+        allow update: if canUpdateVisible(hid);
+        allow delete: if canReadVisible(hid);
+      }
+      match /rules/{id} {
+        allow read: if canReadVisible(hid);
+        allow create: if canCreateVisible(hid);
+        allow update: if canUpdateVisible(hid);
+        allow delete: if canReadVisible(hid);
+      }
+
+      match /categories/{id} {
+        allow read: if isMember(hid);
+        allow create: if (isMember(hid) || isFoundingBatch(hid)) && createStamps();
+        allow update: if isMember(hid) && updateStamps();
+        allow delete: if false;                       // archive instead
+      }
+
+      match /fxRates/{day} {
+        allow read: if isMember(hid);
+        allow create, update: if isMember(hid)
+          && day.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
+          && request.resource.data.enteredBy == uid()
+          && request.resource.data.usdIqd is string
+          && request.resource.data.usdIqd.matches('^[0-9]+([.][0-9]+)?$')
+          && request.resource.data.kind in ['official', 'market'];
+        allow delete: if false;
+      }
+
+      match /notifications/{id} {
+        allow read: if isMember(hid) && uid() in resource.data.targetUids;
+        // A target may only add themself to readBy.
+        allow update: if isMember(hid) && uid() in resource.data.targetUids
+          && changed().hasOnly(['readBy'])
+          && request.resource.data.readBy.hasAll(resource.data.readBy)
+          && request.resource.data.readBy.toSet()
+               .difference(resource.data.readBy.toSet()).hasOnly([uid()]);
+        allow create, delete: if false;               // server
+      }
+
+      match /usage/{day} { allow read, write: if false; }   // server
+    }
+  }
+}
