@@ -11,6 +11,8 @@ import 'package:genkit/genkit.dart';
 import 'package:genkit/io.dart';
 
 import 'package:xpense_agent/auth/context_provider.dart';
+import 'package:xpense_agent/decide/decide_flow.dart';
+import 'package:xpense_agent/telemetry/usage_counters.dart';
 
 /// The version prefix of the public routes (D-32). Tied to the Xpense
 /// catalog version: a breaking catalog change ships as `/v2`.
@@ -20,9 +22,15 @@ const publicPrefix = '/v1';
 GenkitRouter buildPublicRouter({
   required XpenseContextProvider auth,
   required Flow<String?, Map<String, String>, void, void> ping,
-}) =>
-    GenkitRouter()
-      ..addAction(ping, path: '/ping', contextProvider: auth.forRoute());
+  required DecideFlow decide,
+}) => GenkitRouter()
+  ..addAction(ping, path: '/ping', contextProvider: auth.forRoute())
+  // The Decisions proxy (WP-33): refused at the daily `decisions` limit.
+  ..addAction(
+    decide,
+    path: '/decide',
+    contextProvider: auth.forRoute(meters: {UsageCounter.decisions}),
+  );
 
 /// Private routes for `xpense-jobs`, mounted at the root. Cloud Run IAM is the
 /// gate (only the scheduler and Eventarc service accounts may invoke the
