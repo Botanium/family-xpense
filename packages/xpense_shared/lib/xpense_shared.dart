@@ -7,6 +7,7 @@
 /// their own `a2ui_core` (D-05). The modules are added from WP-02 on.
 library;
 
+export 'catalog/xpense_catalog.dart';
 export 'money/allocate.dart';
 export 'money/currency.dart';
 export 'money/fx.dart';
