@@ -90,6 +90,13 @@ final class FirebaseHouseholdRepository implements HouseholdRepository {
   String? _watchedHid;
   String? _displayName;
 
+  /// Whether the latest users/{uid} snapshot came from the server with no
+  /// local writes waiting.
+  bool _userSettled = false;
+
+  /// Refusals of the household listener since its last snapshot.
+  int _deniedRetries = 0;
+
   Membership _membership = const MembershipUnknown();
   final StreamController<Membership> _changes =
       StreamController<Membership>.broadcast();
@@ -119,9 +126,12 @@ final class FirebaseHouseholdRepository implements HouseholdRepository {
     _uid = uid;
     _set(const MembershipUnknown());
     if (uid == null) return;
+    // Metadata changes too: the snapshot that says the founding batch
+    // reached the server restarts a household listener the server refused
+    // while the batch was still on its way.
     _userSubscription = _firestore
         .doc('users/$uid')
-        .snapshots()
+        .snapshots(includeMetadataChanges: true)
         .listen(
           (snapshot) => _onUserDocument(uid, snapshot),
           onError: (Object error, StackTrace stack) =>
@@ -137,6 +147,7 @@ final class FirebaseHouseholdRepository implements HouseholdRepository {
     _userSubscription = null;
     _householdSubscription = null;
     _watchedHid = null;
+    _userSettled = false;
     return Future.wait<void>([?user?.cancel(), ?household?.cancel()]);
   }
 
@@ -145,6 +156,8 @@ final class FirebaseHouseholdRepository implements HouseholdRepository {
     DocumentSnapshot<Map<String, dynamic>> snapshot,
   ) {
     if (uid != _uid) return;
+    final metadata = snapshot.metadata;
+    _userSettled = !metadata.isFromCache && !metadata.hasPendingWrites;
     final data = snapshot.data();
     final name = data?['displayName'];
     _displayName = name is String && name.isNotEmpty ? name : null;
@@ -157,9 +170,14 @@ final class FirebaseHouseholdRepository implements HouseholdRepository {
       _set(const NoHousehold());
       return;
     }
-    if (hid == _watchedHid && _householdSubscription != null) {
-      _refreshDisplayName();
-      return;
+    if (hid == _watchedHid) {
+      if (_householdSubscription != null) {
+        _refreshDisplayName();
+        return;
+      }
+      // Refused before: try again only once the server has this pointer,
+      // or a refusal would just repeat.
+      if (!_userSettled) return;
     }
     _watchHousehold(uid, hid);
   }
@@ -167,6 +185,7 @@ final class FirebaseHouseholdRepository implements HouseholdRepository {
   void _watchHousehold(String uid, String? hid) {
     unawaited(_householdSubscription?.cancel());
     _householdSubscription = null;
+    if (hid != _watchedHid) _deniedRetries = 0;
     _watchedHid = hid;
     if (hid == null) return;
     _householdSubscription = _firestore
@@ -175,12 +194,23 @@ final class FirebaseHouseholdRepository implements HouseholdRepository {
         .listen(
           (snapshot) => _onHousehold(uid, hid, snapshot),
           onError: (Object error, StackTrace stack) {
-            // Not a member (a stale pointer): the rules refuse the read. The
-            // listener is dead now; the next users/{uid} change restarts it.
+            // The rules refused the read. Either the household is still on
+            // its way to the server (the founding batch shows locally
+            // first), or the pointer is stale and the person is not a
+            // member. The listener is dead; the users/{uid} snapshot that
+            // confirms the batch restarts it. Only a refusal after the
+            // server has confirmed the pointer means no household.
             _householdSubscription = null;
             if (error is FirebaseException &&
                 error.code == 'permission-denied') {
-              if (uid == _uid) _set(const NoHousehold());
+              if (uid != _uid || hid != _watchedHid || !_userSettled) return;
+              // The refusal may still be from before the batch landed: one
+              // more try, then believe it.
+              if (_deniedRetries++ == 0) {
+                _watchHousehold(uid, hid);
+              } else {
+                _set(const NoHousehold());
+              }
               return;
             }
             _onListenError(error, stack, 'households');
@@ -194,6 +224,8 @@ final class FirebaseHouseholdRepository implements HouseholdRepository {
     DocumentSnapshot<Map<String, dynamic>> snapshot,
   ) {
     if (uid != _uid || hid != _watchedHid) return;
+    // Only the server's answer proves the listener is allowed.
+    if (!snapshot.metadata.isFromCache) _deniedRetries = 0;
     final data = snapshot.data();
     if (data == null) {
       if (snapshot.metadata.isFromCache) return;

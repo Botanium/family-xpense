@@ -48,6 +48,7 @@ tool/test_emulators.sh --all     # everything, under the emulators
 | `lib/config/` | process environment (`ServerEnv`) and `config/runtime` loader |
 | `lib/telemetry/` | `genkit_otel` wiring (content capture off), usage counters, structured logs |
 | `lib/flows/ping.dart` | sample flow behind the provider |
+| `lib/household/` | invite codes, rate limiter, invite and join service and flows (WP-12) |
 | `lib/genkit.dart` | the Genkit instance and plugins |
 
 `lib/runtime/`, `lib/tools/`, `lib/decide/`, `lib/jobs/` and `prompts/` belong
@@ -75,6 +76,36 @@ Headers: `Authorization: Bearer <Firebase ID token>` and
 On success the action context is `{uid, hid, locale, privacyMode, tz}`
 (`XpenseContext.of(ctx.context)`). Tools and flows read ids only from it,
 never from input or model output.
+
+## Household routes (WP-12)
+
+`lib/household/`: invites and joins, which change `memberIds` and so need
+admin rights (D-19, D-27). Neither does AI work: no usage counters, and
+On-device members may invite.
+
+| Route | Caller | Input `data` | `result` |
+|---|---|---|---|
+| `POST /v1/household/invite` | a member (`forRoute(allowOnDevice: true)`) | `{}` or null | `{code, link, expiresAt}`: 10 Crockford base32 characters, `xpense://join?code=…`, ISO 8601 UTC |
+| `POST /v1/household/join` | any signed-in user (`forSignedInUser()`, context `{uid}`) | `{code, displayName}` | `{householdId, householdName}` |
+
+Codes are stored only as `invites/{sha256(code)}`, last 7 days, work once,
+and a new invite deletes the household's unused ones. A join runs in one
+Firestore transaction (invite, household, the caller's other household) and
+writes `memberIds`, `members/{uid}` (`role: partner`), `users/{uid}` and the
+invite's `usedBy`. A member retrying gets the same answer with nothing
+written. Each user may call each route 10 times an hour, counted in the
+server-only `rateLimits/{uid}` before the work, so failed guesses count.
+
+| HTTP | `message` | Meaning |
+|---|---|---|
+| 404 | `invite_invalid` | malformed, unknown or replaced code |
+| 400 | `invite_expired` / `invite_used` | older than 7 days / already used |
+| 400 | `household_full` | two members already (join and invite) |
+| 400 | `already_in_household` | the caller belongs to another household |
+| 400 | `invalid_name` / `invalid_input` | display name empty or over 40 characters / missing field |
+| 403 | `not_member` | invite from someone the household does not list |
+| 429 | `rate_limited` | over 10 calls in the hour |
+| 503 | `household_unavailable` | Firestore unreachable; retry |
 
 ## Adding a route
 

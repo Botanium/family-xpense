@@ -86,7 +86,8 @@ const String authEmulatorDefine = String.fromEnvironment(
 
 /// `--dart-define=XPENSE_FIRESTORE_EMULATOR=host:port` points Firestore at
 /// the emulator suite (`firebase/firebase.json`: `127.0.0.1:8280`). Dev
-/// builds only; the `emulators` environment uses it by default.
+/// builds only, and implied there by [authEmulatorDefine]; the `emulators`
+/// environment uses it by default.
 const String firestoreEmulatorDefine = String.fromEnvironment(
   'XPENSE_FIRESTORE_EMULATOR',
 );
@@ -154,10 +155,14 @@ HouseholdRepository connectHouseholds(
         : const InHousehold(FakeHouseholdRepository.sampleHousehold),
     auth: auth,
   ),
+  // A dev build on the Auth emulator also uses the Firestore emulator, so
+  // emulator sign-ins never meet the real dev database.
   AppEnvironment.dev => FirebaseHouseholdRepository.connect(
     appCheckToken: FirebaseAppCheck.instance.getToken,
     serverUrl: Uri.tryParse(serverUrlDefine),
-    emulator: firestoreEmulatorDefine,
+    emulator: authEmulatorDefine.isEmpty
+        ? firestoreEmulatorDefine
+        : _or(firestoreEmulatorDefine, defaultFirestoreEmulator),
   ),
   AppEnvironment.prod => FirebaseHouseholdRepository.connect(
     appCheckToken: FirebaseAppCheck.instance.getToken,

@@ -1,11 +1,15 @@
-// Onboarding on a simulator against the Firebase Auth emulator (WP-11,
-// BACKLOG S1.3). Not run by CI: it needs a simulator, the emulator and the
-// gitignored dev GoogleService-Info.plist (docs/ENVIRONMENTS.md 3.7).
+// Onboarding on a simulator against the Firebase Auth and Firestore
+// emulators (WP-11, BACKLOG S1.3; household setup since WP-12). Not run by
+// CI: it needs a simulator and the emulators. The `emulators` environment
+// uses the fake project `demo-xpense` and needs no config file.
 //
-//   cd firebase && firebase emulators:start --only auth --project demo-xpense
+//   cd firebase && firebase emulators:start --project demo-xpense \
+//     --only auth,firestore
 //   cd app && flutter test integration_test/onboarding_emulator_test.dart \
-//     -d <simulator> --dart-define=XPENSE_ENV=dev \
-//     --dart-define=XPENSE_AUTH_EMULATOR=127.0.0.1:9099
+//     -d <simulator> --dart-define=XPENSE_ENV=emulators
+//
+// Without the local server the invite code is not made; the test then
+// leaves household setup with "Invite later".
 //
 // Add --dart-define=XPENSE_DEMO_PACE=true to slow it down for the PR demo
 // recording (DELEGATION rule 11).
@@ -68,9 +72,10 @@ Future<void> typeInto(WidgetTester tester, String label, String text) async {
 Future<void> pumpUntil(
   WidgetTester tester,
   bool Function() done,
-  String what,
-) async {
-  for (var i = 0; i < 150 && !done(); i++) {
+  String what, {
+  int seconds = 15,
+}) async {
+  for (var i = 0; i < seconds * 10 && !done(); i++) {
     await tester.pump(const Duration(milliseconds: 100));
   }
   if (done()) {
@@ -93,13 +98,8 @@ void main() {
   ) async {
     expect(
       AppEnvironment.compiled,
-      AppEnvironment.dev,
-      reason: 'run with --dart-define=XPENSE_ENV=dev',
-    );
-    expect(
-      authEmulatorDefine,
-      isNotEmpty,
-      reason: 'run against the Auth emulator, never the dev project',
+      AppEnvironment.emulators,
+      reason: 'run with --dart-define=XPENSE_ENV=emulators',
     );
     final app = await bootstrap(environment: AppEnvironment.compiled);
     final container = ProviderContainer(overrides: app.overrides);
@@ -133,10 +133,19 @@ void main() {
     await tapText(tester, 'Create account');
     await pumpUntil(
       tester,
-      () => location().path == OnboardingRoutes.tryIt,
-      'Try it after creating the account',
+      () => location().path == AppRoutes.householdSetup,
+      'household setup after creating the account',
     );
     expect(auth.currentUser?.email, email);
+
+    // Household setup (WP-12), then on to Try it.
+    await typeInto(tester, 'Household name', 'Our home');
+    await typeInto(tester, 'Your name', 'Ada');
+    await tapText(tester, 'Continue');
+    final later = find.text('Invite later');
+    await pumpUntil(tester, () => later.evaluate().isNotEmpty, 'the invite');
+    await tapText(tester, 'Invite later');
+    expect(location().path, OnboardingRoutes.tryIt);
     await pause(tester, 20);
     await tapText(tester, 'Type instead');
     final dock = find.byType(EditableText);
@@ -185,10 +194,11 @@ void main() {
 
     await typeInto(tester, 'Password', 'secret12');
     await tapText(tester, 'Sign in');
+    // A member signing back in goes Home.
     await pumpUntil(
       tester,
-      () => location().path == OnboardingRoutes.tryIt,
-      'Try it after signing in',
+      () => location().path == AppRoutes.home,
+      'Home after signing in',
     );
     expect(auth.currentUser?.email, email);
 
