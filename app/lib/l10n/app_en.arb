@@ -323,6 +323,10 @@
   "@a2uiUndo": {
     "description": "Text button that undoes a save, shown for ten seconds."
   },
+  "a2uiUndoFailed": "Couldn't undo. The entries are still saved; try again.",
+  "@a2uiUndoFailed": {
+    "description": "Shown when undoing a save failed; Undo stays available to retry."
+  },
   "a2uiGuessed": "Guessed",
   "@a2uiGuessed": {
     "description": "Badge on a field the app guessed; shown upper-case."

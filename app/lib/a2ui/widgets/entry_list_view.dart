@@ -278,10 +278,11 @@ class _EntryListViewState extends State<EntryListView>
             if (canUndo)
               XpButton.text(
                 label: l10n.a2uiUndo,
-                onPressed: () => unawaited(undoSave()),
+                onPressed: undoing ? null : () => unawaited(undoSave()),
               ),
           ],
         ),
+        if (undoFailed) _Problem(l10n.a2uiUndoFailed),
         for (final draft in offers)
           RecurringOffer(
             draft: draft,

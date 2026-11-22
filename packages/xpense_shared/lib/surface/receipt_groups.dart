@@ -125,6 +125,13 @@ List<ReceiptGroup> groupReceipt(SurfaceReceipt receipt, {required bool split}) {
 /// The drafts for [groups]: copies of the first of [drafts] with each
 /// group's amount and category. Ids are `<base>_<n>` when there is more
 /// than one group, otherwise `<base>`.
+///
+/// The converted amount (`fx.baseAmountMinor`) depends on the amount, so it
+/// is never copied: the receipt's converted total (see [convertedTotal]) is
+/// divided across the groups with [allocate], in proportion to their
+/// amounts, so the groups' converted amounts also add up exactly. When any
+/// draft has no converted amount, the copies have none either, and the
+/// write path converts them.
 List<Map<String, Object?>> draftsForGroups(
   List<Map<String, Object?>> drafts,
   List<ReceiptGroup> groups,
@@ -132,20 +139,43 @@ List<Map<String, Object?>> draftsForGroups(
   if (drafts.isEmpty) return const [];
   final template = drafts.first;
   final base = '${template['id']}'.replaceFirst(RegExp(r'_\d+$'), '');
+  final converted = convertedTotal(drafts);
+  final shares = converted == null
+      ? null
+      : allocate(converted, [for (final g in groups) g.amountMinor]);
   return [
     for (final (i, group) in groups.indexed)
       _groupDraft(
         template,
         id: groups.length == 1 ? base : '${base}_${i + 1}',
         group: group,
+        baseAmountMinor: shares?[i],
       ),
   ];
+}
+
+/// The sum of every draft's converted amount (`fx.baseAmountMinor`), or
+/// null when a draft has none.
+int? convertedTotal(List<Object?> drafts) {
+  if (drafts.isEmpty) return null;
+  var total = 0;
+  for (final draft in drafts) {
+    final amount = switch (draft) {
+      {'fx': {'baseAmountMinor': final num n}} when n == n.truncate() =>
+        n.toInt(),
+      _ => null,
+    };
+    if (amount == null) return null;
+    total += amount;
+  }
+  return total;
 }
 
 Map<String, Object?> _groupDraft(
   Map<String, Object?> template, {
   required String id,
   required ReceiptGroup group,
+  required int? baseAmountMinor,
 }) {
   final draft = {
     ...template,
@@ -153,6 +183,13 @@ Map<String, Object?> _groupDraft(
     'amountMinor': group.amountMinor,
     'categoryId': group.categoryId ?? template['categoryId'],
   };
+  if (template['fx'] case final Map<Object?, Object?> fx) {
+    draft['fx'] = {
+      for (final MapEntry(:key, :value) in fx.entries)
+        if (key != 'baseAmountMinor') '$key': value,
+      'baseAmountMinor': ?baseAmountMinor,
+    };
+  }
   // A group with a category answers a missing category.
   final missing = [
     for (final field in template['missing'] as List? ?? const [])

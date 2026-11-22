@@ -334,8 +334,10 @@ final class _RecordingActions implements XpenseActions {
 
   @override
   Future<void> undoSave(String groupId) async {
-    _host._saved.removeWhere((s) => s.groupId == groupId);
+    // Only once the app has deleted the group: a failed undo leaves the
+    // entries saved, and the agent should still hear about them.
     await _inner.undoSave(groupId);
+    _host._saved.removeWhere((s) => s.groupId == groupId);
   }
 
   @override

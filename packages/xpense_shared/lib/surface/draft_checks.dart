@@ -254,6 +254,21 @@ const List<String> _plainStrings = [
   'goalId',
 ];
 
+/// Whether [value] is absent or passes [ok].
+bool _optional(Object? value, bool Function(Object) ok) =>
+    value == null || ok(value);
+
+/// A probability or confidence: a number from 0 to 1.
+bool _share(Object value) => value is num && value >= 0 && value <= 1;
+
+/// A whole number (`5` or `5.0`) within [min] and [max] when given.
+bool _wholeIn(Object value, int? min, int? max) {
+  if (value is! num || !value.isFinite || value != value.truncate()) {
+    return false;
+  }
+  return (min == null || value >= min) && (max == null || value <= max);
+}
+
 /// Type and set checks on the raw JSON; explicit nulls are allowed, as a
 /// model or reloaded state may write them.
 List<DraftIssue> _shapeIssues(Object? raw) {
@@ -294,12 +309,44 @@ List<DraftIssue> _shapeIssues(Object? raw) {
   }
   isNullOr('guessed', stringList);
   isNullOr('missing', stringList);
-  isNullOr('confidence', (v) => v is Map);
-  isNullOr('recurring', (v) => v is Map);
+  // Nested objects too: their generated getters cast without checking, so
+  // a wrong type here would throw while the slip renders.
+  isNullOr(
+    'confidence',
+    (v) =>
+        v is Map &&
+        [
+          'intent',
+          'category',
+          'account',
+          'who',
+        ].every((k) => _optional(v[k], _share)),
+  );
+  isNullOr(
+    'recurring',
+    (v) =>
+        v is Map &&
+        _optional(v['probability'], _share) &&
+        _optional(v['unit'], (u) => inSet(u, cadenceUnitValues)) &&
+        _optional(v['interval'], (n) => _wholeIn(n, 1, null)) &&
+        _optional(v['dayOfMonth'], (n) => _wholeIn(n, 1, 31)) &&
+        _optional(v['weekday'], (n) => _wholeIn(n, 1, 7)) &&
+        _optional(v['recurringId'], (id) => id is String),
+  );
   isNullOr(
     'fx',
-    (v) => v is Map && v['pair'] is String && v['pairRate'] is String,
+    (v) =>
+        v is Map &&
+        v['pair'] is String &&
+        v['pairRate'] is String &&
+        _optional(v['source'], (src) => inSet(src, fxSourceValues)) &&
+        _optional(v['asOf'], (d) => d is String && _date.hasMatch(d)) &&
+        _optional(v['baseAmountMinor'], (n) => _wholeIn(n, null, null)),
   );
-  isNullOr('duplicate', (v) => v is Map && v['txnId'] is String);
+  isNullOr(
+    'duplicate',
+    (v) =>
+        v is Map && v['txnId'] is String && _optional(v['probability'], _share),
+  );
   return issues;
 }

@@ -49,6 +49,28 @@ void main() {
         'fx': {'pair': 'USD/IQD'},
       }),
       'empty id': _ok({'id': ''}),
+      // Nested values the generated getters would cast and throw on.
+      'confidence as words': _ok({
+        'confidence': {'intent': 'high'},
+      }),
+      'confidence above 1': _ok({
+        'confidence': {'category': 1.5},
+      }),
+      'recurring probability as words': _ok({
+        'recurring': {'probability': 'likely'},
+      }),
+      'recurring day out of range': _ok({
+        'recurring': {'dayOfMonth': 32},
+      }),
+      'recurring unit unknown': _ok({
+        'recurring': {'unit': 'year'},
+      }),
+      'fx base amount as text': _ok({
+        'fx': {'pair': 'USD/IQD', 'pairRate': '1705', 'baseAmountMinor': '5'},
+      }),
+      'duplicate probability as words': _ok({
+        'duplicate': {'txnId': 't_1', 'probability': 'maybe'},
+      }),
     };
     for (final MapEntry(key: name, value: raw) in cases.entries) {
       test(name, () {
@@ -58,6 +80,26 @@ void main() {
         expect(check.issues, everyElement(isA<MalformedField>()));
       });
     }
+
+    test('well-formed nested values pass, and their getters read', () {
+      final check = checkDraft(
+        _ok({
+          'confidence': {'intent': 0.9, 'category': 1, 'who': null},
+          'recurring': {
+            'probability': 0.92,
+            'unit': 'month',
+            'interval': 1.0,
+            'dayOfMonth': 5,
+          },
+          'fx': {'pair': 'USD/IQD', 'pairRate': '1705', 'baseAmountMinor': 587},
+          'duplicate': {'txnId': 't_1', 'probability': 0.8},
+        }),
+        _refs,
+      );
+      expect(check.canSave, isTrue);
+      expect(check.draft!.confidence!.category, 1.0);
+      expect(check.draft!.recurring!.interval, 1);
+    });
 
     test('an amount encoded as 1250.0 is an integer', () {
       expect(checkDraft(_ok({'amountMinor': 1250.0}), _refs).canSave, isTrue);

@@ -142,6 +142,7 @@ class _ReceiptSummaryViewState extends State<ReceiptSummaryView>
     );
     final count = check.drafts.length;
     final base = household.baseCurrency;
+    final converted = convertedTotal(widget.drafts);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       mainAxisSize: MainAxisSize.min,
@@ -167,9 +168,9 @@ class _ReceiptSummaryViewState extends State<ReceiptSummaryView>
               currency: receipt.currency,
               size: FigureSize.large,
               textAlign: TextAlign.end,
-              approx:
-                  first?.fx?.baseAmountMinor != null && receipt.currency != base
-                  ? approxLabel(context, first!.fx!.baseAmountMinor!, base)
+              // The whole receipt's converted amount: every entry's, summed.
+              approx: converted != null && receipt.currency != base
+                  ? approxLabel(context, converted, base)
                   : null,
             ),
           ],
@@ -287,7 +288,7 @@ class _ReceiptSummaryViewState extends State<ReceiptSummaryView>
             ),
           ),
         const SizedBox(height: XpSpace.s16),
-        if (isSaved)
+        if (isSaved) ...[
           Row(
             children: [
               Expanded(
@@ -302,11 +303,19 @@ class _ReceiptSummaryViewState extends State<ReceiptSummaryView>
               if (canUndo)
                 XpButton.text(
                   label: l10n.a2uiUndo,
-                  onPressed: () => unawaited(undoSave()),
+                  onPressed: undoing ? null : () => unawaited(undoSave()),
                 ),
             ],
-          )
-        else ...[
+          ),
+          if (undoFailed)
+            Semantics(
+              liveRegion: true,
+              child: Text(
+                l10n.a2uiUndoFailed,
+                style: type.meta.copyWith(color: colors.danger),
+              ),
+            ),
+        ] else ...[
           LayoutBuilder(
             builder: (context, constraints) {
               final retake = XpButton.secondary(

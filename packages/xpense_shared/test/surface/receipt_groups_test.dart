@@ -103,6 +103,53 @@ void main() {
     expect(one.single['amountMinor'], 60500);
   });
 
+  test('regrouping divides the converted total, never copies it', () {
+    // 60,500 IQD at 1705 ≈ 35.48 USD.
+    final unsplit = [
+      {
+        'id': 'r',
+        'intent': 'expense',
+        'currency': 'IQD',
+        'amountMinor': 60500,
+        'fx': {
+          'pair': 'USD/IQD',
+          'pairRate': '1705',
+          'source': 'market',
+          'baseAmountMinor': 3548,
+        },
+      },
+    ];
+    final split = draftsForGroups(unsplit, groupReceipt(_receipt, split: true));
+    final converted = [
+      for (final d in split) ((d['fx']! as Map)['baseAmountMinor']! as int),
+    ];
+    // In proportion to 35,428 / 4,360 / 20,712 IQD, and exact in total.
+    expect(converted, [2078, 256, 1214]);
+    expect(convertedTotal(split), 3548);
+    expect(
+      split.map((d) => (d['fx']! as Map)['pairRate']),
+      everyElement('1705'),
+    );
+
+    final merged = draftsForGroups(split, groupReceipt(_receipt, split: false));
+    expect((merged.single['fx']! as Map)['baseAmountMinor'], 3548);
+  });
+
+  test('without a converted amount on every draft, copies carry none', () {
+    final drafts = draftsForGroups([
+      {
+        'id': 'r',
+        'intent': 'expense',
+        'fx': {'pair': 'USD/IQD', 'pairRate': '1705'},
+      },
+    ], groupReceipt(_receipt, split: true));
+    for (final d in drafts) {
+      expect(d['fx'], {'pair': 'USD/IQD', 'pairRate': '1705'});
+    }
+    expect(convertedTotal(drafts), isNull);
+    expect(convertedTotal(const []), isNull);
+  });
+
   test('receiptFromJson reads the data model and rejects bad shapes', () {
     expect(receiptFromJson(_receipt.toJson())!.lines, hasLength(4));
     expect(receiptFromJson(null), isNull);

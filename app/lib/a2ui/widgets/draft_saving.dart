@@ -124,13 +124,22 @@ mixin DraftSaving<T extends StatefulWidget> on State<T> {
   /// Whether the agent marked the drafts saved without a local record.
   bool savedElsewhere = false;
 
+  /// Whether an undo is running.
+  bool undoing = false;
+
+  /// Whether the last undo failed; Undo stays offered so it can be retried.
+  bool undoFailed = false;
+
   Timer? _undoTimer;
 
-  /// Whether Undo is still offered.
+  /// Whether Undo is offered: for [XpMotion.toastLifetime] after a save,
+  /// and for as long as a failed undo needs retrying.
   bool get canUndo {
     final record = saved;
     return record != null &&
-        clock.now().toUtc().difference(record.savedAt) < XpMotion.toastLifetime;
+        (undoFailed ||
+            clock.now().toUtc().difference(record.savedAt) <
+                XpMotion.toastLifetime);
   }
 
   /// Restores the saved state from the data model. Call from initState.
@@ -146,28 +155,28 @@ mixin DraftSaving<T extends StatefulWidget> on State<T> {
 
   /// Saves [drafts], then records the outcome; [announce] is read out
   /// politely when it succeeds. Returns whether it did.
+  ///
+  /// A save that succeeds is recorded in the surface's data model even if
+  /// the component was disposed meanwhile, so remounting the surface shows
+  /// it saved and never offers to save the same drafts again.
   Future<bool> saveDrafts(
     List<EntryDraft> drafts, {
     required String announce,
     List<DraftCorrection> corrections = const [],
   }) async {
     if (saving || drafts.isEmpty) return false;
+    final store = saveStore;
+    final actions = saveActions;
+    final surfaceId = saveSurfaceId;
     setState(() {
       saving = true;
       failure = null;
     });
     final SaveOutcome outcome;
     try {
-      outcome = await saveActions.saveDrafts(saveSurfaceId, drafts);
+      outcome = await actions.saveDrafts(surfaceId, drafts);
     } on Object catch (error, stack) {
-      FlutterError.reportError(
-        FlutterErrorDetails(
-          exception: error,
-          stack: stack,
-          library: 'xpense a2ui',
-          context: ErrorDescription('while saving drafts'),
-        ),
-      );
+      _report(error, stack);
       if (mounted) {
         setState(() {
           saving = false;
@@ -176,7 +185,6 @@ mixin DraftSaving<T extends StatefulWidget> on State<T> {
       }
       return false;
     }
-    if (!mounted) return outcome is DraftsSaved;
     switch (outcome) {
       case DraftsSaved(:final groupId, :final txnIds, :final budgets):
         final record = SaveRecord(
@@ -185,8 +193,12 @@ mixin DraftSaving<T extends StatefulWidget> on State<T> {
           savedAt: clock.now().toUtc(),
           budgets: budgets,
         );
-        saveStore?.write(SurfacePaths.saved, record.toJson());
-        saveStore?.write(SurfacePaths.status, 'saved');
+        store?.write(SurfacePaths.saved, record.toJson());
+        store?.write(SurfacePaths.status, 'saved');
+        for (final correction in corrections) {
+          unawaited(actions.learn(correction).catchError(_report));
+        }
+        if (!mounted) return true;
         setState(() {
           saving = false;
           saved = record;
@@ -200,11 +212,9 @@ mixin DraftSaving<T extends StatefulWidget> on State<T> {
             Directionality.of(context),
           ),
         );
-        for (final correction in corrections) {
-          unawaited(saveActions.learn(correction).catchError(_report));
-        }
         return true;
       case SaveFailed(:final reason):
+        if (!mounted) return false;
         unawaited(XpHaptics.warning());
         setState(() {
           saving = false;
@@ -214,18 +224,40 @@ mixin DraftSaving<T extends StatefulWidget> on State<T> {
     }
   }
 
-  /// Undoes the last save and returns the drafts to review.
+  /// Undoes the last save and returns the drafts to review. The saved state
+  /// is kept until the app confirms the deletion; if it fails, the drafts
+  /// stay saved and Undo stays offered for a retry.
   Future<void> undoSave() async {
     final record = saved;
-    if (record == null) return;
-    _undoTimer?.cancel();
-    saveStore?.write(SurfacePaths.saved, null);
-    saveStore?.write(SurfacePaths.status, 'review');
+    if (record == null || undoing) return;
+    final store = saveStore;
+    final actions = saveActions;
     setState(() {
+      undoing = true;
+      undoFailed = false;
+    });
+    try {
+      await actions.undoSave(record.groupId);
+    } on Object catch (error, stack) {
+      _report(error, stack);
+      if (mounted) {
+        unawaited(XpHaptics.warning());
+        setState(() {
+          undoing = false;
+          undoFailed = true;
+        });
+      }
+      return;
+    }
+    store?.write(SurfacePaths.saved, null);
+    store?.write(SurfacePaths.status, 'review');
+    if (!mounted) return;
+    _undoTimer?.cancel();
+    setState(() {
+      undoing = false;
       saved = null;
       savedElsewhere = false;
     });
-    await saveActions.undoSave(record.groupId);
   }
 
   void _scheduleUndoExpiry() {

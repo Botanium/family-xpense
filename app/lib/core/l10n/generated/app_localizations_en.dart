@@ -261,6 +261,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get a2uiUndo => 'Undo';
 
   @override
+  String get a2uiUndoFailed =>
+      'Couldn\'t undo. The entries are still saved; try again.';
+
+  @override
   String get a2uiGuessed => 'Guessed';
 
   @override

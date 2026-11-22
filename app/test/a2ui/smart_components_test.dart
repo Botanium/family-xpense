@@ -171,6 +171,63 @@ void main() {
       expect(find.text('Saved 2 entries.'), findsOneWidget);
     });
 
+    _test('a failed undo keeps the entries saved and offers Undo again', (
+      tester,
+    ) async {
+      final fake = FakeXpenseActions()..undoError = StateError('offline');
+      final (:host, :actions, :sent) = hostWith(
+        fixture('agent_two_entries'),
+        actions: fake,
+      );
+      await pumpThread(tester, host);
+      await tester.tap(find.text('Save both'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Undo'));
+      await tester.pumpAndSettle();
+      // Reported to the error handler, never swallowed.
+      expect(tester.takeException(), isA<StateError>());
+      expect(
+        find.text("Couldn't undo. The entries are still saved; try again."),
+        findsOneWidget,
+      );
+      expect(find.text('Saved 2 entries.'), findsOneWidget);
+      expect(find.text('Save both'), findsNothing);
+      expect(_model(host, 'cap_k3m9', SurfacePaths.status), 'saved');
+
+      // Still offered after the usual ten seconds, until it works.
+      _now = _now.add(XpMotion.toastLifetime);
+      await tester.pump(XpMotion.toastLifetime);
+      fake.undoError = null;
+      await tester.tap(find.text('Undo'));
+      await tester.pumpAndSettle();
+      expect(find.text('Save both'), findsOneWidget);
+      expect(_model(host, 'cap_k3m9', SurfacePaths.status), 'review');
+      expect(actions.methods, ['saveDrafts', 'undoSave', 'undoSave']);
+    });
+
+    _test('a save that ends after the surface is gone is still recorded', (
+      tester,
+    ) async {
+      final fake = FakeXpenseActions()..saveGate = Completer<void>();
+      final (:host, :actions, :sent) = hostWith(
+        fixture('agent_two_entries'),
+        actions: fake,
+      );
+      await pumpThread(tester, host);
+      await tester.tap(find.text('Save both'));
+      await tester.pump();
+      // The member leaves before the write returns.
+      await tester.pumpWidget(const SizedBox.shrink());
+      fake.saveGate!.complete();
+      await tester.pumpAndSettle();
+      expect(_model(host, 'cap_k3m9', SurfacePaths.status), 'saved');
+      // Coming back shows it saved; Save is not offered twice.
+      await pumpThread(tester, host);
+      expect(find.text('Saved 2 entries.'), findsOneWidget);
+      expect(find.text('Save both'), findsNothing);
+      expect(actions.methods, ['saveDrafts']);
+    });
+
     _test('the saved state survives a rebuild of the surface', (tester) async {
       final (:host, :actions, :sent) = hostWith(fixture('agent_two_entries'));
       await pumpThread(tester, host);
@@ -419,6 +476,37 @@ void main() {
       await tester.pumpAndSettle();
       expect((actions.calls.single.argument! as List).length, 3);
       expect(find.text('Saved 3 entries.'), findsOneWidget);
+    });
+
+    _test('splitting keeps the converted total and divides it', (tester) async {
+      final messages = fixture('local_receipt_split');
+      final create = messages.single['createSurface']! as Map<String, Object?>;
+      final model = create['dataModel']! as Map<String, Object?>;
+      // One unsplit entry, converted at 1705: IQD 60,500 ≈ USD 35.48.
+      model['drafts'] = [
+        {
+          ...((model['drafts']! as List).first as Map),
+          'id': 'r',
+          'amountMinor': 60500,
+          'fx': {
+            'pair': 'USD/IQD',
+            'pairRate': '1705',
+            'baseAmountMinor': 3548,
+          },
+        },
+      ];
+      model['ui'] = {'split': false};
+      final (:host, :actions, :sent) = hostWith(messages);
+      await pumpThread(tester, host);
+      expect(find.text('≈ USD 35.48'), findsOneWidget);
+      await tester.tap(find.byType(XpSwitch));
+      await tester.pump();
+      expect(find.text('≈ USD 35.48'), findsOneWidget);
+      final split = _model(host, 'loc_rcpt_fm', SurfacePaths.drafts)! as List;
+      expect(
+        [for (final d in split) ((d as Map)['fx']! as Map)['baseAmountMinor']],
+        [2078, 256, 1214],
+      );
     });
 
     _test('Retake reopens the camera', (tester) async {

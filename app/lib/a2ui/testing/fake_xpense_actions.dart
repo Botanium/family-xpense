@@ -51,6 +51,9 @@ class FakeXpenseActions implements XpenseActions {
   /// When set, saves wait for it, so a test can see the busy state.
   Completer<void>? saveGate;
 
+  /// When set, every undo throws this, as a failed deletion would.
+  Error? undoError;
+
   /// Every call, in order.
   final List<FakeCall> calls = [];
 
@@ -89,6 +92,8 @@ class FakeXpenseActions implements XpenseActions {
   @override
   Future<void> undoSave(String groupId) async {
     calls.add((method: 'undoSave', argument: groupId));
+    final error = undoError;
+    if (error != null) throw error;
     saved.remove(groupId);
   }
 

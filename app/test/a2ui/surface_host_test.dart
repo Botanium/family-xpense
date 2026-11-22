@@ -3,6 +3,7 @@
 // per-message error isolation, and action routing by name.
 import 'package:flutter_test/flutter_test.dart';
 import 'package:material_ui/material_ui.dart';
+import 'package:xpense_app/a2ui/testing/fake_xpense_actions.dart';
 import 'package:xpense_shared/xpense_shared.dart';
 
 import 'a2ui_harness.dart';
@@ -243,6 +244,22 @@ void main() {
     await tester.tap(find.text('Undo'));
     await tester.pumpAndSettle();
     expect(host.takeSavedActions(), isEmpty);
+  });
+
+  testWidgets('a failed undo still reports the save to the agent', (
+    tester,
+  ) async {
+    final (:host, :actions, :sent) = hostWith(
+      fixture('agent_two_entries'),
+      actions: FakeXpenseActions()..undoError = StateError('offline'),
+    );
+    await pumpThread(tester, host);
+    await tester.tap(find.text('Save both'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Undo'));
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isA<StateError>());
+    expect(host.takeSavedActions(), hasLength(1));
   });
 
   testWidgets('an agent update after a local edit keeps the edit', (

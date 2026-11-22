@@ -522,6 +522,12 @@ abstract class AppLocalizations {
   /// **'Undo'**
   String get a2uiUndo;
 
+  /// Shown when undoing a save failed; Undo stays available to retry.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t undo. The entries are still saved; try again.'**
+  String get a2uiUndoFailed;
+
   /// Badge on a field the app guessed; shown upper-case.
   ///
   /// In en, this message translates to:
