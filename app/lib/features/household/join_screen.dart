@@ -77,12 +77,23 @@ class _JoinScreenState extends ConsumerState<JoinScreen> {
       content: joined == null
           ? _form(context, state)
           : _welcome(context, joined),
-      bottom: joined == null
-          ? null
-          : XpButton.primary(
-              label: l10n.householdContinue,
-              onPressed: () => unawaited(context.push(AppRoutes.tryIt)),
-            ),
+      bottom: joined == null ? null : _continue(context, joined),
+    );
+  }
+
+  /// Continue after joining, enabled only once this phone's membership shows
+  /// the joined household. The server answers first; until Firestore's
+  /// listener catches up, the router still sees no household and would send
+  /// the person to household setup (PR #29 review).
+  Widget _continue(BuildContext context, JoinedHousehold joined) {
+    final l10n = context.l10n;
+    final ready = switch (ref.watch(membershipProvider).value) {
+      InHousehold(:final household) => household.id == joined.id,
+      _ => false,
+    };
+    return XpButton.primary(
+      label: ready ? l10n.householdContinue : l10n.householdJoinedSyncing,
+      onPressed: ready ? () => unawaited(context.push(AppRoutes.tryIt)) : null,
     );
   }
 

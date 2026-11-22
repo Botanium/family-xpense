@@ -539,6 +539,32 @@ void main() {
       expect(find.text("Welcome to Sam's home"), findsOneWidget);
     });
 
+    // PR #29 review: the server can answer before Firestore delivers the
+    // new membership; Continue then would meet the householdless guard and
+    // land on household setup.
+    testWidgets('joined: Continue waits until the membership arrives', (
+      tester,
+    ) async {
+      final (container, services) = await pumpHousehold(tester);
+      services.households.joinUpdatesMembership = false;
+      await openLink(tester, 'xpense://join?code=AB3DE7GH9K');
+      await tester.enterText(field('Your name'), 'Sam');
+      await tapLabel(tester, 'Join household');
+
+      expect(find.text("Welcome to Sam's home"), findsOneWidget);
+      expect(find.text('Continue'), findsNothing);
+      expect(button(tester, 'Getting your household ready…').onPressed, isNull);
+      // A tap while waiting goes nowhere.
+      await tester.tap(find.text('Getting your household ready…'));
+      await tester.pumpAndSettle();
+      expect(location(container).path, AppRoutes.join);
+
+      services.households.setMembership(services.households.pendingMembership!);
+      await tester.pumpAndSettle();
+      await tapLabel(tester, 'Continue');
+      expect(location(container).path, AppRoutes.tryIt);
+    });
+
     testWidgets('joined: a welcome, then Continue goes on to Try it', (
       tester,
     ) async {

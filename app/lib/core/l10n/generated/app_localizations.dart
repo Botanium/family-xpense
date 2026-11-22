@@ -558,6 +558,12 @@ abstract class AppLocalizations {
   /// **'You and your partner now share joint money and goals. Your own accounts stay yours.'**
   String get householdJoinedBody;
 
+  /// Disabled button label after joining, while this phone waits for the household to arrive from the database.
+  ///
+  /// In en, this message translates to:
+  /// **'Getting your household ready…'**
+  String get householdJoinedSyncing;
+
   /// Text button on the join screen that goes to household setup.
   ///
   /// In en, this message translates to:

@@ -276,6 +276,9 @@ class AppLocalizationsEn extends AppLocalizations {
       'You and your partner now share joint money and goals. Your own accounts stay yours.';
 
   @override
+  String get householdJoinedSyncing => 'Getting your household ready…';
+
+  @override
   String get householdJoinSetUpInstead => 'Set up a household instead';
 
   @override

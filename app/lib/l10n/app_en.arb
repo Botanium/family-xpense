@@ -346,6 +346,10 @@
   "@householdJoinedBody": {
     "description": "Paragraph after joining."
   },
+  "householdJoinedSyncing": "Getting your household ready…",
+  "@householdJoinedSyncing": {
+    "description": "Disabled button label after joining, while this phone waits for the household to arrive from the database."
+  },
   "householdJoinSetUpInstead": "Set up a household instead",
   "@householdJoinSetUpInstead": {
     "description": "Text button on the join screen that goes to household setup."

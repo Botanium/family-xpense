@@ -82,6 +82,15 @@ final class FakeHouseholdRepository implements HouseholdRepository {
   /// The arguments of the last [create].
   ({String name, String displayName, Currency baseCurrency})? lastCreate;
 
+  /// Whether [join] updates the membership before it answers. Set false to
+  /// play the server answering before Firestore's listener catches up;
+  /// the membership then waits in [pendingMembership].
+  bool joinUpdatesMembership = true;
+
+  /// The membership a [join] produced while [joinUpdatesMembership] was
+  /// false, for the test to deliver with [setMembership].
+  Membership? pendingMembership;
+
   /// The arguments of the last [join].
   ({String code, String displayName})? lastJoin;
 
@@ -150,17 +159,20 @@ final class FakeHouseholdRepository implements HouseholdRepository {
     lastJoin = (code: code, displayName: displayName);
     final typed = code.replaceAll(RegExp(r'[\s-]'), '').toUpperCase();
     if (typed != inviteCode) return const Err(InviteInvalid());
-    setMembership(
-      InHousehold(
-        HouseholdSummary(
-          id: partnerHousehold.id,
-          name: partnerHousehold.name,
-          baseCurrency: Currency.usd,
-          memberCount: 2,
-          myDisplayName: displayName,
-        ),
+    final joined = InHousehold(
+      HouseholdSummary(
+        id: partnerHousehold.id,
+        name: partnerHousehold.name,
+        baseCurrency: Currency.usd,
+        memberCount: 2,
+        myDisplayName: displayName,
       ),
     );
+    if (joinUpdatesMembership) {
+      setMembership(joined);
+    } else {
+      pendingMembership = joined;
+    }
     return const Ok(partnerHousehold);
   });
 
