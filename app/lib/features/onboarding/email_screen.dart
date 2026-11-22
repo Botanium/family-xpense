@@ -131,7 +131,7 @@ class _EmailScreenState extends ConsumerState<EmailScreen> {
             ],
             const SizedBox(height: XpSpace.s32),
             XpButton.primary(
-              label: state.locked
+              label: state.busy || state.signedIn
                   ? l10n.onboardingSigningIn
                   : creating
                   ? l10n.onboardingEmailCreateAction

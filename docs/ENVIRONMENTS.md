@@ -152,9 +152,9 @@ Not enabled yet (the server deploy needs it): `cloudbuild` (server/DEPLOY.md ste
   id `1:648682359990:ios:b2b46595d20bceaf172a17` (registered before WP-01).
 - Apple Team ID on the app: **pending the owner** (section 6). App Attest
   needs it.
-- The repository's Xcode project still uses the placeholder bundle id
-  `app.familyxpense.xpenseApp`; it must become `com.bitrelia.familyxpense`
-  before the app can talk to this project (owner of `app/ios/`).
+- The Xcode project's bundle id is `com.bitrelia.familyxpense` (WP-11
+  replaced the placeholder `app.familyxpense.xpenseApp` in every build
+  configuration; RunnerTests is `com.bitrelia.familyxpense.RunnerTests`).
 - The Firebase iOS API key ("iOS key (auto created by Firebase)") is
   restricted to the bundle id `com.bitrelia.familyxpense` (WP-01) and to the
   Firebase APIs it was created with.
@@ -169,11 +169,15 @@ Not enabled yet (the server deploy needs it): `cloudbuild` (server/DEPLOY.md ste
     --project expense-family-cc6ee -o ../app/ios/config/dev/GoogleService-Info.plist
   ```
 
-  How the app loads it for `XPENSE_ENV=dev` (copy step in the Xcode build, or
-  `FirebaseOptions` from a `--dart-define-from-file`) is left to the owner of
-  `app/ios/` and `bootstrap.dart`. `Firebase.initializeApp()` with no options
-  reads the plist from the app bundle, and Google sign-in also needs its
-  `REVERSED_CLIENT_ID` as a URL scheme in `Info.plist`.
+  How the app loads it (WP-11): with `--dart-define=XPENSE_ENV=dev`, the
+  Xcode phase "Copy Firebase config" (`app/ios/scripts/copy_firebase_config.sh`)
+  copies `app/ios/config/dev/GoogleService-Info.plist` into the app bundle,
+  where `Firebase.initializeApp()` reads it; the build fails if the file is
+  missing. A worktree needs its own copy of the file. Google sign-in returns
+  through the URL scheme `app-1-648682359990-ios-b2b46595d20bceaf172a17`
+  (this app id with `-` for `:`), registered in `Info.plist`.
+  Against the Auth emulator add
+  `--dart-define=XPENSE_AUTH_EMULATOR=localhost:9099`.
 
 ### 3.8 App Check
 

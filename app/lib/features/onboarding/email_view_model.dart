@@ -70,6 +70,7 @@ final class EmailFormState {
   const new({
     this.mode = EmailMode.create,
     this.busy = false,
+    this.resetting = false,
     this.signedIn = false,
     this.emailProblem,
     this.passwordProblem,
@@ -80,8 +81,11 @@ final class EmailFormState {
   /// Create or sign in.
   final EmailMode mode;
 
-  /// Whether a request is in flight.
+  /// Whether creating the account or signing in is in flight.
   final bool busy;
+
+  /// Whether a password reset is being sent.
+  final bool resetting;
 
   /// Whether sign-in succeeded; the router leaves the screen on its own.
   final bool signedIn;
@@ -99,7 +103,7 @@ final class EmailFormState {
   final String? resetSentTo;
 
   /// Whether the form is disabled.
-  bool get locked => busy || signedIn;
+  bool get locked => busy || resetting || signedIn;
 
   /// Whether the offline banner shows.
   bool get offline => failure is AuthOffline;
@@ -109,6 +113,7 @@ final class EmailFormState {
       other is EmailFormState &&
       other.mode == mode &&
       other.busy == busy &&
+      other.resetting == resetting &&
       other.signedIn == signedIn &&
       other.emailProblem == emailProblem &&
       other.passwordProblem == passwordProblem &&
@@ -119,6 +124,7 @@ final class EmailFormState {
   int get hashCode => Object.hash(
     mode,
     busy,
+    resetting,
     signedIn,
     emailProblem,
     passwordProblem,
@@ -206,7 +212,7 @@ final class EmailViewModel extends Notifier<EmailFormState> {
       state = EmailFormState(mode: mode, emailProblem: problem);
       return;
     }
-    state = EmailFormState(mode: mode, busy: true);
+    state = EmailFormState(mode: mode, resetting: true);
     final result = await ref
         .read(authRepositoryProvider)
         .sendPasswordReset(email: email);

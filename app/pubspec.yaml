@@ -64,6 +64,10 @@ dependencies:
 dev_dependencies:
   flutter_test:
     sdk: flutter
+  # On-simulator tests against the Firebase emulator suite (WP-11);
+  # `flutter test integration_test -d <simulator>`. Not run by CI.
+  integration_test:
+    sdk: flutter
   very_good_analysis: ^11.0.0
 
 flutter:

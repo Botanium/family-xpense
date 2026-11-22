@@ -409,7 +409,20 @@ void main() {
       await tapLabel(tester, 'I already have an account');
 
       await tester.enterText(field('Email'), 'ada@example.com');
-      await tapLabel(tester, 'Forgot password?');
+      services.auth.hold = Completer<void>();
+      await tester.tap(find.text('Forgot password?'));
+      await tester.pump();
+      // Sending a reset locks the form but is not signing in.
+      expect(find.text('Signing in…'), findsNothing);
+      final signIn = tester.widget<XpButton>(
+        find.ancestor(
+          of: find.text('Sign in'),
+          matching: find.byType(XpButton),
+        ),
+      );
+      expect(signIn.onPressed, isNull);
+      services.auth.hold!.complete();
+      await tester.pumpAndSettle();
 
       expect(services.auth.resets, ['ada@example.com']);
       expect(
