@@ -43,6 +43,25 @@ final class _FakeTransaction implements DocumentTransaction {
   }
 
   @override
+  Future<List<StoredDocument>> whereArrayContains(
+    String collection,
+    String field,
+    Object value, {
+    int limit = 50,
+  }) async {
+    _checkReadable();
+    final depth = collection.split('/').length + 1;
+    return [
+      for (final MapEntry(key: path, value: data) in _store.docs.entries)
+        if (path.startsWith('$collection/') &&
+            path.split('/').length == depth &&
+            data[field] is List &&
+            (data[field]! as List).contains(value))
+          StoredDocument(path, Map.of(data)),
+    ].take(limit).toList();
+  }
+
+  @override
   void write(String path, Map<String, Object?> data, {bool merge = false}) =>
       _writes.add(() => unawaited(_store.write(path, data, merge: merge)));
 

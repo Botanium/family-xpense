@@ -196,6 +196,22 @@ void _tests() {
     expect(fullBody['message'], 'household_full');
   });
 
+  test('a member elsewhere who cleared their pointer is refused', () async {
+    final owner = await signUp('pointer-owner@example.test');
+    final other = await signUp('pointer-other@example.test');
+    await foundHousehold(owner.uid, 'h6');
+    await foundHousehold(other.uid, 'h7');
+    // users/{uid} is the user's own to write (firestore.rules).
+    await gateway.documents.write('users/${other.uid}', {'locale': 'en'});
+    final code = await invite(owner);
+
+    final (status, body) = await join(other, code);
+    expect(status, 400, reason: '$body');
+    expect(body['message'], 'already_in_household');
+    final household = await gateway.documents.read('households/h6');
+    expect(household!['memberIds'], [owner.uid]);
+  });
+
   test('two people racing with one code: exactly one gets in', () async {
     final owner = await signUp('race-owner@example.test');
     final a = await signUp('a@example.test');

@@ -224,6 +224,30 @@ void main() {
       expect(docs.docs['households/h1']!['memberIds'], ['owner']);
     });
 
+    // PR #29 review: users/{uid} is the user's own to write, so membership
+    // must come from memberIds, which only the server writes.
+    test(
+      'a member elsewhere is refused even with the pointer cleared',
+      () async {
+        docs.seedMember(uid: 'partner', hid: 'h2');
+        for (final pointer in <Map<String, Object?>>[
+          {},
+          {'householdId': null},
+          {'householdId': 'h1'},
+          {'householdId': 'gone'},
+        ]) {
+          docs.docs['users/partner'] = pointer;
+          await expectLater(
+            service.join(uid: 'partner', code: code, displayName: 'Sam'),
+            refusedWith(HouseholdFailure.alreadyInHousehold),
+            reason: '$pointer',
+          );
+        }
+        expect(docs.docs['households/h1']!['memberIds'], ['owner']);
+        expect(docs.docs['households/h1/members/partner'], isNull);
+      },
+    );
+
     test('a stale householdId pointer does not block joining', () async {
       docs.docs['users/partner'] = {'householdId': 'gone', 'locale': 'en'};
       await service.join(uid: 'partner', code: code, displayName: 'Sam');

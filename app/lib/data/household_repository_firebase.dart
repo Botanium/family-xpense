@@ -29,16 +29,20 @@ final class FirebaseHouseholdRepository implements HouseholdRepository {
   /// Creates the adapter and starts following the signed-in person.
   ///
   /// `serverUrl` is the server's base address (`--dart-define=
-  /// XPENSE_SERVER_URL`); without one, invites and joins fail as
+  /// XPENSE_SERVER_URL`). Without one, or with one that is not an absolute
+  /// http or https address, invites and joins fail as
   /// [HouseholdServiceUnavailable].
   new({
     required this._auth,
     required this._firestore,
     required this._appCheckToken,
-    this._serverUrl,
+    Uri? serverUrl,
     Clock? clock,
     Random? random,
-  }) : _clock = clock ?? const Clock(),
+  }) : _serverUrl = serverUrl != null && _isServerUrl(serverUrl)
+           ? serverUrl
+           : null,
+       _clock = clock ?? const Clock(),
        _random = random ?? Random.secure() {
     _authSubscription = _auth.authStateChanges().listen(_onUser);
   }
@@ -525,6 +529,18 @@ final class FirebaseHouseholdRepository implements HouseholdRepository {
         ),
       );
 }
+
+/// The server address in [raw] (an `XPENSE_SERVER_URL` define), or null when
+/// it is unset, relative, or not http or https. `Uri.tryParse('')` gives an
+/// empty, relative URI rather than null, which `HttpClient` refuses with an
+/// error instead of a failure the screen can show (PR #29 review).
+Uri? usableServerUrl(String? raw) {
+  final uri = Uri.tryParse(raw?.trim() ?? '');
+  return uri != null && _isServerUrl(uri) ? uri : null;
+}
+
+bool _isServerUrl(Uri uri) =>
+    (uri.scheme == 'https' || uri.scheme == 'http') && uri.host.isNotEmpty;
 
 /// The first character of [name], upper-cased: the avatar letter.
 String initialOf(String name) =>

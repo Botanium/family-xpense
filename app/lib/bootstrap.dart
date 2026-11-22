@@ -199,20 +199,20 @@ HouseholdRepository connectHouseholds(
   // emulator sign-ins never meet the real dev database.
   AppEnvironment.dev => FirebaseHouseholdRepository.connect(
     appCheckToken: FirebaseAppCheck.instance.getToken,
-    serverUrl: Uri.tryParse(serverUrlDefine),
+    serverUrl: usableServerUrl(serverUrlDefine),
     emulator: authEmulatorDefine.isEmpty
         ? firestoreEmulatorDefine
         : _or(firestoreEmulatorDefine, defaultFirestoreEmulator),
   ),
   AppEnvironment.prod => FirebaseHouseholdRepository.connect(
     appCheckToken: FirebaseAppCheck.instance.getToken,
-    serverUrl: Uri.tryParse(serverUrlDefine),
+    serverUrl: usableServerUrl(serverUrlDefine),
   ),
   // App Check cannot be emulated; the local server accepts any non-empty
   // token (XPENSE_APP_CHECK=emulator), so the request shape stays the same.
   AppEnvironment.emulators => FirebaseHouseholdRepository.connect(
     appCheckToken: () async => 'emulator',
-    serverUrl: Uri.tryParse(_or(serverUrlDefine, defaultLocalServer)),
+    serverUrl: usableServerUrl(_or(serverUrlDefine, defaultLocalServer)),
     emulator: _or(firestoreEmulatorDefine, defaultFirestoreEmulator),
   ),
 };

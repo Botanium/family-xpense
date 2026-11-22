@@ -140,6 +140,15 @@ abstract interface class DocumentTransaction {
     int limit = 50,
   });
 
+  /// The documents directly in [collection] whose list [field] contains
+  /// [value], at most [limit] of them.
+  Future<List<StoredDocument>> whereArrayContains(
+    String collection,
+    String field,
+    Object value, {
+    int limit = 50,
+  });
+
   /// Writes [data] to [path]; with [merge], fields not in [data] are kept.
   void write(String path, Map<String, Object?> data, {bool merge = false});
 

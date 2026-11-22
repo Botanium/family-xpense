@@ -10,7 +10,8 @@
 /// - A household has at most one live invite: a new one deletes the unused
 ///   earlier ones.
 /// - Joining checks the invite (exists, unused, unexpired), the household
-///   (fewer than two members) and the caller (no other household), then
+///   (fewer than two members) and the caller (no other household lists them
+///   in `memberIds`), then
 ///   writes `memberIds`, the member document, `users/{uid}.householdId` and
 ///   marks the invite used.
 library;
@@ -176,16 +177,19 @@ final class HouseholdService {
       if (memberIds.length >= maxMembers) {
         throw const HouseholdRejection(HouseholdFailure.householdFull);
       }
-      final user = await tx.read('users/$uid');
-      final current = user?['householdId'];
-      if (current is String && current != hid && _isDocumentId(current)) {
-        // users/{uid} is the user's own to write, so the pointer counts only
-        // when that household really lists them.
-        final other = await tx.read(_householdPath(current));
-        if (_memberIds(other).contains(uid)) {
-          throw const HouseholdRejection(HouseholdFailure.alreadyInHousehold);
-        }
+      // One household per person. Decided from memberIds, which only the
+      // server writes, never from users/{uid}.householdId: the user may
+      // clear or redirect that pointer themself (PR #29 review).
+      final elsewhere = await tx.whereArrayContains(
+        _households,
+        'memberIds',
+        uid,
+        limit: 2,
+      );
+      if (elsewhere.any((h) => h.path != _householdPath(hid))) {
+        throw const HouseholdRejection(HouseholdFailure.alreadyInHousehold);
       }
+      final user = await tx.read('users/$uid');
 
       tx
         ..write(_householdPath(hid), {
@@ -220,9 +224,11 @@ final class HouseholdService {
 
   static const _invites = 'invites';
 
+  static const _households = 'households';
+
   static String _invitePath(String code) => '$_invites/${inviteCodeHash(code)}';
 
-  static String _householdPath(String hid) => 'households/$hid';
+  static String _householdPath(String hid) => '$_households/$hid';
 
   static List<String> _memberIds(Map<String, Object?>? household) =>
       switch (household?['memberIds']) {

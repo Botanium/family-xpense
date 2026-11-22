@@ -223,10 +223,26 @@ final class _FirestoreTransaction implements DocumentTransaction {
     String field,
     Object value, {
     int limit = 50,
-  }) async {
+  }) => _where(collection, field, fs.WhereFilter.equal, value, limit);
+
+  @override
+  Future<List<StoredDocument>> whereArrayContains(
+    String collection,
+    String field,
+    Object value, {
+    int limit = 50,
+  }) => _where(collection, field, fs.WhereFilter.arrayContains, value, limit);
+
+  Future<List<StoredDocument>> _where(
+    String collection,
+    String field,
+    fs.WhereFilter op,
+    Object value,
+    int limit,
+  ) async {
     final query = _db
         .collection(collection)
-        .where(field, fs.WhereFilter.equal, value)
+        .where(field, op, value)
         .limit(limit);
     final snapshot = await _t.getQuery(query);
     return [
