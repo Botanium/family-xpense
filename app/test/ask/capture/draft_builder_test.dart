@@ -106,6 +106,12 @@ void main() {
       expect(d.categoryId, 'groceries');
       expect(d.accountId, 'acc_chk');
       expect(d.missing, isNull);
+      expect(d.currency, 'USD');
+      expect(
+        d.guessed ?? const <String>[],
+        isNot(contains('currency')),
+        reason: 'the member named the account, so its currency is known',
+      );
     });
 
     test('with nothing to go on, the slip asks in follow-up order', () {
@@ -162,7 +168,9 @@ void main() {
       expect(d.categoryId, 'groceries');
       expect(d.accountId, 'acc_chk');
       expect(d.currency, 'USD', reason: "the account's currency");
-      expect(d.guessed, ['accountId']);
+      // The account was not named, so the currency that followed it stays
+      // Guessed, as in the agent's prepareEntries.
+      expect(d.guessed, unorderedEquals(['accountId', 'currency']));
       expect(d.missing, isNull);
       expect(d.origin, 'decisions');
       expect(d.confidence?.intent, 0.97);
@@ -188,7 +196,10 @@ void main() {
         decide: answers(category: 0.99, account: 0.99, calibrated: false),
       );
       expect(d.confidence?.category, 0.80);
-      expect(d.guessed, ['accountId', 'categoryId']);
+      expect(
+        d.guessed,
+        unorderedEquals(['accountId', 'categoryId', 'currency']),
+      );
     });
 
     test('an account in another currency is not taken', () {

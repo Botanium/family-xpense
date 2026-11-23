@@ -312,6 +312,7 @@ EntryDraft buildDraft({
 
   // Account: a rule, the account named, the only account, then Decisions.
   var accountId = rule(RuleField.accountId);
+  var accountNamed = false;
   if (accountId != null) {
     confidence['account'] = ruleHitConfidence;
   } else if (parse.hints
@@ -319,6 +320,7 @@ EntryDraft buildDraft({
           .firstOrNull
       case final named?) {
     accountId = named.id;
+    accountNamed = true;
     confidence['account'] = 1;
   } else if (household.accounts.length == 1) {
     accountId = household.accounts.single.id;
@@ -333,11 +335,12 @@ EntryDraft buildDraft({
     }
   }
   // A currency the parser could not read: the account's, else the base
-  // currency as a guess (as the agent does), and the amount read in it.
+  // currency, and the amount read in it. As in the agent's
+  // `prepareEntries`, it stays Guessed unless the member named the account.
   if (currency == null && amount != null) {
     final fromAccount = household.account(accountId)?.currency;
     currency = fromAccount ?? household.baseCurrency;
-    if (fromAccount == null) guessed.add('currency');
+    if (fromAccount == null || !accountNamed) guessed.add('currency');
     if (Currency.tryParse(currency) case final c?) {
       if (Money.parseMajor(amount.value.toString(), c) case Ok(:final value)) {
         amountMinor = value.minorUnits;
