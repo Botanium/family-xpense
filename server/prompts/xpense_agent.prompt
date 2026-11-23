@@ -1,0 +1,31 @@
+---
+# The Family Xpense agent (AI_PIPELINE 8), production settings.
+# No model here: householdContext picks config/runtime's models.agent per
+# turn and escalates to models.escalation when a turn fails.
+# Development and CI use xpense_agent.strict.prompt (validate strict, no
+# repair); the two files differ only in the a2ui config.
+config:
+  temperature: 0.2
+tools:
+  - prepareEntries
+  - queryLedger
+  - getBalances
+  - getBudgets
+  - findLoans
+  - getFxRate
+  - findEntries
+maxTurns: 6
+use:
+  - householdContext
+  - outputGuard
+  - name: a2ui
+    config:
+      catalog: xpense
+      validate: warn
+      repair: true
+  - retry
+---
+{{role "system"}}
+{{> agent_core}}
+
+{{history}}

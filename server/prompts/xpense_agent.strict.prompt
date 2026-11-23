@@ -1,0 +1,29 @@
+---
+# The Family Xpense agent, development and CI settings (AI_PIPELINE 8):
+# a2ui validates strictly and never repairs, so every invalid surface fails
+# the turn and shows up in the trace. Keep in step with xpense_agent.prompt.
+config:
+  temperature: 0.2
+tools:
+  - prepareEntries
+  - queryLedger
+  - getBalances
+  - getBudgets
+  - findLoans
+  - getFxRate
+  - findEntries
+maxTurns: 6
+use:
+  - householdContext
+  - outputGuard
+  - name: a2ui
+    config:
+      catalog: xpense
+      validate: strict
+      repair: false
+  - retry
+---
+{{role "system"}}
+{{> agent_core}}
+
+{{history}}

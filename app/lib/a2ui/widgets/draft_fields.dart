@@ -152,9 +152,14 @@ List<FieldOption> fieldOptions(
 ) {
   final l10n = context.l10n;
   final options = switch (field) {
+    // A guessed currency follows the account picked (withField), so every
+    // account is offered; a written one rules out other currencies.
     'accountId' || 'toAccountId' => [
       for (final a in household.accounts)
-        if (draft.currency == null || a.currency == draft.currency)
+        if (draft.currency == null ||
+            a.currency == draft.currency ||
+            (field == 'accountId' &&
+                (draft.guessed ?? const []).contains('currency')))
           if (field == 'accountId' || a.id != draft.accountId)
             FieldOption(value: a.id, label: a.name),
     ],
@@ -196,7 +201,8 @@ List<FieldOption> fieldOptions(
 
 /// [draft] with [field] set to [value], and the field cleared from
 /// `missing` and `guessed`: the member answered it. Picking a person sets
-/// both its id and its name.
+/// both its id and its name. Picking an account settles a guessed currency
+/// ([followAccountCurrency]), given the [household].
 Map<String, Object?> withField(
   Map<String, Object?> draft,
   String field,
@@ -204,7 +210,10 @@ Map<String, Object?> withField(
   XpenseHousehold? household,
 }) {
   final next = Map<String, Object?>.of(draft);
-  if (field == 'personName' && value is String) {
+  // A person's id; a name the household does not know stays a name.
+  if (field == 'personName' &&
+      value is String &&
+      (household == null || household.person(value) != null)) {
     next['personId'] = value;
     next['personName'] = household?.person(value)?.name ?? value;
   } else {
@@ -223,6 +232,9 @@ Map<String, Object?> withField(
         next[list] = rest;
       }
     }
+  }
+  if (field == 'accountId' && value is String && household != null) {
+    return followAccountCurrency(next, household.account(value)?.currency);
   }
   return next;
 }

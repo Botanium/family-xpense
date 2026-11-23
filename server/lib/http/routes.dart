@@ -13,6 +13,7 @@ import 'package:genkit/io.dart';
 import 'package:xpense_agent/auth/context_provider.dart';
 import 'package:xpense_agent/decide/decide_flow.dart';
 import 'package:xpense_agent/household/household_flows.dart';
+import 'package:xpense_agent/runtime/agent.dart';
 import 'package:xpense_agent/telemetry/usage_counters.dart';
 
 /// The version prefix of the public routes (D-32). Tied to the Xpense
@@ -30,24 +31,35 @@ GenkitRouter buildPublicRouter({
   required DecideFlow decide,
   required HouseholdFlow householdInvite,
   required HouseholdFlow householdJoin,
-}) => GenkitRouter()
-  ..addAction(ping, path: '/ping', contextProvider: auth.forRoute())
-  // The Decisions proxy (WP-33): refused at the daily `decisions` limit.
-  ..addAction(
-    decide,
-    path: '/decide',
-    contextProvider: auth.forRoute(meters: {UsageCounter.decisions}),
-  )
-  ..addAction(
-    householdInvite,
-    path: '/household/invite',
-    contextProvider: auth.forRoute(allowOnDevice: true),
-  )
-  ..addAction(
-    householdJoin,
-    path: '/household/join',
-    contextProvider: auth.forSignedInUser(),
+  XpenseAgentRuntime? agent,
+}) {
+  final router = GenkitRouter()
+    ..addAction(ping, path: '/ping', contextProvider: auth.forRoute())
+    // The Decisions proxy (WP-33): refused at the daily `decisions` limit.
+    ..addAction(
+      decide,
+      path: '/decide',
+      contextProvider: auth.forRoute(meters: {UsageCounter.decisions}),
+    )
+    ..addAction(
+      householdInvite,
+      path: '/household/invite',
+      contextProvider: auth.forRoute(allowOnDevice: true),
+    )
+    ..addAction(
+      householdJoin,
+      path: '/household/join',
+      contextProvider: auth.forSignedInUser(),
+    );
+  // The agent (WP-32): `/agent` plus `/agent/getSnapshot` and
+  // `/agent/abort`; refused at the daily `agentTurns` limit.
+  agent?.mount(
+    router,
+    path: '/agent',
+    contextProvider: auth.forRoute(meters: {UsageCounter.agentTurns}),
   );
+  return router;
+}
 
 /// Private routes for `xpense-jobs`, mounted at the root. Cloud Run IAM is the
 /// gate (only the scheduler and Eventarc service accounts may invoke the

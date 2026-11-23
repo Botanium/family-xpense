@@ -20,6 +20,7 @@ import 'package:xpense_agent/household/household_service.dart';
 import 'package:xpense_agent/http/routes.dart';
 import 'package:xpense_agent/http/server_app.dart';
 import 'package:xpense_agent/jobs/account_visibility.dart';
+import 'package:xpense_agent/runtime/agent.dart';
 import 'package:xpense_agent/telemetry/usage_counters.dart';
 
 /// The assembled service.
@@ -31,6 +32,7 @@ final class XpenseServer {
     required this.config,
     required this.usage,
     required this.classifier,
+    this.agent,
   });
 
   /// Builds the service for [role] on [ai] and [gateway].
@@ -38,6 +40,10 @@ final class XpenseServer {
   /// [classifier] builds the `/decide` classifier from the config loader and
   /// the usage counters; without it (tests, a server with no Gemini key)
   /// `/decide` answers `{unavailable: true}`.
+  ///
+  /// [agent] builds the agent runtime (WP-32) from the same classifier,
+  /// config loader and usage counters; without it `/v1/agent` is not
+  /// served.
   factory create({
     required XpenseRole role,
     required Genkit ai,
@@ -46,6 +52,12 @@ final class XpenseServer {
     Clock? clock,
     EntryClassifier Function(RuntimeConfigLoader config, UsageCounters usage)?
     classifier,
+    XpenseAgentRuntime Function(
+      EntryClassifier classifier,
+      RuntimeConfigLoader config,
+      UsageCounters usage,
+    )?
+    agent,
   }) {
     final members = MemberDirectory(gateway.documents, clock: clock);
     final config = RuntimeConfigLoader(gateway.documents, clock: clock);
@@ -62,6 +74,7 @@ final class XpenseServer {
     final entryClassifier =
         classifier?.call(config, usage) ?? FakeEntryClassifier();
     final decide = defineDecideFlow(ai, entryClassifier);
+    final agentRuntime = agent?.call(entryClassifier, config, usage);
     final visibility = AccountVisibilityJob(gateway.documents, clock: clock);
     final household = HouseholdService(
       gateway.documents,
@@ -81,6 +94,7 @@ final class XpenseServer {
           members,
           afterJoin: visibility.syncAfterJoin,
         ),
+        agent: agentRuntime,
       ),
       jobs: buildJobsRouter(),
       events: {accountVisibilityPath: accountVisibilityHandler(visibility)},
@@ -93,6 +107,7 @@ final class XpenseServer {
       config: config,
       usage: usage,
       classifier: entryClassifier,
+      agent: agentRuntime,
     );
   }
 
@@ -113,4 +128,7 @@ final class XpenseServer {
 
   /// The `/decide` classifier, for the agent's `prepareEntries` (WP-32).
   final EntryClassifier classifier;
+
+  /// The agent runtime, when served.
+  final XpenseAgentRuntime? agent;
 }

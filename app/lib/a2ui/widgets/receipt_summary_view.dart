@@ -101,7 +101,12 @@ class _ReceiptSummaryViewState extends State<ReceiptSummaryView>
     widget.onDraftsChanged!([
       for (final d in widget.drafts)
         if (d is Map)
-          withField(Map<String, Object?>.from(d), 'accountId', accountId)
+          withField(
+            Map<String, Object?>.from(d),
+            'accountId',
+            accountId,
+            household: _scope.actions.household,
+          )
         else
           d,
     ]);
