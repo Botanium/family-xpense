@@ -30,15 +30,21 @@ const _a2uiMime = 'application/a2ui+json';
 
 /// Media and what the agent showed of it, for one turn.
 final class TurnEvidence {
-  /// Creates empty evidence; [mediaTurn] says the member's message carries
-  /// audio or an image.
-  new({this.mediaTurn = false});
+  /// Creates empty evidence; [mediaTurn] says a member message of the
+  /// session carries audio or an image, [latestMedia] that the latest one
+  /// does.
+  new({this.mediaTurn = false, bool? latestMedia})
+    : latestMedia = latestMedia ?? mediaTurn;
 
   /// The evidence of the running turn, or null outside one.
   static TurnEvidence? get current => Zone.current[_zoneKey] as TurnEvidence?;
 
-  /// Whether the member's message of this turn carries audio or an image.
+  /// Whether a member message of the session carries audio or an image.
   final bool mediaTurn;
+
+  /// Whether the latest member message carries audio or an image: its
+  /// transcript, not earlier typed text, is then the latest member words.
+  final bool latestMedia;
 
   /// Texts shown to the member this turn: transcripts, and the figures of
   /// a receipt written as words the fast parser reads ("12.50 dollars").

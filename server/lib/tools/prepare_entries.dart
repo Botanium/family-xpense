@@ -86,8 +86,13 @@ Future<PrepareEntriesOutput> prepareEntries(
       ...parseText(text, plain).amounts,
   ]);
   // The member's words: typed text, and what they said in a voice note
-  // as the agent showed it back (the transcript).
-  final words = [...texts, ...?evidence?.transcripts];
+  // as the agent showed it back (the transcript). The latest member
+  // message comes last (`_memberText` falls back to it): this turn's
+  // transcript after a voice note, the typed text after a typed message.
+  final transcripts = evidence?.transcripts ?? const <String>[];
+  final words = (evidence?.latestMedia ?? false)
+      ? [...texts, ...transcripts]
+      : [...transcripts, ...texts];
 
   final builders = [
     for (final (i, e) in entries.indexed)
@@ -489,9 +494,13 @@ final class _DraftBuilder {
     ];
   }
 
+  /// The category kind this entry's intent takes.
+  String get _categoryKind =>
+      intent == CaptureIntent.income ? 'income' : 'expense';
+
   HouseholdCategory? _matchCategory(String? hint) {
     if (hint == null || hint.trim().isEmpty) return null;
-    final kind = intent == CaptureIntent.income ? 'income' : 'expense';
+    final kind = _categoryKind;
     final h = _norm(hint).replaceAll(' ', '_');
     final candidates = [
       for (final c in snap.activeCategories)
@@ -651,10 +660,13 @@ final class _DraftBuilder {
       final c = snap.activeCategory(
         pick(answer.category, 'categoryId', 'category'),
       );
-      if (c != null) {
+      // The classifier's question lists both kinds: an income category on
+      // an expense (or the reverse) is not an answer, so it stays asked.
+      if (c != null && c.kind == _categoryKind) {
         categoryId = c.id;
       } else {
         guessed.remove('categoryId');
+        if (c != null) confidence.remove('category');
       }
     }
     if (who == null) {

@@ -398,6 +398,24 @@ void main() {
     });
   });
 
+  // PR #30 review: the classifier's category question lists both kinds.
+  test('a classified category of the other kind stays asked', () async {
+    final out = await prepare(
+      ProposedEntry(intent: 'expense', amount: '20', text: 'spent 20'),
+      'spent 20',
+      classifier: FakeEntryClassifier.always(
+        DecideResponse(
+          account: ChoiceAnswer(choice: 'acc_chk', confidence: 0.95),
+          category: ChoiceAnswer(choice: 'salary', confidence: 0.95),
+        ),
+      ),
+    );
+    final d = out.drafts.single;
+    expect(d.categoryId, isNull);
+    expect(d.missing, contains('categoryId'));
+    expect(d.confidence?.category, isNull);
+  });
+
   group('written ISO dates (PR #30 review)', () {
     test('an ISO date in the date words or the text is kept', () async {
       final viaWords = await prepare(

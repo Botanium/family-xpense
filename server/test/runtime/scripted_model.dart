@@ -17,8 +17,9 @@ final class Script {
   /// clear it between turns.
   String? before;
 
-  /// The entries passed to `prepareEntries`.
-  final List<Map<String, Object?>> entries;
+  /// The entries passed to `prepareEntries`; a test may change them
+  /// between turns.
+  List<Map<String, Object?>> entries;
 
   /// The render after the tool answered.
   final Render render;

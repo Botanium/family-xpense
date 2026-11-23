@@ -175,6 +175,8 @@ final class HouseholdContextMiddleware extends GenerateMiddleware {
     TurnEvidence fresh() {
       final evidence = TurnEvidence(
         mediaTurn: users.any((m) => TurnEvidence.hasMedia(m.toJson())),
+        latestMedia:
+            users.isNotEmpty && TurnEvidence.hasMedia(users.last.toJson()),
       );
       for (final m in envelope.request.messages) {
         if (m.role != Role.model) continue;

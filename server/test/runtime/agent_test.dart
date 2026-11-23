@@ -236,6 +236,46 @@ void main() {
       expect(d['missing'] ?? const <Object?>[], isNot(contains('amountMinor')));
     });
 
+    // PR #30 review: the typed correction is the latest member message,
+    // so it is what a paraphrased entry falls back to.
+    test('a typed correction after a voice note keeps its date', () async {
+      final lite = Script(
+        entries: generator,
+        before:
+            '<a2ui>\nsurface("tr_1")\n'
+            'root = Transcript("Paid the generator 50 dollars")\n</a2ui>',
+        render: scriptedCapture,
+      );
+      final (:rt, ai: _, turns: _) = await _runtime(lite: lite);
+      final first = await rt.agent.chat().send(
+        message: audio,
+        context: demoContext,
+      );
+      lite
+        ..before = null
+        ..entries = const [
+          {
+            'intent': 'expense',
+            'amount': '50',
+            'currency': 'USD',
+            // A paraphrase, not a span of any one message.
+            'text': 'paid the generator 50 dollars yesterday',
+            'dateWords': 'yesterday',
+          },
+        ];
+      final chat = await rt.agent.loadChat(
+        snapshotId: first.snapshotId,
+        context: demoContext,
+      );
+      final res = await chat.send(
+        text: 'actually, that was yesterday',
+        context: demoContext,
+      );
+      final d = _draftsOf(_creates(turnSummary(res.message)).single).single;
+      expect(d['occurredOn'], '2026-11-21');
+      expect(d['amountMinor'], 5000);
+    });
+
     test('an amount not shown to the member must be confirmed', () async {
       final lite = Script(entries: generator, render: scriptedCapture);
       final (:rt, ai: _, turns: _) = await _runtime(lite: lite);
