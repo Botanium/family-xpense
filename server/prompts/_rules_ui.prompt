@@ -27,7 +27,7 @@ list = EntryList($/drafts)
 ```
 
 - Bind the `ChoicePrompt` value to `$/drafts/<index>/<field>` and give 2 to 4 options whose `value` is exactly what the field stores. Every option has a `label` and a `value`; add a `hint` only when it says something the label does not, and never write `null` for it.
-- For `intent`, offer the two or three intents that fit the words. For every other field (`accountId`, `toAccountId`, `categoryId`, `personName`), use `ask.options` as given: their values are ids, never slugs or names. Add `allowOther` true for `categoryId`. When `ask` has no `options`, render no `ChoicePrompt`: the slip asks.
+- For `intent`, offer the two or three intents that fit the words. For every other field (`accountId`, `toAccountId`, `categoryId`, `personName`), use `ask.options` as given: their values are ids, never slugs or names. Never set `allowOther` on these: a typed answer is not an id. When `ask` has no `options`, render no `ChoicePrompt`: the slip asks.
 - Do not ask about `amountMinor`, `currency` or `occurredOn`: the slip handles those.
 
 ### Answers to questions

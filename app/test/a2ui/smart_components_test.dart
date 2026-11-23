@@ -434,6 +434,65 @@ void main() {
       expect(_enabled(tester, 'Save'), isTrue);
     });
 
+    // PR #30 review: a typed "Other…" answer is not a category id.
+    _test('an id field takes no free-text answer', (tester) async {
+      final (:host, :actions, :sent) = hostWith([
+        {
+          'version': '1.0',
+          'createSurface': {
+            'surfaceId': 'cap_cat',
+            'catalogId': xpenseCatalogId,
+            'sendDataModel': false,
+            'components': [
+              {
+                'id': 'root',
+                'component': 'Column',
+                'children': ['ask', 'intent'],
+              },
+              {
+                'id': 'ask',
+                'component': 'ChoicePrompt',
+                'question': 'Which category?',
+                'options': [
+                  {'label': 'Groceries', 'value': 'groceries'},
+                  {'label': 'Dining out', 'value': 'dining'},
+                ],
+                'value': {'@path': '/drafts/0/categoryId'},
+                'allowOther': true,
+              },
+              {
+                'id': 'intent',
+                'component': 'ChoicePrompt',
+                'question': 'What kind?',
+                'options': [
+                  {'label': 'Expense', 'value': 'expense'},
+                  {'label': 'Income', 'value': 'income'},
+                ],
+                'value': {'@path': '/drafts/0/intent'},
+                'allowOther': true,
+              },
+            ],
+            'dataModel': {
+              'drafts': [
+                {
+                  'id': 'd1',
+                  'intent': 'expense',
+                  'amountMinor': 4500,
+                  'currency': 'USD',
+                  'accountId': 'acc_chk',
+                  'occurredOn': '2026-11-22',
+                  'missing': ['categoryId'],
+                },
+              ],
+            },
+          },
+        },
+      ]);
+      await pumpThread(tester, host);
+      // Only the intent question keeps its "Other…" answer.
+      expect(find.byKey(const ValueKey('choice_other')), findsOneWidget);
+    });
+
     _test("today's rate is asked inline and saved for the household", (
       tester,
     ) async {

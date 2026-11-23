@@ -63,12 +63,15 @@ final class TurnEvidence {
   }
 
   /// Records the `Transcript` texts and `ReceiptSummary` receipts in
-  /// [parts] (a model response's content, JSON form, after `outputGuard`).
+  /// [parts] (a model response's content, JSON form, after `outputGuard`,
+  /// or an earlier model message of the session).
   void recordShown(List<Map<String, dynamic>> parts) {
     for (final part in parts) {
       final metadata = part['metadata'];
       final data = part['data'];
-      if (metadata is! Map || metadata['mimeType'] != _a2uiMime) continue;
+      // A session's history keeps the A2UI messages but not the part's
+      // metadata; a part marked as something else is skipped.
+      if (metadata is Map && metadata['mimeType'] != _a2uiMime) continue;
       if (data is! Map || data['messages'] is! List) continue;
       for (final m in data['messages'] as List) {
         if (m is! Map) continue;

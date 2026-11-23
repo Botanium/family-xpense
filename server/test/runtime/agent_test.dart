@@ -207,6 +207,35 @@ void main() {
       expect(d['missing'] ?? const <Object?>[], isNot(contains('amountMinor')));
     });
 
+    // PR #30 review: a typed correction after a voice note rebuilds the
+    // drafts; the amount shown in the earlier turn still backs them.
+    test('a typed correction keeps the amount shown earlier', () async {
+      final lite = Script(
+        entries: generator,
+        before:
+            '<a2ui>\nsurface("tr_1")\n'
+            'root = Transcript("Paid the generator 50 dollars")\n</a2ui>',
+        render: scriptedCapture,
+      );
+      final (:rt, ai: _, turns: _) = await _runtime(lite: lite);
+      final first = await rt.agent.chat().send(
+        message: audio,
+        context: demoContext,
+      );
+      lite.before = null;
+      final chat = await rt.agent.loadChat(
+        snapshotId: first.snapshotId,
+        context: demoContext,
+      );
+      final res = await chat.send(
+        text: 'actually, that was yesterday',
+        context: demoContext,
+      );
+      final d = _draftsOf(_creates(turnSummary(res.message)).single).single;
+      expect(d['amountMinor'], 5000);
+      expect(d['missing'] ?? const <Object?>[], isNot(contains('amountMinor')));
+    });
+
     test('an amount not shown to the member must be confirmed', () async {
       final lite = Script(entries: generator, render: scriptedCapture);
       final (:rt, ai: _, turns: _) = await _runtime(lite: lite);

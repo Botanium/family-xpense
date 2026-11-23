@@ -168,9 +168,21 @@ final class HouseholdContextMiddleware extends GenerateMiddleware {
     _stats
       ..images = media.images
       ..audioSeconds = media.audioSeconds;
-    TurnEvidence fresh() => TurnEvidence(
-      mediaTurn: users.isNotEmpty && TurnEvidence.hasMedia(users.last.toJson()),
-    );
+    // A correction turn after a voice note or a receipt rebuilds the whole
+    // draft set, so what earlier turns of the session showed still backs
+    // their amounts: the session keeps those model messages as they left
+    // outputGuard, so the acceptance rule is the same.
+    TurnEvidence fresh() {
+      final evidence = TurnEvidence(
+        mediaTurn: users.any((m) => TurnEvidence.hasMedia(m.toJson())),
+      );
+      for (final m in envelope.request.messages) {
+        if (m.role != Role.model) continue;
+        evidence.recordShown([for (final p in m.content) p.toJson()]);
+      }
+      return evidence;
+    }
+
     var result = await fresh().run(
       () => next(_withModel(envelope, primary), ctx),
     );

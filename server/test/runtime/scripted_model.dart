@@ -13,8 +13,9 @@ final class Script {
   new({required this.entries, required this.render, this.before});
 
   /// Text sent with the tool request on the first call (for example a
-  /// `<a2ui>` Transcript block shown before preparing entries).
-  final String? before;
+  /// `<a2ui>` Transcript block shown before preparing entries); a test may
+  /// clear it between turns.
+  String? before;
 
   /// The entries passed to `prepareEntries`.
   final List<Map<String, Object?>> entries;

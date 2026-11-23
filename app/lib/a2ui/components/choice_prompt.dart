@@ -13,6 +13,16 @@ final RegExp _draftField = RegExp(r'^/drafts/(\d+)/(\w+)$');
 /// Draft keys a pick may change besides the bound field: the answered
 /// field leaves `missing` and `guessed`; an account settles a guessed
 /// currency and its amount; a person's id sets `personId` and the name.
+/// Draft fields that hold an id: a typed "Other…" answer would be a name
+/// the household does not know, so they take only the offered options (the
+/// slip's own picker lists every choice).
+const Set<String> _idFields = {
+  'accountId',
+  'toAccountId',
+  'categoryId',
+  'personName',
+};
+
 const List<String> _derived = [
   'missing',
   'guessed',
@@ -76,7 +86,9 @@ final ComponentImplementation choicePromptComponent = ComponentImplementation(
             ),
       ],
       selected: unanswered ? null : props.string('value'),
-      allowOther: props.boolean('allowOther') ?? false,
+      allowOther:
+          (props.boolean('allowOther') ?? false) &&
+          !_idFields.contains(asked?[2]),
       onPick: binding == null
           ? null
           : (value) {
