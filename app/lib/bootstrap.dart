@@ -29,7 +29,11 @@ import 'package:xpense_app/data/read/activity_reader_firestore.dart';
 import 'package:xpense_app/data/read/activity_reader_memory.dart';
 import 'package:xpense_app/data/read/entry_reader.dart';
 import 'package:xpense_app/data/read/firestore_entry_reader.dart';
+import 'package:xpense_app/data/read/home_reader.dart';
+import 'package:xpense_app/data/read/home_reader_firebase.dart';
+import 'package:xpense_app/data/read/home_reader_memory.dart';
 import 'package:xpense_app/data/read/memory_entry_reader.dart';
+import 'package:xpense_app/data/read/sample_month_fake.dart';
 import 'package:xpense_app/data/transactions_repository.dart';
 import 'package:xpense_app/data/write/firestore_ledger_store.dart';
 import 'package:xpense_app/data/write/ledger_store.dart';
@@ -258,7 +262,9 @@ Future<TransactionsRepository> connectTransactions(
   AppEnvironment environment, {
   required HouseholdRepository households,
 }) async {
-  if (environment == AppEnvironment.fakes) return memoryTransactions();
+  if (environment == AppEnvironment.fakes) {
+    return memoryTransactions(sampleMonth: DateTime.now());
+  }
   // Firestore is already pointed at the emulator by connectHouseholds.
   final repository = LedgerTransactionsRepository(
     FirestoreLedgerStore.connect(
@@ -287,50 +293,25 @@ Future<TransactionsRepository> connectTransactions(
   return repository;
 }
 
-/// The read side (WP-21) for [environment], following [households]. In
-/// `fakes` use [memoryLedger], whose reader shares the write path's store.
+/// Entry detail's reader (WP-21) over Firestore, following [households].
+/// The fakes build reads the memory write path's store instead
+/// ([memoryEntryReaderFor]).
 EntryReader connectEntryReader(
   AppEnvironment environment, {
   required HouseholdRepository households,
-}) => switch (environment) {
-  AppEnvironment.fakes => memoryLedger().reader,
-  // Firestore is already pointed at the emulator by connectHouseholds.
-  AppEnvironment.dev ||
-  AppEnvironment.prod ||
-  AppEnvironment.emulators => FirestoreEntryReader.connect(
-    auth: FirebaseAuth.instance,
-    firestore: FirebaseFirestore.instance,
-    households: households,
-  ),
-};
+}) => FirestoreEntryReader.connect(
+  auth: FirebaseAuth.instance,
+  firestore: FirebaseFirestore.instance,
+  households: households,
+);
 
 /// A write path in memory over the sample household's accounts
 /// (`FakeAccountsRepository.sample`), for the fakes build and tests. It
 /// carries an Activity reader over the same store (WP-22), so Activity
-/// shows every save, delete and undo at once.
-NotifyingTransactionsRepository memoryTransactions() =>
-    memoryLedger().repository;
-
-/// The in-memory write path with both readers over its store: Activity's
-/// (carried by the repository, WP-22) and entry detail's (WP-21), so what
-/// is saved shows on both at once.
-({NotifyingTransactionsRepository repository, EntryReader reader})
-memoryLedger() {
-  final memory = _sampleLedgerStore();
-  final store = ObservedLedgerStore(memory);
-  return (
-    repository: NotifyingTransactionsRepository(
-      LedgerTransactionsRepository(store),
-      MemoryActivityReader(
-        read: () => memory.transactions,
-        viewerUid: FakeAccountsRepository.sampleViewer,
-      ),
-    ),
-    reader: MemoryEntryReader(store),
-  );
-}
-
-MemoryLedgerStore _sampleLedgerStore() {
+/// shows every save, delete and undo at once; Home reads the same store
+/// (WP-23, [memoryHomeReaderFor]). With [sampleMonth], the store holds a
+/// month of sample entries up to that day (the fakes build).
+NotifyingTransactionsRepository memoryTransactions({DateTime? sampleMonth}) {
   const viewer = FakeAccountsRepository.sampleViewer;
   final store = MemoryLedgerStore(
     scope: const LedgerScope(householdId: 'fake-household', uid: viewer),
@@ -351,7 +332,49 @@ MemoryLedgerStore _sampleLedgerStore() {
   for (final c in defaultCategories) {
     store.categories[c.slug] = LedgerCategory(id: c.slug, kind: c.kind.name);
   }
-  return store;
+  if (sampleMonth != null) seedSampleMonth(store, sampleMonth);
+  // Entry detail's reader hears of each commit through the observed store
+  // (WP-21); Activity's through the repository; Home reads the store.
+  final observed = ObservedLedgerStore(store);
+  final repository = NotifyingTransactionsRepository(
+    LedgerTransactionsRepository(observed),
+    MemoryActivityReader(read: () => store.transactions, viewerUid: viewer),
+  );
+  _memoryStores[repository] = store;
+  _observedStores[repository] = observed;
+  return repository;
+}
+
+/// The store behind each memory write path, for the readers that follow it.
+final Expando<MemoryLedgerStore> _memoryStores = Expando('memoryStores');
+
+/// The same store as seen through the write path's commits, for entry
+/// detail's reader.
+final Expando<ObservedLedgerStore> _observedStores = Expando('observedStores');
+
+/// Entry detail's reader in memory: over the store of the memory write
+/// path, so a save, edit, delete or restore shows at once; else one that
+/// finds nothing.
+EntryReader memoryEntryReaderFor(TransactionsRepository transactions) =>
+    MemoryEntryReader(
+      _observedStores[transactions] ??
+          ObservedLedgerStore(
+            MemoryLedgerStore(scope: null, householdInfo: null),
+          ),
+    );
+
+/// The store behind [transactions] when it is a memory write path made by
+/// [memoryTransactions], for tests that seed it; null otherwise.
+MemoryLedgerStore? memoryStoreOf(TransactionsRepository transactions) =>
+    _memoryStores[transactions];
+
+/// Home's reader in memory: over the store of the memory write path, so a
+/// save shows on Home at once, else an empty one.
+HomeReader memoryHomeReaderFor(TransactionsRepository transactions) {
+  final store = memoryStoreOf(transactions);
+  return store == null
+      ? const MemoryHomeReader.empty()
+      : MemoryHomeReader(store);
 }
 
 /// The Activity reader in memory: the one the memory write path carries,
@@ -467,12 +490,10 @@ Future<Bootstrapped> bootstrap({required AppEnvironment environment}) async {
   final auth = await connectAuth(environment);
   final households = connectHouseholds(environment, auth: auth);
   final accounts = connectAccounts(environment, households: households);
-  final memory = environment == AppEnvironment.fakes ? memoryLedger() : null;
-  final transactions =
-      memory?.repository ??
-      await connectTransactions(environment, households: households);
-  final entryReader =
-      memory?.reader ?? connectEntryReader(environment, households: households);
+  final transactions = await connectTransactions(
+    environment,
+    households: households,
+  );
   final flags = await connectFeatureFlags(environment);
   registerFontLicenses();
   final settings = await PrefsSettingsStore.open();
@@ -490,10 +511,19 @@ Future<Bootstrapped> bootstrap({required AppEnvironment environment}) async {
       householdRepository: households,
       accountsRepository: accounts,
       transactionsRepository: transactions,
-      entryReader: entryReader,
+      entryReader: environment == AppEnvironment.fakes
+          ? null
+          : connectEntryReader(environment, households: households),
       activityReader: environment == AppEnvironment.fakes
           ? null
           : FirestoreActivityReader.connect(households: households),
+      homeReader: environment == AppEnvironment.fakes
+          ? null
+          : FirebaseHomeReader(
+              auth: FirebaseAuth.instance,
+              firestore: FirebaseFirestore.instance,
+              households: households,
+            ),
       featureFlags: flags,
     ),
   );
@@ -516,6 +546,7 @@ List<Override> appOverrides({
   TransactionsRepository? transactionsRepository,
   EntryReader? entryReader,
   ActivityReader? activityReader,
+  HomeReader? homeReader,
   SecureStore? secureStore,
   FeatureFlagSource? featureFlags,
   AgentClient? agentClient,
@@ -523,42 +554,41 @@ List<Override> appOverrides({
   OnDeviceLlm? onDeviceLlm,
   SpeechCapture? speechCapture,
   OcrEngine? ocrEngine,
-}) {
-  // With neither given, the reader reads what the write path writes.
-  final memory = transactionsRepository == null && entryReader == null
-      ? memoryLedger()
-      : null;
-  return [
-    clockProvider.overrideWithValue(clock),
-    settingsStoreProvider.overrideWithValue(settings),
-    biometricLockProvider.overrideWithValue(biometricLock),
-    glassControllerProvider.overrideWithValue(glass),
-    authRepositoryProvider.overrideWithValue(authRepository),
-    householdRepositoryProvider.overrideWithValue(householdRepository),
-    accountsRepositoryProvider.overrideWithValue(accountsRepository),
-    transactionsRepositoryProvider.overrideWithValue(
-      transactionsRepository ?? memory?.repository ?? memoryTransactions(),
-    ),
-    entryReaderProvider.overrideWithValue(
-      entryReader ?? memory?.reader ?? memoryLedger().reader,
-    ),
-    activityReaderProvider.overrideWith(
-      (ref) =>
-          activityReader ??
-          memoryActivityReaderFor(ref.watch(transactionsRepositoryProvider)),
-    ),
-    secureStoreProvider.overrideWithValue(secureStore ?? MemorySecureStore()),
-    featureFlagSourceProvider.overrideWithValue(
-      featureFlags ?? FakeFeatureFlags(),
-    ),
-    agentClientProvider.overrideWithValue(agentClient ?? FakeAgentClient()),
-    decisionsClientProvider.overrideWithValue(
-      decisionsClient ?? FakeDecisionsClient(),
-    ),
-    onDeviceLlmProvider.overrideWithValue(onDeviceLlm ?? FakeOnDeviceLlm()),
-    speechCaptureProvider.overrideWithValue(
-      speechCapture ?? FakeSpeechCapture(),
-    ),
-    ocrEngineProvider.overrideWithValue(ocrEngine ?? FakeOcrEngine()),
-  ];
-}
+}) => [
+  clockProvider.overrideWithValue(clock),
+  settingsStoreProvider.overrideWithValue(settings),
+  biometricLockProvider.overrideWithValue(biometricLock),
+  glassControllerProvider.overrideWithValue(glass),
+  authRepositoryProvider.overrideWithValue(authRepository),
+  householdRepositoryProvider.overrideWithValue(householdRepository),
+  accountsRepositoryProvider.overrideWithValue(accountsRepository),
+  transactionsRepositoryProvider.overrideWithValue(
+    transactionsRepository ?? memoryTransactions(),
+  ),
+  entryReaderProvider.overrideWith(
+    (ref) =>
+        entryReader ??
+        memoryEntryReaderFor(ref.watch(transactionsRepositoryProvider)),
+  ),
+  activityReaderProvider.overrideWith(
+    (ref) =>
+        activityReader ??
+        memoryActivityReaderFor(ref.watch(transactionsRepositoryProvider)),
+  ),
+  homeReaderProvider.overrideWith(
+    (ref) =>
+        homeReader ??
+        memoryHomeReaderFor(ref.watch(transactionsRepositoryProvider)),
+  ),
+  secureStoreProvider.overrideWithValue(secureStore ?? MemorySecureStore()),
+  featureFlagSourceProvider.overrideWithValue(
+    featureFlags ?? FakeFeatureFlags(),
+  ),
+  agentClientProvider.overrideWithValue(agentClient ?? FakeAgentClient()),
+  decisionsClientProvider.overrideWithValue(
+    decisionsClient ?? FakeDecisionsClient(),
+  ),
+  onDeviceLlmProvider.overrideWithValue(onDeviceLlm ?? FakeOnDeviceLlm()),
+  speechCaptureProvider.overrideWithValue(speechCapture ?? FakeSpeechCapture()),
+  ocrEngineProvider.overrideWithValue(ocrEngine ?? FakeOcrEngine()),
+];

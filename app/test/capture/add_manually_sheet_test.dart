@@ -9,6 +9,10 @@ import 'package:xpense_shared/xpense_shared.dart';
 
 import 'ledger_app.dart';
 
+/// [finder] inside the sheet: Home behind it has its own "Income" (WP-23).
+Finder _inSheet(Finder finder) =>
+    find.descendant(of: find.byType(GlassSheet), matching: finder);
+
 Finder _amountInput([int index = 0]) => find
     .descendant(
       of: find.byType(AmountField),
@@ -76,7 +80,10 @@ void main() {
     await _tap(tester, find.text('Save expense'));
 
     expect(find.text('Add manually'), findsNothing);
-    expect(find.text('Saved'), findsOneWidget);
+    expect(
+      find.descendant(of: find.byType(UndoToast), matching: find.text('Saved')),
+      findsOneWidget,
+    );
     final [txn] = app.saved;
     expect(txn['type'], 'expense');
     expect(txn['amountMinor'], 4280);
@@ -97,7 +104,7 @@ void main() {
     final app = LedgerApp();
     await _openSheet(tester, app);
 
-    await _tap(tester, find.text('Income'));
+    await _tap(tester, _inSheet(find.text('Income')));
     expect(find.text('Food'), findsNothing);
     expect(find.text('Save income'), findsOneWidget);
     await tester.enterText(_amountInput(), '3200');
@@ -119,7 +126,7 @@ void main() {
     final app = LedgerApp();
     await _openSheet(tester, app);
 
-    await _tap(tester, find.text('Transfer'));
+    await _tap(tester, _inSheet(find.text('Transfer')));
     expect(find.text('Category'), findsNothing);
     expect(find.text('Who'), findsNothing);
     await tester.enterText(_amountInput(), '100');
@@ -143,7 +150,7 @@ void main() {
     final app = LedgerApp();
     await _openSheet(tester, app);
 
-    await _tap(tester, find.text('Transfer'));
+    await _tap(tester, _inSheet(find.text('Transfer')));
     await tester.enterText(_amountInput(), '5');
     await _pickAccount(tester, 'To', 'My checking ••1187');
     await _tap(tester, find.text('Save transfer'));
@@ -156,7 +163,7 @@ void main() {
     final app = LedgerApp();
     await _openSheet(tester, app);
 
-    await _tap(tester, find.text('Loan'));
+    await _tap(tester, _inSheet(find.text('Loan')));
     await _tap(tester, find.text('I lent'));
     await tester.enterText(_amountInput(), '300');
     await _tap(tester, find.text('Save loan'));
@@ -425,7 +432,7 @@ void main() {
       await _openSheet(tester, app);
       await tester.enterText(_amountInput(), '12');
       await _tap(tester, find.text('Food'));
-      await _tap(tester, find.text('Income'));
+      await _tap(tester, _inSheet(find.text('Income')));
       await _tap(tester, find.text('Save income'));
       expect(find.text('Choose a category.'), findsOneWidget);
       expect(app.saved, isEmpty);

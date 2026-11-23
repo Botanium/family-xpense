@@ -350,6 +350,7 @@ Notes for the implementer:
 |---|---|---|
 | transactions | `visibleTo` (array), `deletedAt`, `occurredAt` desc | Activity, Home recent |
 | transactions | `visibleTo` (array), `occurredOn` asc | month totals, daily chart |
+| transactions | `visibleTo` (array), `deletedAt`, `occurredOn` asc | Home month totals, daily chart (deleted entries left out by the query, so a delete still waiting for the server is not counted) |
 | transactions | `visibleTo` (array), `accountId`, `occurredAt` desc | account detail |
 | transactions | `visibleTo` (array), `categoryId`, `occurredOn` desc | category drill-down, budgets |
 | transactions | `visibleTo` (array), `type`, `occurredAt` desc | Activity filters |

@@ -4,6 +4,7 @@ import 'package:material_ui/material_ui.dart';
 import 'package:xpense_app/app.dart';
 import 'package:xpense_app/core/routing/routing.dart';
 import 'package:xpense_app/core/ui/ui.dart';
+import 'package:xpense_app/features/home/home_screen.dart';
 import 'package:xpense_app/features/settings_privacy/settings_screen.dart';
 
 import 'support/test_app.dart';
@@ -14,7 +15,7 @@ void main() {
   ) async {
     await pumpXpenseApp(tester, TestServices());
 
-    expect(find.text('HOME'), findsOneWidget);
+    expect(find.byType(HomeScreen), findsOneWidget);
     expect(find.byType(XpTabBar), findsOneWidget);
     for (final label in ['Home', 'Activity', 'Goals', 'Accounts']) {
       expect(find.bySemanticsLabel(label), findsOneWidget, reason: label);
@@ -26,15 +27,15 @@ void main() {
     final container = await pumpXpenseApp(tester, TestServices());
     final router = container.read(routerProvider);
 
-    for (final (label, title, path) in [
-      ('Activity', 'ACTIVITY', AppRoutes.activity),
-      ('Goals', 'GOALS', AppRoutes.goals),
-      ('Accounts', 'ACCOUNTS', AppRoutes.accounts),
-      ('Home', 'HOME', AppRoutes.home),
+    for (final (label, screen, path) in [
+      ('Activity', find.text('ACTIVITY'), AppRoutes.activity),
+      ('Goals', find.text('GOALS'), AppRoutes.goals),
+      ('Accounts', find.text('ACCOUNTS'), AppRoutes.accounts),
+      ('Home', find.byType(HomeScreen), AppRoutes.home),
     ]) {
       await tester.tap(find.bySemanticsLabel(label));
       await tester.pumpAndSettle();
-      expect(find.text(title), findsOneWidget, reason: label);
+      expect(screen, findsOneWidget, reason: label);
       expect(router.state.uri.path, path);
     }
   });

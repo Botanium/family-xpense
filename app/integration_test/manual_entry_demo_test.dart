@@ -21,6 +21,10 @@ import 'package:xpense_app/core/ui/ui.dart';
 import 'package:xpense_app/data/transactions_repository.dart';
 import 'package:xpense_shared/xpense_shared.dart';
 
+/// [finder] inside the sheet: Home behind it has its own "Income" (WP-23).
+Finder _inSheet(Finder finder) =>
+    find.descendant(of: find.byType(GlassSheet), matching: finder);
+
 Future<void> _hold(WidgetTester tester, int tenths) async {
   for (var i = 0; i < tenths; i++) {
     await tester.pump(const Duration(milliseconds: 100));
@@ -74,7 +78,13 @@ void main() {
     }
 
     Future<void> saved() async {
-      expect(find.text('Saved'), findsWidgets);
+      expect(
+        find.descendant(
+          of: find.byType(UndoToast),
+          matching: find.text('Saved'),
+        ),
+        findsWidgets,
+      );
       await _hold(tester, pace * 2);
     }
 
@@ -100,7 +110,7 @@ void main() {
     if (everyType) {
       // Income in dinars: the currency follows the account.
       await open();
-      await tap(find.text('Income'));
+      await tap(_inSheet(find.text('Income')));
       await tap(find.widgetWithText(XpDisclosure, 'Account'));
       await tap(find.text('Cash (IQD)').last);
       expect(find.text('IQD'), findsOneWidget);
@@ -119,7 +129,7 @@ void main() {
 
       // Transfer to the savings account.
       await open();
-      await tap(find.text('Transfer'));
+      await tap(_inSheet(find.text('Transfer')));
       await type(_amount(), '100');
       await tap(find.widgetWithText(XpDisclosure, 'To'));
       await tap(find.text('Summer trip').last);
@@ -129,7 +139,7 @@ void main() {
 
     // Loan: a missing person is named next to the field.
     await open();
-    await tap(find.text('Loan'));
+    await tap(_inSheet(find.text('Loan')));
     await type(_amount(), '300');
     await tap(find.text('Save'));
     expect(find.text("Add who it's with."), findsOneWidget);

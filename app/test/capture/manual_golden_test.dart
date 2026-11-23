@@ -9,6 +9,10 @@ import 'package:xpense_app/services/settings_store.dart';
 import '../ui/ui_harness.dart';
 import 'ledger_app.dart';
 
+/// [finder] inside the sheet: Home behind it has its own "Income" (WP-23).
+Finder _inSheet(Finder finder) =>
+    find.descendant(of: find.byType(GlassSheet), matching: finder);
+
 void main() {
   setUpAll(loadSignalFonts);
 
@@ -49,7 +53,7 @@ void main() {
         final app = LedgerApp(appearance: appearance);
         final container = await app.pump(tester);
         await pushTo(tester, container, AppRoutes.addEntry);
-        await tester.tap(find.text('Loan'));
+        await tester.tap(_inSheet(find.text('Loan')));
         await tester.pumpAndSettle();
         await tester.tap(find.text('Save loan'));
         await tester.pumpAndSettle();
