@@ -108,9 +108,20 @@ final class MemoryFxRepository implements FxRepository {
     );
   }
 
-  Stream<T> _watch<T>(T Function() read) async* {
-    yield read();
-    yield* _changes.stream.map((_) => read());
+  /// [read]'s value now and after every change. It hears of changes from
+  /// the moment it is listened to, so a change made right after the first
+  /// value is never missed.
+  Stream<T> _watch<T>(T Function() read) {
+    late final StreamController<T> controller;
+    StreamSubscription<void>? changes;
+    controller = StreamController<T>(
+      onListen: () {
+        changes = _changes.stream.listen((_) => controller.add(read()));
+        controller.add(read());
+      },
+      onCancel: () => changes?.cancel(),
+    );
+    return controller.stream;
   }
 
   @override

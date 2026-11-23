@@ -10,6 +10,7 @@ import 'package:xpense_app/data/accounts_repository.dart';
 import 'package:xpense_app/data/household_repository.dart';
 import 'package:xpense_app/data/transactions_repository.dart';
 import 'package:xpense_app/features/capture/manual/category_chips.dart';
+import 'package:xpense_app/features/capture/manual/inline_rate_ask.dart';
 import 'package:xpense_app/features/capture/manual/manual_entry.dart';
 import 'package:xpense_app/features/capture/manual/manual_labels.dart';
 import 'package:xpense_app/services/clock.dart';
@@ -257,6 +258,24 @@ class AddManuallyFormState extends ConsumerState<AddManuallyForm> {
     };
     return all.where((a) => !a.archived || used.contains(a.id)).toList()
       ..sort((a, b) => a.order.compareTo(b.order));
+  }
+
+  /// The day whose rate the form asks for inline (WP-24): today, for a
+  /// new entry dated today that converts between currencies. An edit keeps
+  /// the rate it was saved with; the write path's own rate field covers a
+  /// household with no rate at all.
+  String? _rateAskDay(
+    ManualEntryValues values,
+    Currency currency,
+    bool crossCurrency,
+  ) {
+    if (_editing || _values.rateAsked) return null;
+    final today = manualDay(ref.read(clockProvider).now());
+    if (values.occurredOn != today) return null;
+    final converts =
+        currency != _base() ||
+        (crossCurrency && values.toAmountText.trim().isEmpty);
+    return converts ? today : null;
   }
 
   Currency _base() => switch (ref.read(membershipProvider).value) {
@@ -636,6 +655,13 @@ class AddManuallyFormState extends ConsumerState<AddManuallyForm> {
               ),
             ),
             _FieldError(error(ManualField.amount)),
+            // WP-24: today's rate, asked inline while nobody has entered
+            // it; skippable.
+            if (_rateAskDay(values, currency, crossCurrency) case final day?)
+              if (inlineRateAskFor(ref, day) case final latest?) ...[
+                const SizedBox(height: XpSpace.s12),
+                InlineRateAsk(day: day, latest: latest),
+              ],
             if (_values.rateAsked) ...[
               const SizedBox(height: XpSpace.s16),
               anchor(

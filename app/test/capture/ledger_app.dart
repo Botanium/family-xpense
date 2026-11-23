@@ -7,6 +7,7 @@ import 'package:xpense_app/app.dart';
 import 'package:xpense_app/bootstrap.dart';
 import 'package:xpense_app/data/accounts_repository.dart';
 import 'package:xpense_app/data/accounts_repository_fake.dart';
+import 'package:xpense_app/data/fx_repository_fake.dart';
 import 'package:xpense_app/data/read/entry_reader.dart';
 import 'package:xpense_app/data/read/memory_entry_reader.dart';
 import 'package:xpense_app/data/transactions_repository.dart';
@@ -70,6 +71,13 @@ final class LedgerApp {
     return LedgerApp._(
       services,
       memory,
+      // One fxRates collection: a rate answered in the app is the one the
+      // write path reads (WP-24).
+      MemoryFxRepository(
+        viewerUid: viewer,
+        ledger: memory,
+        clock: services.clock.clock,
+      ),
       LedgerTransactionsRepository(store),
       MemoryEntryReader(store),
       holdWrites,
@@ -80,6 +88,7 @@ final class LedgerApp {
   new _(
     this.services,
     this.memory,
+    this.fx,
     this.repository,
     this.reader, [
     this._holdWrites,
@@ -95,6 +104,9 @@ final class LedgerApp {
 
   /// The ledger, as the phone sees it.
   final MemoryLedgerStore memory;
+
+  /// The household's daily rates, kept in step with [memory].
+  final MemoryFxRepository fx;
 
   /// The write path.
   final LedgerTransactionsRepository repository;
@@ -115,6 +127,7 @@ final class LedgerApp {
       authRepository: services.auth,
       householdRepository: services.households,
       accountsRepository: services.accounts,
+      fxRepository: fx,
       transactionsRepository: _holdWrites == null
           ? repository
           : _HeldRepository(repository, _holdWrites),

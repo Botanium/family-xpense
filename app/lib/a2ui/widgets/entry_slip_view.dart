@@ -8,6 +8,7 @@ import 'package:xpense_app/a2ui/xpense_actions.dart';
 import 'package:xpense_app/core/l10n/l10n.dart';
 import 'package:xpense_app/core/theme/theme.dart';
 import 'package:xpense_app/core/ui/ui.dart';
+import 'package:xpense_app/data/fx_repository.dart';
 import 'package:xpense_shared/xpense_shared.dart';
 
 /// Chips shown before "More…" in a field picker.
@@ -212,22 +213,25 @@ class _EntrySlipViewState extends State<EntrySlipView> {
       if (mounted) widget.onRateSaved();
     }
 
-    void enter(String initial) => unawaited(
-      showGlassSheet<void>(
+    // The keypad; a rate more than 5% from the latest is confirmed first
+    // (WP-24, a typo guard).
+    Future<void> enter(String initial) async {
+      final previous = latest == null
+          ? null
+          : FxRate.forPair(FxPair.usdIqd, latest).valueOrNull;
+      final typed = await showRateEntry(
         context: context,
-        builder: (sheet) => RateChangeSheet(
-          title: l10n.a2uiRateTitle,
-          initial: initial,
-          unit: l10n.a2uiRateUnit,
-          saveLabel: l10n.a2uiRateSave,
-          backspaceLabel: l10n.a2uiRateBackspace,
-          onSave: (rate) {
-            Navigator.of(sheet).pop();
-            unawaited(save(rate));
-          },
-        ),
-      ),
-    );
+        labels: rateEntryLabelsOf(context, previous: latest),
+        initial: initial,
+        needsConfirm: previous == null
+            ? null
+            : (typed) => switch (FxRate.forPair(FxPair.usdIqd, typed)) {
+                Ok(:final value) => isRateJump(previous, value),
+                Err() => false,
+              },
+      );
+      if (typed != null) await save(typed);
+    }
 
     // The household's first rate: nothing to reuse, so the keypad opens
     // empty.
@@ -237,7 +241,10 @@ class _EntrySlipViewState extends State<EntrySlipView> {
           Expanded(
             child: Text(l10n.a2uiRateQuestion, style: XpType.of(context).body),
           ),
-          XpButton.text(label: l10n.a2uiRateEnter, onPressed: () => enter('')),
+          XpButton.text(
+            label: l10n.a2uiRateEnter,
+            onPressed: () => unawaited(enter('')),
+          ),
         ],
       );
     }
@@ -250,7 +257,7 @@ class _EntrySlipViewState extends State<EntrySlipView> {
       placement: RatePromptPlacement.inline,
       semanticLabel: l10n.a2uiRateSpoken(latest),
       onSame: () => unawaited(save(latest)),
-      onChange: () => enter(latest),
+      onChange: () => unawaited(enter(latest)),
     );
   }
 

@@ -11,6 +11,7 @@ import 'package:xpense_app/bootstrap.dart';
 import 'package:xpense_app/core/routing/routing.dart';
 import 'package:xpense_app/data/accounts_repository.dart';
 import 'package:xpense_app/data/accounts_repository_fake.dart';
+import 'package:xpense_app/data/fx_repository.dart';
 import 'package:xpense_app/data/household_repository.dart';
 import 'package:xpense_app/data/household_repository_fake.dart';
 import 'package:xpense_app/data/rules_repository.dart';
@@ -25,6 +26,7 @@ import '../support/test_app.dart';
 void main() {
   _firstRateTest();
   _fakesShareTheLedgerTests();
+  _rateEnteredTodayTests();
 
   test('accounts, partner, base currency and rate come from the app', () {
     final h = xpenseHouseholdFrom(
@@ -267,6 +269,15 @@ void _fakesShareTheLedgerTests() {
     for (var i = 0; i < 20; i++) {
       await tester.pump(const Duration(milliseconds: 100));
     }
+    // 1,800 is more than 5% from 1,705: confirmed first (WP-24).
+    expect(
+      find.text('1,800 is more than 5% away from 1,705. Is it right?'),
+      findsOneWidget,
+    );
+    await tester.tap(find.text('Save 1,800'));
+    for (var i = 0; i < 20; i++) {
+      await tester.pump(const Duration(milliseconds: 100));
+    }
     await tester.tap(find.text('Save'));
     for (var i = 0; i < 20; i++) {
       await tester.pump(const Duration(milliseconds: 100));
@@ -276,5 +287,32 @@ void _fakesShareTheLedgerTests() {
     final saved = store.transactions.values.single;
     expect((saved['fx']! as Map)['pairRate'], '1800');
     expect(saved['baseAmountMinor'], 1000);
+  });
+}
+
+void _rateEnteredTodayTests() {
+  test("a slip asks for today's rate until anyone in the household enters "
+      'it (WP-24)', () async {
+    final accounts = FakeAccountsRepository.sample();
+    final services = TestServices(accounts: accounts);
+    final container = services.container();
+    final household = container.listen(askHouseholdProvider, (_, _) {});
+    await container.read(fxRatesProvider.future);
+    await container.read(accountsProvider.future);
+    // The sample's rate is from yesterday: today's is still to be asked.
+    expect(household.read().rateEnteredToday, isFalse);
+    expect(household.read().latestRate, '1705');
+
+    // The partner answers on their phone.
+    accounts.fx.put(
+      DailyRate(
+        day: householdDay(services.clock.now),
+        rate: FxRate.forPair(FxPair.usdIqd, '1710').valueOrNull!,
+        enteredBy: FakeAccountsRepository.samplePartner,
+      ),
+    );
+    await Future<void>.delayed(Duration.zero);
+    expect(household.read().rateEnteredToday, isTrue);
+    expect(household.read().latestRate, '1710');
   });
 }
