@@ -416,6 +416,80 @@ void main() {
     expect(d.confidence?.category, isNull);
   });
 
+  // PR #30 review: a transfer never leaves from the account it goes to.
+  group('no self-transfers (PR #30 review)', () {
+    // The member wrote the destination; the source is not settled.
+    final toChecking = ProposedEntry(
+      intent: 'transfer',
+      amount: '100',
+      currency: 'USD',
+      text: 'moved 100 dollars to checking',
+      toAccountHint: 'checking',
+    );
+    const text = 'moved 100 dollars to checking';
+
+    test("the classifier's source is not the destination", () async {
+      final out = await prepare(
+        toChecking,
+        text,
+        classifier: FakeEntryClassifier.always(
+          DecideResponse(
+            account: ChoiceAnswer(
+              choice: 'acc_chk',
+              probabilities: {'acc_chk': 0.95, 'acc_visa': 0.05},
+              confidence: 0.95,
+            ),
+          ),
+        ),
+      );
+      final d = out.drafts.single;
+      expect(d.toAccountId, 'acc_chk');
+      expect(d.accountId, isNull);
+      expect(d.missing, contains('accountId'));
+      expect(out.ask?.field, 'accountId');
+      expect(out.ask?.options?.map((o) => o.value), isNot(contains('acc_chk')));
+    });
+
+    test("the model's source hint is not the destination", () async {
+      final out = await prepare(
+        ProposedEntry(
+          intent: 'transfer',
+          amount: '100',
+          currency: 'USD',
+          text: text,
+          toAccountHint: 'checking',
+          // Matches Checking, but the member did not write it.
+          accountHint: 'household checking',
+        ),
+        text,
+      );
+      final d = out.drafts.single;
+      expect(d.toAccountId, 'acc_chk');
+      expect(d.accountId, isNull);
+    });
+
+    test('nor the destination the source', () async {
+      final out = await prepare(
+        ProposedEntry(
+          intent: 'transfer',
+          amount: '100',
+          currency: 'USD',
+          text: 'moved 100 dollars from checking',
+          accountHint: 'checking',
+        ),
+        'moved 100 dollars from checking',
+        classifier: FakeEntryClassifier.always(
+          DecideResponse(
+            toAccount: ChoiceAnswer(choice: 'acc_chk', confidence: 0.95),
+          ),
+        ),
+      );
+      final d = out.drafts.single;
+      expect(d.accountId, 'acc_chk');
+      expect(d.toAccountId, isNull);
+    });
+  });
+
   group('written ISO dates (PR #30 review)', () {
     test('an ISO date in the date words or the text is kept', () async {
       final viaWords = await prepare(

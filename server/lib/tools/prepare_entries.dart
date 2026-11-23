@@ -537,6 +537,7 @@ final class _DraftBuilder {
     if (accountId == null &&
         modelAccount != null &&
         !accountScored &&
+        modelAccount!.id != toAccountId &&
         (currency == null || _followAccountCurrency(modelAccount!))) {
       accountId = modelAccount!.id;
       guessed.add('accountId');
@@ -637,8 +638,10 @@ final class _DraftBuilder {
       final id = pick(answer.account, 'accountId', 'account');
       final account = snap.activeAccount(id);
       // An account holds only its own currency: a guessed currency follows
-      // the account; a written one rules the account out.
+      // the account; a written one rules the account out. A transfer never
+      // leaves from the account it goes to.
       if (account != null &&
+          account.id != toAccountId &&
           (currency == null || _followAccountCurrency(account))) {
         accountId = account.id;
       } else {
@@ -909,11 +912,13 @@ FollowUp? _firstFollowUp(
       // and currency are settled together (the slip then shows the
       // currency to confirm, as `_followAccountCurrency` does for the
       // classifier's choice).
+      // Never the transfer's destination.
       'accountId' => [
         for (final a in ranked)
-          if (!builders[i].currencyFromWords ||
-              d.currency == null ||
-              a.currency == d.currency)
+          if ((!builders[i].currencyFromWords ||
+                  d.currency == null ||
+                  a.currency == d.currency) &&
+              a.id != d.toAccountId)
             FollowUpOption(label: a.name, value: a.id),
       ],
       // A transfer may arrive in another currency (`toAmountMinor`,
