@@ -7,6 +7,7 @@ import 'package:flutter/foundation.dart';
 import 'package:xpense_app/data/mappers/transaction_mapper.dart';
 import 'package:xpense_app/data/transactions_repository.dart';
 import 'package:xpense_app/data/write/ledger_store.dart';
+import 'package:xpense_app/services/write_journal.dart';
 import 'package:xpense_shared/xpense_shared.dart';
 
 /// Entries a delete or undo writes per batch. Each revision costs the
@@ -15,10 +16,14 @@ const int maxRevisionsPerBatch = 8;
 
 /// [TransactionsRepository] over [LedgerStore].
 final class LedgerTransactionsRepository implements TransactionsRepository {
-  /// Creates the repository.
-  new(this._store);
+  /// Creates the repository. [journal] keeps queued edits, deletes and
+  /// restores across app restarts (see [resumePending]); without one they
+  /// are kept in memory only.
+  new(this._store, {WriteJournal? journal})
+    : _journal = journal ?? MemoryWriteJournal();
 
   final LedgerStore _store;
+  final WriteJournal _journal;
   final StreamController<LateWriteFailure> _late =
       StreamController<LateWriteFailure>.broadcast();
 
@@ -109,35 +114,70 @@ final class LedgerTransactionsRepository implements TransactionsRepository {
     String txnId,
     EntryDraft draft, {
     EntryExtras extras = const EntryExtras(),
-  }) => _revise(txnId, (prev, scope, household) async {
-    if (prev.deleted) return const Err(TransactionDeleted());
-    final resolved = await _resolve(
-      draft,
-      scope: scope,
-      household: household,
-      extras: extras,
-      source: prev.source,
-      groupId: prev.groupId,
-      previous: prev,
-    );
-    return switch (resolved) {
-      Err(:final failure) => Err(failure),
-      Ok(value: final next) => Ok(_editOf(prev, next)),
-    };
-  });
+  }) => _revise(txnId, _EditOp(draft.toJson(), extras));
 
   @override
   Future<Result<WriteAck, TransactionsFailure>> deleteEntry(
     String txnId, {
     DeleteReason reason = DeleteReason.delete,
-  }) => _revise(txnId, (prev, _, _) async {
-    if (prev.deleted) return const Err(TransactionDeleted());
-    return Ok(_deletionOf(prev, reason));
-  });
+  }) => _revise(txnId, _DeleteOp(reason));
 
   @override
   Future<Result<WriteAck, TransactionsFailure>> restoreEntry(String txnId) =>
-      _revise(txnId, (prev, _, _) async {
+      _revise(txnId, const _RestoreOp());
+
+  /// Re-applies the edits, deletes and restores an earlier run queued that
+  /// the server refused (the partner changed the entry first), once the
+  /// queue has reached the server; reports through [lateFailures] what
+  /// cannot be re-applied. The composition root calls it once a household
+  /// is known. Firestore keeps a queued batch across a restart, but not the
+  /// callback that would re-apply it (Codex review, PR #35).
+  Future<void> resumePending() async {
+    final scope = _store.scope;
+    final pending = [..._journal.entries];
+    if (scope == null || pending.isEmpty) return;
+    await _store.settle();
+    for (final entry in pending) {
+      // Handled in this run already.
+      if (!_journal.entries.any((e) => e.revId == entry.revId)) continue;
+      await _journal.remove(entry.revId);
+      if (entry.householdId != scope.householdId || entry.uid != scope.uid) {
+        continue;
+      }
+      if (await _store.hasRevision(entry.txnId, entry.revId)) continue;
+      final op = _Op.fromJournal(entry.op, entry.payload);
+      if (op == null) continue;
+      await _lateRetry(entry.txnId, op, staleVersion: entry.baseVersion);
+    }
+  }
+
+  /// What [op] changes on [prev], or null when it changes nothing.
+  Future<Result<_Revision?, TransactionsFailure>> _build(
+    _Op op,
+    LedgerTransaction prev,
+    LedgerScope scope,
+    LedgerHousehold household,
+  ) async {
+    switch (op) {
+      case _EditOp(:final draft, :final extras):
+        if (prev.deleted) return const Err(TransactionDeleted());
+        final resolved = await _resolve(
+          EntryDraft.fromJson(draft),
+          scope: scope,
+          household: household,
+          extras: extras,
+          source: prev.source,
+          groupId: prev.groupId,
+          previous: prev,
+        );
+        return switch (resolved) {
+          Err(:final failure) => Err(failure),
+          Ok(value: final next) => Ok(_editOf(prev, next)),
+        };
+      case _DeleteOp(:final reason):
+        if (prev.deleted) return const Err(TransactionDeleted());
+        return Ok(_deletionOf(prev, reason));
+      case _RestoreOp():
         if (!prev.deleted) return const Err(TransactionNotDeleted());
         return Ok(
           _Revision(
@@ -147,7 +187,23 @@ final class LedgerTransactionsRepository implements TransactionsRepository {
             after: prev.line.withDeleted(deleted: false),
           ),
         );
-      });
+    }
+  }
+
+  PendingRevision _pending(
+    LedgerScope scope,
+    LedgerTransaction prev,
+    String revId,
+    _Op op,
+  ) => PendingRevision(
+    householdId: scope.householdId,
+    uid: scope.uid,
+    txnId: prev.id,
+    revId: revId,
+    baseVersion: _version(prev),
+    op: op.name,
+    payload: op.payload,
+  );
 
   @override
   Future<Result<WriteAck, TransactionsFailure>> undoSave(
@@ -176,34 +232,50 @@ final class LedgerTransactionsRepository implements TransactionsRepository {
     List<String> ids,
     LedgerScope scope,
   ) async {
+    const op = _DeleteOp(DeleteReason.undo);
     final writes = <DocWrite>[];
     var effects = BalanceEffects.none;
-    final touched = <String>[];
+    final touched = <PendingRevision>[];
     for (final id in ids) {
       final prev = await _store.transaction(id);
       if (prev == null) return const Err(TransactionNotFound());
       if (prev.deleted) continue;
       final revision = _deletionOf(prev, DeleteReason.undo);
-      writes.addAll(_revisionWrites(prev, revision, scope.uid));
+      final revId = _store.newId();
+      writes.addAll(_revisionWrites(prev, revision, scope.uid, revId));
       effects = effects + effectDelta(prev.line, revision.after);
-      touched.add(id);
+      touched.add(_pending(scope, prev, revId, op));
     }
     if (writes.isEmpty) return const Ok(WriteAck.synced);
+    for (final p in touched) {
+      await _journal.put(p);
+    }
+    Future<void> forget() async {
+      for (final p in touched) {
+        await _journal.remove(p.revId);
+      }
+    }
+
     final committed = await _store.commit(
       LedgerPlan(writes: writes, effects: effects),
-      onLateFailure: (f) {
-        for (final id in touched) {
-          unawaited(_lateRetry(id, _undoBuild));
+      onLateFailure: (f) async {
+        await forget();
+        for (final p in touched) {
+          unawaited(_lateRetry(p.txnId, op, staleVersion: p.baseVersion));
         }
       },
     );
+    if (committed case Ok(value: WriteAck.queued)) {
+      return const Ok(WriteAck.queued);
+    }
+    await forget();
     switch (committed) {
       case Ok(:final value):
         return Ok(value);
       case Err(:final failure) when failure.kind == StoreFailureKind.denied:
         var ack = WriteAck.synced;
-        for (final id in touched) {
-          final one = await deleteEntry(id, reason: DeleteReason.undo);
+        for (final p in touched) {
+          final one = await deleteEntry(p.txnId, reason: DeleteReason.undo);
           switch (one) {
             case Ok(:final value):
               if (value == WriteAck.queued) ack = WriteAck.queued;
@@ -218,13 +290,6 @@ final class LedgerTransactionsRepository implements TransactionsRepository {
         return Err(_fromStore(failure));
     }
   }
-
-  Future<Result<_Revision?, TransactionsFailure>> _undoBuild(
-    LedgerTransaction prev,
-    LedgerScope scope,
-    LedgerHousehold household,
-  ) async =>
-      prev.deleted ? const Ok(null) : Ok(_deletionOf(prev, DeleteReason.undo));
 
   _Revision _deletionOf(LedgerTransaction prev, DeleteReason reason) =>
       _Revision(
@@ -255,7 +320,7 @@ final class LedgerTransactionsRepository implements TransactionsRepository {
     );
   }
 
-  /// Reads [txnId], lets [build] decide the change, and commits it with a
+  /// Reads [txnId], lets [op] decide the change, and commits it with a
   /// revision and the balance difference.
   ///
   /// When the rules refuse it because the entry moved on (the partner saved
@@ -264,7 +329,7 @@ final class LedgerTransactionsRepository implements TransactionsRepository {
   /// re-applied the same way, in the background.
   Future<Result<WriteAck, TransactionsFailure>> _revise(
     String txnId,
-    _Build build, {
+    _Op op, {
     bool fresh = false,
     String? staleVersion,
   }) async {
@@ -279,7 +344,7 @@ final class LedgerTransactionsRepository implements TransactionsRepository {
       // was not a conflict.
       return const Err(TransactionsNotAllowed());
     }
-    final built = await build(prev, scope, household);
+    final built = await _build(op, prev, scope, household);
     final _Revision revision;
     switch (built) {
       case Err(:final failure):
@@ -289,21 +354,29 @@ final class LedgerTransactionsRepository implements TransactionsRepository {
       case Ok(:final _Revision value):
         revision = value;
     }
+    final revId = _store.newId();
     final plan = LedgerPlan(
-      writes: _revisionWrites(prev, revision, scope.uid),
+      writes: _revisionWrites(prev, revision, scope.uid, revId),
       effects: effectDelta(prev.line, revision.after),
     );
     final retried = staleVersion != null;
+    // Kept until the server has it, so a restart cannot lose the change.
+    await _journal.put(_pending(scope, prev, revId, op));
     final committed = await _store.commit(
       plan,
-      onLateFailure: (f) {
+      onLateFailure: (f) async {
+        await _journal.remove(revId);
         if (!retried && f.kind == StoreFailureKind.denied) {
-          unawaited(_lateRetry(txnId, build, staleVersion: _version(prev)));
+          unawaited(_lateRetry(txnId, op, staleVersion: _version(prev)));
         } else {
           _reportLate([txnId], _fromStore(f));
         }
       },
     );
+    if (committed case Ok(value: WriteAck.queued)) {
+      return const Ok(WriteAck.queued);
+    }
+    await _journal.remove(revId);
     switch (committed) {
       case Ok(:final value):
         return Ok(value);
@@ -311,7 +384,7 @@ final class LedgerTransactionsRepository implements TransactionsRepository {
           when !retried && failure.kind == StoreFailureKind.denied:
         return await _revise(
           txnId,
-          build,
+          op,
           fresh: true,
           staleVersion: _version(prev),
         );
@@ -333,17 +406,13 @@ final class LedgerTransactionsRepository implements TransactionsRepository {
   /// was refused: an edit then a delete queued offline are both refused
   /// when the partner wrote first (each names its predecessor), and the
   /// delete must be rebuilt on top of the re-applied edit.
-  Future<void> _lateRetry(
-    String txnId,
-    _Build build, {
-    String? staleVersion,
-  }) async {
+  Future<void> _lateRetry(String txnId, _Op op, {String? staleVersion}) async {
     final before = _lateRetries[txnId]?.future;
     final done = Completer<void>();
     _lateRetries[txnId] = done;
     try {
       await before;
-      await _reapply(txnId, build, staleVersion: staleVersion ?? '');
+      await _reapply(txnId, op, staleVersion: staleVersion ?? '');
     } finally {
       done.complete();
       if (identical(_lateRetries[txnId], done)) _lateRetries.remove(txnId);
@@ -354,12 +423,12 @@ final class LedgerTransactionsRepository implements TransactionsRepository {
 
   Future<void> _reapply(
     String txnId,
-    _Build build, {
+    _Op op, {
     required String staleVersion,
   }) async {
     final again = await _revise(
       txnId,
-      build,
+      op,
       fresh: true,
       staleVersion: staleVersion,
     );
@@ -372,15 +441,16 @@ final class LedgerTransactionsRepository implements TransactionsRepository {
     }
   }
 
+  /// The update and revision that write [revision] as version [revId];
+  /// the rules accept it only on top of the version it names as
+  /// `prevRevId` (DATA_MODEL 7).
   List<DocWrite> _revisionWrites(
     LedgerTransaction prev,
     _Revision revision,
     String uid,
+    String revId,
   ) {
     final rev = prev.rev + 1;
-    // The new version's id; the rules accept the write only on top of the
-    // version it names as `prevRevId` (DATA_MODEL 7).
-    final revId = _store.newId();
     return [
       TxnUpdate(
         prev.id,
@@ -849,11 +919,83 @@ enum RevisionReason {
   restore,
 }
 
-typedef _Build = Future<Result<_Revision?, TransactionsFailure>> Function(
-  LedgerTransaction prev,
-  LedgerScope scope,
-  LedgerHousehold household,
-);
+/// A change to a stored transaction, kept in the [WriteJournal] so it can
+/// be built again on top of another version.
+sealed class _Op {
+  const new();
+
+  /// Reads a journal record's op, or null when it is malformed.
+  static _Op? fromJournal(String name, Map<String, Object?> payload) {
+    switch (name) {
+      case 'edit':
+        final draft = payload['draft'];
+        if (draft is! Map) return null;
+        final to = payload['toAmountMinor'];
+        final sign = payload['adjustmentSign'];
+        return _EditOp(
+          draft.cast<String, dynamic>(),
+          EntryExtras(
+            toAmountMinor: to is int ? to : null,
+            adjustmentSign: sign is int ? sign : null,
+          ),
+        );
+      case 'delete':
+        return _DeleteOp(
+          payload['reason'] == DeleteReason.undo.name
+              ? DeleteReason.undo
+              : DeleteReason.delete,
+        );
+      case 'restore':
+        return const _RestoreOp();
+    }
+    return null;
+  }
+
+  /// The journal's name for it.
+  String get name;
+
+  /// What the journal keeps to build it again.
+  Map<String, Object?> get payload;
+}
+
+final class _EditOp extends _Op {
+  const new(this.draft, this.extras);
+
+  final Map<String, dynamic> draft;
+  final EntryExtras extras;
+
+  @override
+  String get name => 'edit';
+
+  @override
+  Map<String, Object?> get payload => {
+    'draft': draft,
+    'toAmountMinor': extras.toAmountMinor,
+    'adjustmentSign': extras.adjustmentSign,
+  };
+}
+
+final class _DeleteOp extends _Op {
+  const new(this.reason);
+
+  final DeleteReason reason;
+
+  @override
+  String get name => 'delete';
+
+  @override
+  Map<String, Object?> get payload => {'reason': reason.name};
+}
+
+final class _RestoreOp extends _Op {
+  const new();
+
+  @override
+  String get name => 'restore';
+
+  @override
+  Map<String, Object?> get payload => const {};
+}
 
 /// One change to a stored transaction.
 @immutable

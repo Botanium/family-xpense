@@ -226,6 +226,20 @@ final class FirestoreLedgerStore implements LedgerStore {
     return _read(_collection(hid, collection).doc(id));
   }
 
+  @override
+  Future<bool> hasRevision(String txnId, String revId) async {
+    final hid = scope?.householdId;
+    if (hid == null) return false;
+    final ref = _collection(
+      hid,
+      'transactions',
+    ).doc(txnId).collection('revisions').doc(revId);
+    return await _read(ref, fresh: true) != null;
+  }
+
+  @override
+  Future<void> settle() => _firestore.waitForPendingWrites();
+
   // -------------------------------------------------------------- writes
 
   @override

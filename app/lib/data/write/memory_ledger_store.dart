@@ -4,6 +4,7 @@
 // online replays the queue against the server copy with the rules' checks
 // that matter to the write path (`rev` advances by one, a new entry does
 // not exist yet, the writer can see the accounts).
+import 'dart:async';
 import 'dart:math';
 
 import 'package:clock/clock.dart';
@@ -137,6 +138,29 @@ final class MemoryLedgerStore implements LedgerStore {
     return txn != null && txn.visibleTo.contains(uid) ? txn : null;
   }
 
+  @override
+  Future<bool> hasRevision(String txnId, String revId) async =>
+      _server.revisions[txnId]?.any((r) => r['id'] == revId) ?? false;
+
+  @override
+  Future<void> settle() async {
+    if (_online && _pending.isEmpty) return;
+    final settled = Completer<void>();
+    _settling.add(settled);
+    await settled.future;
+  }
+
+  final List<Completer<void>> _settling = [];
+
+  /// The app closes and opens again: queued batches stay (Firestore keeps
+  /// them on disk), the callbacks that would re-apply them do not.
+  void restart() {
+    for (var i = 0; i < _pending.length; i++) {
+      final p = _pending[i];
+      _pending[i] = _Pending(p.plan, p.uid, null);
+    }
+  }
+
   // -------------------------------------------------------------- writes
 
   @override
@@ -179,6 +203,10 @@ final class MemoryLedgerStore implements LedgerStore {
       _apply(_server, p.plan, p.uid, _clock.now());
       committedBatches++;
     }
+    for (final settled in _settling) {
+      settled.complete();
+    }
+    _settling.clear();
   }
 
   /// Writes [fields] over transaction [id] on the server, advancing `rev`

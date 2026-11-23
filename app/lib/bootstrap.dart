@@ -1,6 +1,7 @@
 // The composition root (ARCHITECTURE 3.3): the one place that names
 // concrete implementations. Features see only the throwing providers in
 // `lib/services/`; this file overrides them.
+import 'dart:async';
 import 'dart:collection';
 import 'dart:io';
 
@@ -48,6 +49,7 @@ import 'package:xpense_app/services/settings_store.dart';
 import 'package:xpense_app/services/settings_store_prefs.dart';
 import 'package:xpense_app/services/speech_capture.dart';
 import 'package:xpense_app/services/speech_capture_fake.dart';
+import 'package:xpense_app/services/write_journal_prefs.dart';
 import 'package:xpense_shared/xpense_shared.dart';
 
 /// Which backend a build talks to, from `--dart-define=XPENSE_ENV=…`.
@@ -243,22 +245,41 @@ AccountsRepository connectAccounts(
 /// The transaction write path (WP-20) for [environment], following
 /// [households]. In `fakes` it writes to memory, over the artboards'
 /// accounts.
-TransactionsRepository connectTransactions(
+///
+/// Changes an earlier run queued are re-applied once a household is known
+/// ([LedgerTransactionsRepository.resumePending]).
+Future<TransactionsRepository> connectTransactions(
   AppEnvironment environment, {
   required HouseholdRepository households,
-}) => switch (environment) {
-  AppEnvironment.fakes => memoryTransactions(),
+}) async {
+  if (environment == AppEnvironment.fakes) return memoryTransactions();
   // Firestore is already pointed at the emulator by connectHouseholds.
-  AppEnvironment.dev ||
-  AppEnvironment.prod ||
-  AppEnvironment.emulators => LedgerTransactionsRepository(
+  final repository = LedgerTransactionsRepository(
     FirestoreLedgerStore.connect(
       auth: FirebaseAuth.instance,
       firestore: FirebaseFirestore.instance,
       households: households,
     ),
-  ),
-};
+    journal: await PrefsWriteJournal.open(),
+  );
+  unawaited(
+    households
+        .watchMembership()
+        .firstWhere((m) => m is InHousehold)
+        .then((_) => repository.resumePending())
+        .catchError((Object e, StackTrace s) {
+          FlutterError.reportError(
+            FlutterErrorDetails(
+              exception: e,
+              stack: s,
+              library: 'bootstrap',
+              context: ErrorDescription('while resuming queued transactions'),
+            ),
+          );
+        }),
+  );
+  return repository;
+}
 
 /// A write path in memory over the sample household's accounts
 /// (`FakeAccountsRepository.sample`), for the fakes build and tests.
@@ -390,7 +411,10 @@ Future<Bootstrapped> bootstrap({required AppEnvironment environment}) async {
   final auth = await connectAuth(environment);
   final households = connectHouseholds(environment, auth: auth);
   final accounts = connectAccounts(environment, households: households);
-  final transactions = connectTransactions(environment, households: households);
+  final transactions = await connectTransactions(
+    environment,
+    households: households,
+  );
   final flags = await connectFeatureFlags(environment);
   registerFontLicenses();
   final settings = await PrefsSettingsStore.open();

@@ -282,6 +282,15 @@ abstract interface class LedgerStore {
   /// (falling back to the cache offline), to re-apply after a conflict.
   Future<LedgerTransaction?> transaction(String id, {bool fresh = false});
 
+  /// Completes once every batch queued on the phone has been answered by
+  /// the server (Firestore's `waitForPendingWrites`); it waits while
+  /// offline.
+  Future<void> settle();
+
+  /// Whether the server has revision [revId] of transaction [txnId], that
+  /// is, whether the write that made it landed.
+  Future<bool> hasRevision(String txnId, String revId);
+
   /// Writes [plan] as one atomic batch.
   ///
   /// Returns [WriteAck.queued] when the batch is on the phone but the

@@ -10,6 +10,7 @@ import 'package:xpense_app/data/transactions_repository.dart';
 import 'package:xpense_app/data/write/ledger_store.dart';
 import 'package:xpense_app/data/write/ledger_transactions_repository.dart';
 import 'package:xpense_app/data/write/memory_ledger_store.dart';
+import 'package:xpense_app/services/write_journal.dart';
 import 'package:xpense_shared/xpense_shared.dart';
 
 const me = 'u-me';
@@ -1177,6 +1178,100 @@ void main() {
       expect(late, isEmpty);
     });
 
+    group('across an app restart (Codex, PR #35)', () {
+      late MemoryWriteJournal journal;
+      late List<LateWriteFailure> late;
+
+      setUp(() {
+        journal = MemoryWriteJournal();
+        repo = LedgerTransactionsRepository(store, journal: journal);
+        late = [];
+      });
+
+      /// Closes the app with the queue still on the phone, opens it again,
+      /// and lets [meanwhile] happen on the server before reconnecting.
+      Future<LedgerTransactionsRepository> restartAndReconnect(
+        void Function() meanwhile,
+      ) async {
+        store.restart();
+        final next = LedgerTransactionsRepository(store, journal: journal)
+          ..lateFailures.listen(late.add);
+        meanwhile();
+        final resumed = next.resumePending();
+        store.goOnline(online: true);
+        await resumed;
+        await pumpEventQueue();
+        return next;
+      }
+
+      test('a queued edit refused after a restart is re-applied', () async {
+        final id = await saveOne(repo, draft());
+        store.goOnline(online: false);
+        expect(
+          (await repo.editEntry(id, draft(amount: 4000))).valueOrNull,
+          WriteAck.queued,
+        );
+        expect(journal.entries.single.op, 'edit');
+        await restartAndReconnect(
+          () => store.remoteEdit(id, {'note': 'partner'}),
+        );
+        final doc = store.serverTransactions[id]!;
+        expect(doc['amountMinor'], 4000);
+        expect(doc['rev'], 2);
+        expect(store.serverBalances['joint-usd'], -4000);
+        expect(journal.entries, isEmpty);
+        expect(late, isEmpty);
+      });
+
+      test('a queued delete refused after a restart is re-applied', () async {
+        final id = await saveOne(repo, draft());
+        store.goOnline(online: false);
+        await repo.deleteEntry(id);
+        await restartAndReconnect(
+          () => store.remoteEdit(id, {'note': 'partner'}),
+        );
+        expect(store.serverTransactions[id]!['deletedAt'], isNotNull);
+        expect(store.serverBalances['joint-usd'], 0);
+        expect(journal.entries, isEmpty);
+      });
+
+      test('a queued change that landed is only cleared', () async {
+        final id = await saveOne(repo, draft());
+        store.goOnline(online: false);
+        await repo.editEntry(id, draft(amount: 4000));
+        await restartAndReconnect(() {});
+        expect(store.serverTransactions[id]!['rev'], 1);
+        expect(store.serverBalances['joint-usd'], -4000);
+        expect(journal.entries, isEmpty);
+        expect(late, isEmpty);
+      });
+
+      test('a refusal that is not a conflict is reported', () async {
+        final id = await saveOne(repo, draft(account: 'mine-usd'));
+        store.goOnline(online: false);
+        await repo.editEntry(id, draft(account: 'mine-usd', amount: 4000));
+        await restartAndReconnect(
+          () => store.accounts['mine-usd'] = const LedgerAccount(
+            id: 'mine-usd',
+            currency: Currency.usd,
+            visibleTo: [partner],
+          ),
+        );
+        expect(store.serverTransactions[id]!['rev'], 0);
+        expect(late.single.txnIds, [id]);
+        expect(late.single.failure, const TransactionsNotAllowed());
+        expect(journal.entries, isEmpty);
+      });
+
+      test('synced writes leave nothing in the journal', () async {
+        final id = await saveOne(repo, draft());
+        await repo.editEntry(id, draft(amount: 5));
+        await repo.deleteEntry(id);
+        await repo.restoreEntry(id);
+        expect(journal.entries, isEmpty);
+      });
+    });
+
     test('a queued save the server refuses is reported', () async {
       final late = <LateWriteFailure>[];
       repo.lateFailures.listen(late.add);
@@ -1278,6 +1373,13 @@ final class _StaleOnce implements LedgerStore {
     }
     return _inner.transaction(id, fresh: fresh);
   }
+
+  @override
+  Future<void> settle() => _inner.settle();
+
+  @override
+  Future<bool> hasRevision(String txnId, String revId) =>
+      _inner.hasRevision(txnId, revId);
 
   @override
   Future<Result<WriteAck, StoreFailure>> commit(
