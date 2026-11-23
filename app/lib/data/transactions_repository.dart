@@ -142,6 +142,7 @@ final class LedgerTransaction {
     this.title = '',
     this.note,
     this.personId,
+    this.personName,
     this.loanId,
     this.goalId,
     this.recurringId,
@@ -209,6 +210,9 @@ final class LedgerTransaction {
 
   /// The counterparty of a loan event.
   final String? personId;
+
+  /// The counterparty's name as said, when there is no [personId] yet.
+  final String? personName;
 
   /// The loan it belongs to.
   final String? loanId;
@@ -285,6 +289,7 @@ final class LedgerTransaction {
       other.title == title &&
       other.note == note &&
       other.personId == personId &&
+      other.personName == personName &&
       other.loanId == loanId &&
       other.goalId == goalId &&
       other.recurringId == recurringId &&
@@ -318,6 +323,7 @@ final class LedgerTransaction {
     title,
     note,
     personId,
+    personName,
     loanId,
     goalId,
     recurringId,

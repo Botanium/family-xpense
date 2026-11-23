@@ -588,13 +588,17 @@ final class LedgerTransactionsRepository implements TransactionsRepository {
     // amount and the quote it was converted with (Codex review, PR #35).
     var toAmount = crossTransfer ? extras.toAmountMinor : null;
     StoredFx? retainedFx;
+    // A stored arriving amount converted with the day's rate is converted
+    // again when the day changes; a typed one is kept.
     if (crossTransfer &&
         toAmount == null &&
         previous != null &&
         previous.amountMinor == amount &&
         previous.accountId == account.id &&
         previous.toAccountId == to!.id &&
-        !_namesNewRate(draft.fx, previous.fx)) {
+        !_namesNewRate(draft.fx, previous.fx) &&
+        (previous.occurredOn == occurredOn ||
+            !_rateDerived(previous, toCurrency))) {
       toAmount = previous.toAmountMinor;
       retainedFx = previous.fx;
     }
@@ -677,6 +681,10 @@ final class LedgerTransactionsRepository implements TransactionsRepository {
         title: title,
         note: note,
         personId: draft.personId,
+        personName: switch (draft.personName?.trim()) {
+          null || '' => null,
+          final name => name,
+        },
         loanId: draft.loanId,
         goalId: draft.goalId,
         recurringId: previous?.recurringId,
@@ -766,6 +774,15 @@ final class LedgerTransactionsRepository implements TransactionsRepository {
     'updatedAt': serverTime,
     'updatedBy': uid,
   };
+
+  /// Whether [t]'s arriving amount is its amount converted with its stored
+  /// rate into [to] (rather than an amount the member typed).
+  static bool _rateDerived(LedgerTransaction t, Currency to) {
+    final rate = t.fx?.rate;
+    if (rate == null) return false;
+    final converted = rate.convert(Money(t.amountMinor, t.currency), to);
+    return converted.valueOrNull?.minorUnits == t.toAmountMinor;
+  }
 
   /// Whether [named] (a draft's `fx`) asks for a rate other than [stored].
   /// A prefilled draft repeats the stored rate; that names nothing new.

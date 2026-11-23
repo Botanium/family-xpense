@@ -109,6 +109,7 @@ One document per money event. A transfer is one document with both accounts (D-1
 | `title` | string | merchant or short label, max 80 chars |
 | `note` | string? | max 500 chars |
 | `personId` | string? | counterparty for loans and repayments |
+| `personName` | string? | the counterparty's name as said, when there is no `personId` yet (PR #35) |
 | `loanId` | string? | |
 | `goalId` | string? | savings moves |
 | `recurringId` | string? | posted from a recurring template |

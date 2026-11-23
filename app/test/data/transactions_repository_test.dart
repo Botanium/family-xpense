@@ -887,6 +887,115 @@ void main() {
       );
     });
 
+    test('every type survives an unchanged and a note-only edit '
+        '(Codex, PR #35)', () async {
+      final cases = <String, (EntryDraft, EntryExtras?)>{
+        'expense': (draft(title: 'Lulu'), null),
+        'partner expense': (draft(who: 'partner', note: 'gift'), null),
+        'income': (draft(intent: 'income', category: 'salary'), null),
+        'IQD expense': (draft(account: 'cash-iqd', amount: 25000), null),
+        'past day': (draft(on: '2026-11-01'), null),
+        'timed': (draft(time: '08:15'), null),
+        'transfer': (draft(intent: 'transfer', to: 'savings'), null),
+        'USD to IQD': (
+          draft(intent: 'transfer', account: 'mine-usd', to: 'cash-iqd'),
+          null,
+        ),
+        'IQD to USD': (
+          draft(
+            intent: 'transfer',
+            account: 'cash-iqd',
+            to: 'mine-usd',
+            amount: 17050,
+          ),
+          null,
+        ),
+        'typed arriving amount': (
+          draft(intent: 'transfer', account: 'mine-usd', to: 'cash-iqd'),
+          const EntryExtras(toAmountMinor: 21000),
+        ),
+        'savings move': (draft(intent: 'savings_move', goal: 'trip'), null),
+        'loan given': (
+          draft(intent: 'loan_given', person: 'alex', loan: 'loan-usd'),
+          null,
+        ),
+        'loan taken, name only': (
+          EntryDraft.fromJson({
+            ...draft(intent: 'loan_taken').toJson(),
+            'personName': 'Sam',
+          }),
+          null,
+        ),
+        'repayment received, name and title': (
+          EntryDraft.fromJson({
+            ...draft(intent: 'repayment_received', title: 'Cash back').toJson(),
+            'personName': 'Sam',
+          }),
+          null,
+        ),
+        'repayment made': (
+          draft(intent: 'repayment_made', person: 'alex', loan: 'loan-usd'),
+          null,
+        ),
+        'negative adjustment': (
+          draft(intent: 'adjustment', account: 'mine-usd'),
+          const EntryExtras(adjustmentSign: -1),
+        ),
+        'agent draft': (draft(origin: 'agent'), null),
+      };
+      for (final MapEntry(key: name, value: (saved, extras)) in cases.entries) {
+        final id = await saveOne(repo, saved, extras: extras);
+        final stored = {...store.transactions[id]!};
+        final prefilled = draftFromTransaction(
+          (await store.transaction(id))!,
+          viewerUid: me,
+        );
+        final unchanged = await repo.editEntry(id, prefilled);
+        expect(unchanged.failureOrNull, isNull, reason: name);
+        expect(store.transactions[id], stored, reason: '$name: no write');
+        final noted = await repo.editEntry(
+          id,
+          EntryDraft.fromJson({...prefilled.toJson(), 'note': 'checked'}),
+        );
+        expect(noted.failureOrNull, isNull, reason: name);
+        expect(store.revisions[id]!.single['before'], {
+          'note': stored['note'],
+        }, reason: '$name: only the note changes');
+      }
+    });
+
+    test("a converted arriving amount follows a new day's rate "
+        '(Codex, PR #35)', () async {
+      store.rates['2026-11-22'] = DayRate(
+        day: '2026-11-22',
+        rate: FxRate.forPair(FxPair.usdIqd, '1550').valueOrNull!,
+      );
+      EntryDraft iqdToUsd({String? on}) => draft(
+        intent: 'transfer',
+        account: 'cash-iqd',
+        to: 'mine-usd',
+        amount: 17050,
+        on: on,
+      );
+      final converted = await saveOne(repo, iqdToUsd(on: '2026-11-20'));
+      expect(store.transactions[converted]!['toAmountMinor'], 1000);
+      await repo.editEntry(converted, iqdToUsd(on: '2026-11-23'));
+      final moved = store.transactions[converted]!;
+      expect((moved['fx']! as Map)['pairRate'], '1550');
+      expect(moved['baseAmountMinor'], 1100);
+      expect(moved['toAmountMinor'], 1100);
+
+      // A typed arriving amount stays when the day moves.
+      final typed = await saveOne(
+        repo,
+        iqdToUsd(on: '2026-11-20'),
+        extras: const EntryExtras(toAmountMinor: 900),
+      );
+      await repo.editEntry(typed, iqdToUsd(on: '2026-11-23'));
+      expect(store.transactions[typed]!['toAmountMinor'], 900);
+      expect(store.transactions[typed]!['baseAmountMinor'], 1100);
+    });
+
     test('each write names the version it was built on', () async {
       final id = await saveOne(repo, draft());
       final created = store.transactions[id]!;

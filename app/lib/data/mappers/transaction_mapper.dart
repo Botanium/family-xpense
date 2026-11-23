@@ -26,6 +26,7 @@ const List<String> transactionContentFields = [
   'title',
   'note',
   'personId',
+  'personName',
   'loanId',
   'goalId',
   'recurringId',
@@ -65,6 +66,7 @@ Map<String, Object?> transactionContent(LedgerTransaction t) => {
   'title': t.title,
   'note': t.note,
   'personId': t.personId,
+  'personName': t.personName,
   'loanId': t.loanId,
   'goalId': t.goalId,
   'recurringId': t.recurringId,
@@ -121,6 +123,7 @@ LedgerTransaction? transactionFromFields(String id, Map<String, Object?> data) {
     title: str('title') ?? '',
     note: str('note'),
     personId: str('personId'),
+    personName: str('personName'),
     loanId: str('loanId'),
     goalId: str('goalId'),
     recurringId: str('recurringId'),
@@ -190,6 +193,9 @@ EntryDraft draftFromTransaction(
     title: t.title.isEmpty ? null : t.title,
     note: t.note,
     personId: t.personId,
+    // A loan event saved with only a name keeps it, so the draft passes the
+    // same checks again (Codex review, PR #35).
+    personName: t.personName,
     loanId: t.loanId,
     goalId: t.goalId,
     fx: fx == null
