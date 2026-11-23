@@ -183,7 +183,9 @@ DraftTitle? titleOf(String raw, FastParse parse) {
 /// The question keys to send to `/decide` for [parse] (AI_PIPELINE 7):
 /// only what the parser and rules left open. `person` is asked only when
 /// a person is named, `to_account` only on a transfer cue, `is_recurring`
-/// for spending and income (WP-33 hand-over).
+/// for spending and income (WP-33 hand-over), `duplicate` when the amount
+/// and its currency are known, which is what the server's candidate search
+/// needs.
 List<String> decideQuestionsFor(FastParse parse) {
   final unresolved = parse.signals.unresolved;
   final intent = _settledIntent(parse);
@@ -206,7 +208,15 @@ List<String> decideQuestionsFor(FastParse parse) {
     if (!whoKnown) 'who',
     if (personNamed) 'person',
     if (categoryIntent) 'is_recurring',
+    if (_duplicateSearchable(parse)) 'duplicate',
   ];
+}
+
+/// Whether the server can look for duplicate candidates: the same amount
+/// and currency the request's `parsed` carries.
+bool _duplicateSearchable(FastParse parse) {
+  final amount = parse.amounts.firstOrNull;
+  return amount?.money != null && (amount?.currency ?? parse.currency) != null;
 }
 
 /// The `/decide` request for [raw] and its [parse].
@@ -306,9 +316,11 @@ EntryDraft buildDraft({
   final amount = parse.amounts.firstOrNull;
   var amountMinor = amount?.money?.minorUnits;
   var currency = amount?.currency?.code ?? parse.currency?.code;
-  if (amount != null && amount.guessed && currency != null) {
-    guessed.add('currency');
-  }
+  final currencyGuessed = amount != null && amount.guessed && currency != null;
+  if (currencyGuessed) guessed.add('currency');
+  // Set when a guessed currency moved to the chosen account's: the
+  // duplicate answer was about the old figures.
+  var currencyFollowed = false;
 
   // Account: a rule, the account named, the only account, then Decisions.
   var accountId = rule(RuleField.accountId);
@@ -329,8 +341,25 @@ EntryDraft buildDraft({
       case final p?) {
     confidence['account'] = p.confidence;
     final account = household.account(p.value);
-    if (account != null && (currency == null || account.currency == currency)) {
-      accountId = account.id;
+    // As in the agent's `prepareEntries`: an account holds only its own
+    // currency. A written currency rules another account out; a guessed
+    // one follows the account, with the amount read again in it.
+    var fits =
+        account != null && (currency == null || account.currency == currency);
+    if (account != null && !fits && currencyGuessed) {
+      if (Currency.tryParse(account.currency) case final c?) {
+        if (Money.parseMajor(amount.value.toString(), c) case Ok(
+          :final value,
+        )) {
+          currency = account.currency;
+          amountMinor = value.minorUnits;
+          currencyFollowed = true;
+          fits = true;
+        }
+      }
+    }
+    if (fits) {
+      accountId = account!.id;
       if (p.show == FieldShow.guessed) guessed.add('accountId');
     }
   }
@@ -359,25 +388,35 @@ EntryDraft buildDraft({
   }
 
   // Category: a rule, the category named, Decisions, then the extraction.
+  // Only a category of the entry's kind is an answer (an income category
+  // on spending is not), as in the agent's `prepareEntries`; one of the
+  // other kind leaves the category to ask.
   String? categoryId;
   if (hasCategory) {
+    final kind = intent == CaptureIntent.income
+        ? CategoryKind.income.wire
+        : CategoryKind.expense.wire;
+    bool fits(String? id) =>
+        id != null &&
+        household.category(id) != null &&
+        categoryKindOf(id) == kind;
     categoryId = rule(RuleField.categoryId);
     if (categoryId != null) {
       confidence['category'] = ruleHitConfidence;
     } else if (parse.hints
-            .where((h) => h.kind == HintKind.category && h.id != null)
+            .where((h) => h.kind == HintKind.category && fits(h.id))
             .firstOrNull
         case final named?) {
       categoryId = named.id;
       confidence['category'] = 1;
     } else if (policy.pick(decide?.category, calibrated: calibrated)
         case final p?) {
-      confidence['category'] = p.confidence;
-      if (household.category(p.value) != null) {
+      if (fits(p.value)) {
+        confidence['category'] = p.confidence;
         categoryId = p.value;
         if (p.show == FieldShow.guessed) guessed.add('categoryId');
       }
-    } else if (household.category(extracted?.categoryId) != null) {
+    } else if (fits(extracted?.categoryId)) {
       final c = policy.cap(
         extracted?.confidence?.category ?? policy.thresholds.low,
         calibrated: false,
@@ -428,7 +467,7 @@ EntryDraft buildDraft({
       when hasCategory && policy.offersRecurring(p)) {
     recurring = RecurringHint(probability: p, unit: 'month', interval: 1);
   }
-  final duplicate = decide == null
+  final duplicate = decide == null || currencyFollowed
       ? null
       : duplicateHintFrom(
           decide,

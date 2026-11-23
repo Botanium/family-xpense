@@ -231,15 +231,98 @@ void main() {
     });
   });
 
+  group("answers are checked as the agent's prepareEntries does", () {
+    test('a Decisions category of the other kind is left to ask', () {
+      final d = _draft(
+        'spent 42.80 dollars at Costco',
+        decide: DecideResponse(
+          category: ChoiceAnswer(choice: 'salary', confidence: 0.95),
+        ),
+      );
+      expect(d.intent, 'expense');
+      expect(d.categoryId, isNull);
+      expect(d.confidence?.category, isNull);
+      expect(d.missing, contains('categoryId'));
+    });
+
+    test('an on-device category of the other kind is left to ask', () {
+      final d = _draft(
+        '42.80 at Costco',
+        extracted: EntryDraft(
+          id: 'x',
+          intent: 'expense',
+          categoryId: 'salary',
+          confidence: DraftConfidence(category: 0.95),
+        ),
+      );
+      expect(d.categoryId, isNull);
+      expect(d.missing, contains('categoryId'));
+    });
+
+    test('a named category of the other kind is not taken', () {
+      final d = _draft('spent 20 dollars on salary');
+      expect(d.intent, 'expense');
+      expect(d.categoryId, isNull);
+    });
+
+    test('a guessed currency follows the account Decisions picks; the '
+        'duplicate answer about the old figures is dropped', () {
+      final d = _draft(
+        'lunch 15000',
+        decide: DecideResponse(
+          account: ChoiceAnswer(choice: 'acc_chk', confidence: 0.95),
+          duplicate: YesNoAnswer(probability: 0.95),
+          duplicateOf: 'txn_iqd',
+        ),
+      );
+      expect(d.accountId, 'acc_chk');
+      expect(d.currency, 'USD');
+      expect(d.amountMinor, 1500000);
+      expect(d.guessed, contains('currency'));
+      expect(d.duplicate, isNull);
+    });
+
+    test('a transfer never goes to the account it leaves from', () {
+      final d = _draft(
+        'moved 200 dollars from checking',
+        decide: DecideResponse(
+          intent: ChoiceAnswer(
+            choice: 'transfer',
+            confidence: 0.97,
+            probabilities: {'transfer': 0.97},
+          ),
+          toAccount: ChoiceAnswer(choice: 'acc_chk', confidence: 0.95),
+        ),
+      );
+      expect(d.accountId, 'acc_chk');
+      expect(d.toAccountId, isNull);
+    });
+  });
+
   group('the request to /decide', () {
     test('asks only what the parse left open', () {
       const text = 'spent 42.80 dollars at Costco';
       final r = decideRequestFor(text, _parse(text));
-      expect(r.ask, ['account', 'category', 'who', 'is_recurring']);
+      expect(r.ask, [
+        'account',
+        'category',
+        'who',
+        'is_recurring',
+        'duplicate',
+      ]);
       expect(r.parsed?.amountMinor, 4280);
       expect(r.parsed?.currency, 'USD');
       expect(r.parsed?.date, '2026-11-22');
       expect(r.lang, 'en');
+    });
+
+    test('asks duplicate only when the amount and currency are known', () {
+      const known = 'spent 42.80 dollars at Costco';
+      expect(decideRequestFor(known, _parse(known)).ask, contains('duplicate'));
+      const bare = '42.80 at Costco';
+      final r = decideRequestFor(bare, _parse(bare));
+      expect(r.parsed?.currency, isNull);
+      expect(r.ask, isNot(contains('duplicate')));
     });
 
     test('asks person only when a person is named', () {

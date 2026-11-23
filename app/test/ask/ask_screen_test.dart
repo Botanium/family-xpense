@@ -15,6 +15,7 @@ import 'package:xpense_app/features/ask/ask_actions.dart';
 import 'package:xpense_app/features/ask/ask_controller.dart';
 import 'package:xpense_app/services/agent_client.dart';
 import 'package:xpense_app/services/feature_flags.dart';
+import 'package:xpense_app/services/on_device_llm/on_device_llm.dart';
 import 'package:xpense_app/services/service_failure.dart';
 import 'package:xpense_shared/xpense_shared.dart';
 
@@ -159,6 +160,29 @@ void main() {
       expect(find.text('GUESSED'), findsOneWidget, reason: 'category 0.70');
     });
 
+    testWidgets('D: an amount with its currency asks about duplicates, and '
+        'a likely one shows the warning', (tester) async {
+      final services = TestServices();
+      services.decisions.result = Ok(
+        DecideResponse(
+          intent: ChoiceAnswer(
+            choice: 'expense',
+            confidence: 0.97,
+            probabilities: {'expense': 0.97},
+          ),
+          category: ChoiceAnswer(choice: 'groceries', confidence: 0.95),
+          account: ChoiceAnswer(choice: 'acc_chk', confidence: 0.95),
+          duplicate: YesNoAnswer(probability: 0.92),
+          duplicateOf: 'txn_earlier',
+        ),
+      );
+      await _openAsk(tester, services);
+      await _send(tester, 'spent 42.80 dollars at Costco');
+
+      expect(services.decisions.requests.single.ask, contains('duplicate'));
+      expect(find.text('Save anyway'), findsOneWidget);
+    });
+
     testWidgets('A: several entries go to the agent; its surface renders', (
       tester,
     ) async {
@@ -233,6 +257,56 @@ void main() {
         find.text('Something went wrong with this message.'),
         findsNothing,
       );
+    });
+
+    testWidgets('busy on path D: Stop ends the wait; a late answer is '
+        'dropped', (tester) async {
+      final services = TestServices();
+      services.decisions
+        ..result = Ok(_answers())
+        ..gate = Completer<void>();
+      final c = await _openAsk(tester, services);
+      await _type(tester, 'spent 42.80 dollars at Costco');
+      await tester.testTextInput.receiveAction(TextInputAction.send);
+      await tester.pump();
+      expect(services.decisions.requests, hasLength(1));
+      expect(find.text('Working on it…'), findsOneWidget);
+
+      await tester.tap(find.text('Stop'));
+      await tester.pump();
+      expect(c.read(askControllerProvider).busy, isFalse);
+      expect(find.text('Working on it…'), findsNothing);
+
+      services.decisions.gate!.complete();
+      await tester.pumpAndSettle();
+      expect(find.text('EXPENSE · GROCERIES'), findsNothing);
+      expect(c.read(askControllerProvider).busy, isFalse);
+    });
+
+    testWidgets('busy on the on-device extraction: Stop ends it; Decisions '
+        'is never asked', (tester) async {
+      final services = TestServices();
+      services.onDeviceLlm
+        ..probeResult = const OnDeviceProbe(
+          engine: OnDeviceEngine.appleFoundationModels,
+        )
+        ..gate = Completer<void>();
+      services.decisions.result = Ok(_answers());
+      final c = await _openAsk(tester, services);
+      await _type(tester, 'spent 42.80 dollars at Costco');
+      await tester.testTextInput.receiveAction(TextInputAction.send);
+      await tester.pump();
+      expect(_route(c)?.reason, RouteReason.onDeviceThenDecide);
+      expect(find.text('Working on it…'), findsOneWidget);
+
+      await tester.tap(find.text('Stop'));
+      await tester.pump();
+      expect(c.read(askControllerProvider).busy, isFalse);
+
+      services.onDeviceLlm.gate!.complete();
+      await tester.pumpAndSettle();
+      expect(services.decisions.requests, isEmpty);
+      expect(find.text('EXPENSE · GROCERIES'), findsNothing);
     });
 
     testWidgets('error: a notice with Retry sends the message again', (

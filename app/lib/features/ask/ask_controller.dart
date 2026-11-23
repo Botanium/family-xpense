@@ -29,6 +29,9 @@ final class AskController extends Notifier<AskState> {
   final Set<String> _shownSurfaces = {};
   StreamSubscription<AgentEvent>? _turn;
   int _next = 0;
+  // The running on-device extraction or Decisions call. Stop moves it on,
+  // so a late answer from a stopped call is dropped.
+  int _operation = 0;
 
   /// The thread's surface host, for the thread view.
   XpenseSurfaceHost get host => _host;
@@ -98,10 +101,16 @@ final class AskController extends Notifier<AskState> {
     _local(text, parse);
   }
 
-  /// Stops the running agent turn or Decisions call.
+  /// Stops the running agent turn, or the on-device extraction and
+  /// Decisions call; what they answer later is dropped.
   Future<void> cancel() async {
     if (!state.busy) return;
-    await _conversation.cancel();
+    if (_turn != null) {
+      await _conversation.cancel();
+      return;
+    }
+    _operation++;
+    state = state.copyWith(busy: false);
   }
 
   FastParse _parse(String raw) => parseText(
@@ -192,18 +201,20 @@ final class AskController extends Notifier<AskState> {
     FastParse parse,
     RouteDecision decision,
   ) async {
+    final operation = ++_operation;
+    bool stopped() => !ref.mounted || operation != _operation;
     state = state.copyWith(busy: true);
     try {
       EntryDraft? extracted;
       if (decision.extractOnDevice) {
         final result = await ref.read(onDeviceLlmProvider).extractEntry(raw);
-        if (!ref.mounted) return;
+        if (stopped()) return;
         if (result case Ok(:final value)) extracted = value;
       }
       final result = await ref
           .read(decisionsClientProvider)
           .decide(decideRequestFor(raw, parse));
-      if (!ref.mounted) return;
+      if (stopped()) return;
       switch (result) {
         case Ok(:final value):
           state = state.copyWith(offline: false);
@@ -232,7 +243,7 @@ final class AskController extends Notifier<AskState> {
           }
       }
     } finally {
-      if (ref.mounted) state = state.copyWith(busy: false);
+      if (!stopped()) state = state.copyWith(busy: false);
     }
   }
 
