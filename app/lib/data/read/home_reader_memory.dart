@@ -11,10 +11,13 @@ import 'package:xpense_app/data/write/memory_ledger_store.dart';
 /// queries.
 final class MemoryHomeReader implements HomeReader {
   /// Reads [store].
-  const new(this.store);
+  const new(MemoryLedgerStore this.store);
 
-  /// The store read.
-  final MemoryLedgerStore store;
+  /// A reader with nothing in it.
+  const new empty() : store = null;
+
+  /// The store read; null reads as empty.
+  final MemoryLedgerStore? store;
 
   @override
   Stream<List<LedgerTransaction>> watchRange({
@@ -42,8 +45,9 @@ final class MemoryHomeReader implements HomeReader {
   );
 
   Iterable<LedgerTransaction> _visible() sync* {
-    final uid = store.scope?.uid;
-    if (uid == null) return;
+    final store = this.store;
+    final uid = store?.scope?.uid;
+    if (store == null || uid == null) return;
     for (final e in store.transactions.entries) {
       final t = transactionFromFields(e.key, e.value);
       if (t != null && t.visibleTo.contains(uid) && !t.deleted) yield t;
@@ -58,7 +62,7 @@ final class MemoryHomeReader implements HomeReader {
     controller = StreamController<List<LedgerTransaction>>(
       onListen: () {
         controller.add(read());
-        changes = store.changes.listen((_) => controller.add(read()));
+        changes = store?.changes.listen((_) => controller.add(read()));
       },
       onCancel: () => changes?.cancel(),
     );

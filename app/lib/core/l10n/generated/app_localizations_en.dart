@@ -171,8 +171,164 @@ class AppLocalizationsEn extends AppLocalizations {
   String get activityTitle => 'Activity';
 
   @override
-  String get activityPlaceholder =>
-      'Every entry, grouped by day, will appear here.';
+  String get activitySearchHint => 'Search or ask';
+
+  @override
+  String get activityFilterAll => 'All';
+
+  @override
+  String get activityFilterOut => 'Out';
+
+  @override
+  String get activityFilterIn => 'In';
+
+  @override
+  String get activityFilterLoans => 'Loans';
+
+  @override
+  String get activityFilterYou => 'You';
+
+  @override
+  String get activityFilterPartner => 'Partner';
+
+  @override
+  String get activityToday => 'Today';
+
+  @override
+  String get activityYesterday => 'Yesterday';
+
+  @override
+  String activityDayNet(String amount) {
+    return 'Net for the day: $amount';
+  }
+
+  @override
+  String get activityWhoYou => 'You';
+
+  @override
+  String get activityWhoJoint => 'Joint';
+
+  @override
+  String get activityWhoPartner => 'Partner';
+
+  @override
+  String activityRowMeta(String kind, String who, String account) {
+    return '$kind · $who · $account';
+  }
+
+  @override
+  String activityRowMetaShort(String who, String account) {
+    return '$who · $account';
+  }
+
+  @override
+  String activityTransferAccounts(String from, String to) {
+    return '$from → $to';
+  }
+
+  @override
+  String get activityUnknownAccount => 'Account';
+
+  @override
+  String get activityTypeExpense => 'Expense';
+
+  @override
+  String get activityTypeIncome => 'Income';
+
+  @override
+  String get activityTypeTransfer => 'Transfer';
+
+  @override
+  String get activityTypeLoanGiven => 'Loan given';
+
+  @override
+  String get activityTypeLoanTaken => 'Loan taken';
+
+  @override
+  String get activityTypeRepaymentReceived => 'Repayment received';
+
+  @override
+  String get activityTypeRepaymentMade => 'Repayment made';
+
+  @override
+  String get activityTypeAdjustment => 'Balance correction';
+
+  @override
+  String get activitySyncing => 'Not synced yet';
+
+  @override
+  String get activityEdit => 'Edit';
+
+  @override
+  String get activityDelete => 'Delete';
+
+  @override
+  String activityDeleted(String title) {
+    return '$title deleted';
+  }
+
+  @override
+  String get activityDeletedEntry => 'Entry deleted';
+
+  @override
+  String get activityUndo => 'Undo';
+
+  @override
+  String get activityDeleteFailed => 'Couldn\'t delete that entry. Try again.';
+
+  @override
+  String get activityRestoreFailed =>
+      'Couldn\'t bring that entry back. It\'s in its history.';
+
+  @override
+  String get activityChangedElsewhere =>
+      'Your partner changed that entry just now. Try again.';
+
+  @override
+  String get activityEmpty => 'No entries yet.';
+
+  @override
+  String get activityEmptyAdd => 'Add one';
+
+  @override
+  String get activityEmptyFiltered => 'Nothing here yet.';
+
+  @override
+  String get activityEmptyLoaded =>
+      'Nothing here in the entries loaded so far.';
+
+  @override
+  String get activityLateFailure =>
+      'A change you made offline didn\'t go through. The entry is back as it was.';
+
+  @override
+  String get activitySearchEmpty => 'No matches in the loaded entries.';
+
+  @override
+  String get activitySearchOlder => 'Search older entries';
+
+  @override
+  String activityAskRow(String text) {
+    return 'Ask “$text”';
+  }
+
+  @override
+  String get activityLoadError => 'Couldn\'t load your entries.';
+
+  @override
+  String get activityLoadNotAllowed => 'You can\'t see these entries any more.';
+
+  @override
+  String get activityRetry => 'Try again';
+
+  @override
+  String get activityOffline => 'Offline. Showing saved entries.';
+
+  @override
+  String get activityLoading => 'Loading entries';
+
+  @override
+  String get activityLoadOlder => 'Load older entries';
 
   @override
   String get activityEntryTitle => 'Entry';

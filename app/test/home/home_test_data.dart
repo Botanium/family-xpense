@@ -8,6 +8,7 @@ import 'package:xpense_app/data/accounts_repository.dart';
 import 'package:xpense_app/data/accounts_repository_fake.dart';
 import 'package:xpense_app/data/mappers/transaction_mapper.dart';
 import 'package:xpense_app/data/transactions_repository.dart';
+import 'package:xpense_app/data/write/memory_ledger_store.dart';
 import 'package:xpense_app/services/settings_store.dart';
 import 'package:xpense_shared/xpense_shared.dart';
 
@@ -213,10 +214,10 @@ List<LedgerTransaction> artboardMonth() {
   return list;
 }
 
-/// Puts [transactions] in [ledger] as stored documents.
-void seed(MemoryLedger ledger, Iterable<LedgerTransaction> transactions) {
+/// Puts [transactions] in [store] as stored documents.
+void seed(MemoryLedgerStore store, Iterable<LedgerTransaction> transactions) {
   for (final t in transactions) {
-    ledger.store.seedTransaction(t.id, {
+    store.seedTransaction(t.id, {
       ...transactionContent(t),
       'deletedAt': t.deletedAt,
       'rev': 0,
@@ -224,23 +225,24 @@ void seed(MemoryLedger ledger, Iterable<LedgerTransaction> transactions) {
   }
 }
 
-/// The app's overrides over [services], with [ledger] as both the write
-/// and the read path.
-List<Override> homeOverrides(TestServices services, MemoryLedger ledger) =>
-    appOverrides(
-      clock: services.clock.clock,
-      settings: services.settingsStore,
-      biometricLock: services.biometricLock,
-      glass: services.glass,
-      authRepository: services.auth,
-      householdRepository: services.households,
-      accountsRepository: services.accounts,
-      transactionsRepository: ledger.repository,
-      homeReader: ledger.reader,
-      featureFlags: services.flags,
-      onDeviceLlm: services.onDeviceLlm,
-      speechCapture: services.speech,
-    );
+/// The app's overrides over [services], with [transactions] as the write
+/// path; Home and Activity read its store (`memoryHomeReaderFor`).
+List<Override> homeOverrides(
+  TestServices services,
+  TransactionsRepository transactions,
+) => appOverrides(
+  clock: services.clock.clock,
+  settings: services.settingsStore,
+  biometricLock: services.biometricLock,
+  glass: services.glass,
+  authRepository: services.auth,
+  householdRepository: services.households,
+  accountsRepository: services.accounts,
+  transactionsRepository: transactions,
+  featureFlags: services.flags,
+  onDeviceLlm: services.onDeviceLlm,
+  speechCapture: services.speech,
+);
 
 /// The artboard household: the sample accounts without Sam's private
 /// savings, so the hero reads "Household balance" as on artboard 06 (the
@@ -263,8 +265,8 @@ TestServices artboardServices({
 );
 
 /// Pumps the app on Home with the sample household, [transactions] in the
-/// ledger and the clock at [today]. Returns the ledger.
-Future<MemoryLedger> pumpHome(
+/// ledger and the clock at [today]. Returns the ledger's store.
+Future<MemoryLedgerStore> pumpHome(
   WidgetTester tester, {
   Iterable<LedgerTransaction> transactions = const [],
   TestServices? services,
@@ -279,15 +281,16 @@ Future<MemoryLedger> pumpHome(
   addTearDown(tester.view.reset);
   final s = services ?? artboardServices();
   s.clock.now = today;
-  final ledger = memoryLedger();
-  seed(ledger, transactions);
+  final repository = memoryTransactions();
+  final store = memoryStoreOf(repository)!;
+  seed(store, transactions);
   final container = ProviderContainer.test(
-    overrides: homeOverrides(s, ledger),
+    overrides: homeOverrides(s, repository),
     retry: (_, _) => null,
   );
   await tester.pumpWidget(
     UncontrolledProviderScope(container: container, child: const XpenseApp()),
   );
   await tester.pumpAndSettle();
-  return ledger;
+  return store;
 }

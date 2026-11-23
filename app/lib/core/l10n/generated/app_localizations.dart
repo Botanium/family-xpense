@@ -377,11 +377,293 @@ abstract class AppLocalizations {
   /// **'Activity'**
   String get activityTitle;
 
-  /// Placeholder line on Activity until the Activity screen is built.
+  /// Placeholder and spoken label of the Activity search field, which searches entries or sends a question to Ask.
   ///
   /// In en, this message translates to:
-  /// **'Every entry, grouped by day, will appear here.'**
-  String get activityPlaceholder;
+  /// **'Search or ask'**
+  String get activitySearchHint;
+
+  /// Activity filter: every entry.
+  ///
+  /// In en, this message translates to:
+  /// **'All'**
+  String get activityFilterAll;
+
+  /// Activity filter: money spent (expenses).
+  ///
+  /// In en, this message translates to:
+  /// **'Out'**
+  String get activityFilterOut;
+
+  /// Activity filter: money received (income).
+  ///
+  /// In en, this message translates to:
+  /// **'In'**
+  String get activityFilterIn;
+
+  /// Activity filter: loans and repayments.
+  ///
+  /// In en, this message translates to:
+  /// **'Loans'**
+  String get activityFilterLoans;
+
+  /// Activity filter: the signed-in member's own entries.
+  ///
+  /// In en, this message translates to:
+  /// **'You'**
+  String get activityFilterYou;
+
+  /// Activity filter: the partner's entries, when the partner has no display name.
+  ///
+  /// In en, this message translates to:
+  /// **'Partner'**
+  String get activityFilterPartner;
+
+  /// Day header in Activity for entries made today.
+  ///
+  /// In en, this message translates to:
+  /// **'Today'**
+  String get activityToday;
+
+  /// Day header in Activity for entries made yesterday.
+  ///
+  /// In en, this message translates to:
+  /// **'Yesterday'**
+  String get activityYesterday;
+
+  /// VoiceOver label of the figure beside a day header in Activity: income minus spending that day.
+  ///
+  /// In en, this message translates to:
+  /// **'Net for the day: {amount}'**
+  String activityDayNet(String amount);
+
+  /// Who an entry belongs to, in an Activity row: the signed-in member.
+  ///
+  /// In en, this message translates to:
+  /// **'You'**
+  String get activityWhoYou;
+
+  /// Who an entry belongs to, in an Activity row: both members.
+  ///
+  /// In en, this message translates to:
+  /// **'Joint'**
+  String get activityWhoJoint;
+
+  /// Who an entry belongs to, in an Activity row: the partner, when they have no display name.
+  ///
+  /// In en, this message translates to:
+  /// **'Partner'**
+  String get activityWhoPartner;
+
+  /// Subtitle of an Activity row: category or entry type, whose it is, and the account, separated by middle dots.
+  ///
+  /// In en, this message translates to:
+  /// **'{kind} · {who} · {account}'**
+  String activityRowMeta(String kind, String who, String account);
+
+  /// Subtitle of an Activity row whose title is already the entry type (no merchant or category): whose it is and the account, separated by a middle dot.
+  ///
+  /// In en, this message translates to:
+  /// **'{who} · {account}'**
+  String activityRowMetaShort(String who, String account);
+
+  /// Accounts of a transfer in an Activity row: where the money left and where it arrived.
+  ///
+  /// In en, this message translates to:
+  /// **'{from} → {to}'**
+  String activityTransferAccounts(String from, String to);
+
+  /// Account name in an Activity row when the account is not loaded or was removed.
+  ///
+  /// In en, this message translates to:
+  /// **'Account'**
+  String get activityUnknownAccount;
+
+  /// Entry type name, in Activity rows without a category.
+  ///
+  /// In en, this message translates to:
+  /// **'Expense'**
+  String get activityTypeExpense;
+
+  /// Entry type name, in Activity rows without a category.
+  ///
+  /// In en, this message translates to:
+  /// **'Income'**
+  String get activityTypeIncome;
+
+  /// Entry type name, in Activity rows: money moved between accounts.
+  ///
+  /// In en, this message translates to:
+  /// **'Transfer'**
+  String get activityTypeTransfer;
+
+  /// Entry type name, in Activity rows: money lent to someone.
+  ///
+  /// In en, this message translates to:
+  /// **'Loan given'**
+  String get activityTypeLoanGiven;
+
+  /// Entry type name, in Activity rows: money borrowed.
+  ///
+  /// In en, this message translates to:
+  /// **'Loan taken'**
+  String get activityTypeLoanTaken;
+
+  /// Entry type name, in Activity rows: someone paid back a loan.
+  ///
+  /// In en, this message translates to:
+  /// **'Repayment received'**
+  String get activityTypeRepaymentReceived;
+
+  /// Entry type name, in Activity rows: a loan or debt paid back.
+  ///
+  /// In en, this message translates to:
+  /// **'Repayment made'**
+  String get activityTypeRepaymentMade;
+
+  /// Entry type name, in Activity rows: an opening balance or a correction.
+  ///
+  /// In en, this message translates to:
+  /// **'Balance correction'**
+  String get activityTypeAdjustment;
+
+  /// VoiceOver label of the dot on an Activity row whose change is still only on this phone.
+  ///
+  /// In en, this message translates to:
+  /// **'Not synced yet'**
+  String get activitySyncing;
+
+  /// Swipe and context-menu action on an Activity row: opens the entry's edit form.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit'**
+  String get activityEdit;
+
+  /// Swipe and context-menu action on an Activity row: deletes the entry (it can be undone).
+  ///
+  /// In en, this message translates to:
+  /// **'Delete'**
+  String get activityDelete;
+
+  /// Undo toast after deleting an entry in Activity.
+  ///
+  /// In en, this message translates to:
+  /// **'{title} deleted'**
+  String activityDeleted(String title);
+
+  /// Undo toast after deleting an entry that has no title.
+  ///
+  /// In en, this message translates to:
+  /// **'Entry deleted'**
+  String get activityDeletedEntry;
+
+  /// Action on the Activity undo toast: brings the deleted entry back.
+  ///
+  /// In en, this message translates to:
+  /// **'Undo'**
+  String get activityUndo;
+
+  /// Error line in Activity when a delete did not happen.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t delete that entry. Try again.'**
+  String get activityDeleteFailed;
+
+  /// Error line in Activity when Undo did not restore the entry.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t bring that entry back. It\'s in its history.'**
+  String get activityRestoreFailed;
+
+  /// Error line in Activity when a delete or undo met the partner's change.
+  ///
+  /// In en, this message translates to:
+  /// **'Your partner changed that entry just now. Try again.'**
+  String get activityChangedElsewhere;
+
+  /// Empty state of Activity when the household has no entries.
+  ///
+  /// In en, this message translates to:
+  /// **'No entries yet.'**
+  String get activityEmpty;
+
+  /// Action under the empty state of Activity: opens Ask to add an entry.
+  ///
+  /// In en, this message translates to:
+  /// **'Add one'**
+  String get activityEmptyAdd;
+
+  /// Empty state of Activity when a filter (Out, In, Loans, You, partner) has no entries.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing here yet.'**
+  String get activityEmptyFiltered;
+
+  /// Empty state of an Activity filter when the entries read so far have none, but older entries exist (with a Load older action).
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing here in the entries loaded so far.'**
+  String get activityEmptyLoaded;
+
+  /// Error line in Activity when a delete or undo made offline was refused once it reached the server.
+  ///
+  /// In en, this message translates to:
+  /// **'A change you made offline didn\'t go through. The entry is back as it was.'**
+  String get activityLateFailure;
+
+  /// Shown when an Activity search matches nothing in the entries loaded so far.
+  ///
+  /// In en, this message translates to:
+  /// **'No matches in the loaded entries.'**
+  String get activitySearchEmpty;
+
+  /// Action under Activity search results: loads older entries to search them too.
+  ///
+  /// In en, this message translates to:
+  /// **'Search older entries'**
+  String get activitySearchOlder;
+
+  /// Row at the top of Activity search results when the text reads like a question: opens Ask with it.
+  ///
+  /// In en, this message translates to:
+  /// **'Ask “{text}”'**
+  String activityAskRow(String text);
+
+  /// Error state of Activity when the entries could not be read.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t load your entries.'**
+  String get activityLoadError;
+
+  /// Error state of Activity when the rules refused the read (the member left or lost access).
+  ///
+  /// In en, this message translates to:
+  /// **'You can\'t see these entries any more.'**
+  String get activityLoadNotAllowed;
+
+  /// Action under the Activity error state.
+  ///
+  /// In en, this message translates to:
+  /// **'Try again'**
+  String get activityRetry;
+
+  /// Strip under the Activity filter bar while the phone is offline.
+  ///
+  /// In en, this message translates to:
+  /// **'Offline. Showing saved entries.'**
+  String get activityOffline;
+
+  /// VoiceOver label of the Activity loading skeleton and of the spinner while older entries load.
+  ///
+  /// In en, this message translates to:
+  /// **'Loading entries'**
+  String get activityLoading;
+
+  /// Action at the end of the Activity list when older entries exist.
+  ///
+  /// In en, this message translates to:
+  /// **'Load older entries'**
+  String get activityLoadOlder;
 
   /// Top bar title of an entry's detail screen.
   ///
