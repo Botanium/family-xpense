@@ -138,6 +138,20 @@
       }
     }
   },
+  "activityRowMetaShort": "{who} · {account}",
+  "@activityRowMetaShort": {
+    "description": "Subtitle of an Activity row whose title is already the entry type (no merchant or category): whose it is and the account, separated by a middle dot.",
+    "placeholders": {
+      "who": {
+        "type": "String",
+        "example": "You"
+      },
+      "account": {
+        "type": "String",
+        "example": "My checking"
+      }
+    }
+  },
   "activityTransferAccounts": "{from} → {to}",
   "@activityTransferAccounts": {
     "description": "Accounts of a transfer in an Activity row: where the money left and where it arrived.",

@@ -79,6 +79,22 @@ void main() {
       expect(find.text('−IQD 41,175'), findsOneWidget);
     });
 
+    testWidgets('an untitled correction names its type once', (tester) async {
+      await pumpActivity(
+        tester,
+        drafts: [
+          entry(
+            'fix',
+            intent: 'adjustment',
+            amount: 500,
+            account: 'acc-checking',
+          ),
+        ],
+      );
+      expect(find.text('Balance correction'), findsOneWidget);
+      expect(find.text('You · My checking ••1187'), findsOneWidget);
+    });
+
     testWidgets('tapping a row opens the entry', (tester) async {
       final container = await pumpActivity(tester);
       final id = idOf(tester, 'Costco');

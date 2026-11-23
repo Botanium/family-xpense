@@ -42,8 +42,11 @@ final class ActivityRowLabels {
 
   /// The meta line: category or type, whose, account.
   String meta(AppLocalizations l10n, LedgerTransaction txn) {
-    final kind =
-        activityCategoryName(txn.categoryId) ?? typeName(l10n, txn.type);
+    final category = activityCategoryName(txn.categoryId);
+    final kind = category ?? typeName(l10n, txn.type);
+    // The title fell back to the type name: no merchant, no counterparty.
+    final titleIsType =
+        category == null && title(l10n, txn) == typeName(l10n, txn.type);
     final who = switch (txn.whoScope) {
       WhoScope.joint => l10n.activityWhoJoint,
       WhoScope.member when txn.whoUid == people.viewerUid =>
@@ -55,7 +58,10 @@ final class ActivityRowLabels {
     final account = to == null
         ? name(txn.accountId)
         : l10n.activityTransferAccounts(name(txn.accountId), name(to));
-    return l10n.activityRowMeta(kind, who, account);
+    // Never the type twice: when the title fell back to it, leave it out.
+    return titleIsType
+        ? l10n.activityRowMetaShort(who, account)
+        : l10n.activityRowMeta(kind, who, account);
   }
 
   /// A ledger type's name.

@@ -103,6 +103,11 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String activityRowMetaShort(String who, String account) {
+    return '$who · $account';
+  }
+
+  @override
   String activityTransferAccounts(String from, String to) {
     return '$from → $to';
   }

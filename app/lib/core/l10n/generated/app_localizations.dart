@@ -264,6 +264,12 @@ abstract class AppLocalizations {
   /// **'{kind} · {who} · {account}'**
   String activityRowMeta(String kind, String who, String account);
 
+  /// Subtitle of an Activity row whose title is already the entry type (no merchant or category): whose it is and the account, separated by a middle dot.
+  ///
+  /// In en, this message translates to:
+  /// **'{who} · {account}'**
+  String activityRowMetaShort(String who, String account);
+
   /// Accounts of a transfer in an Activity row: where the money left and where it arrived.
   ///
   /// In en, this message translates to:
