@@ -58,7 +58,7 @@ void seedSampleMonth(MemoryLedgerStore store, DateTime today) {
       account: 'acc-visa',
       visibleTo: both,
       merchant: day.isEven ? 'Costco' : 'Lunch',
-      category: day.isEven ? 'groceries' : 'dining_out',
+      category: day.isEven ? 'groceries' : 'dining',
       who: day % 3 == 0 ? partner : viewer,
     );
   }

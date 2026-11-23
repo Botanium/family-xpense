@@ -100,11 +100,13 @@ class HomeScreen extends ConsumerWidget {
         deltaPositive: s.netMinor >= 0,
         secondary: other == null || otherMinor == null
             ? null
+            // A no-break space keeps "IQD 21.3M" on one line when the delta
+            // line wraps at large text.
             : MoneyFormat.compact(
                 otherMinor,
                 exponent: other.exponent,
                 currency: other.code,
-              ).withCurrency,
+              ).withCurrency.replaceAll(' ', '\u00A0'),
       ),
       for (final currency in s.unconverted)
         Padding(
