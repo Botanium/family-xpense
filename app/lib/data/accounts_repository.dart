@@ -456,6 +456,11 @@ abstract interface class AccountsRepository {
   /// or null when it has none.
   Stream<FxRate?> watchLatestRate();
 
+  /// Saves [rate] as today's USD/IQD rate (`fxRates/{yyyy-mm-dd}`, labelled
+  /// with the household's `rateKind`, `market` by default), as a member
+  /// answering the daily rate prompt (ARCHITECTURE 3.5).
+  Future<Result<void, AccountsFailure>> setDailyRate(FxRate rate);
+
   /// The newest entries on account [accountId] the member can see, newest
   /// first.
   Stream<List<AccountEntry>> watchEntries(String accountId);

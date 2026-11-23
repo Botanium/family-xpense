@@ -363,7 +363,9 @@ class _ReceiptSummaryViewState extends State<ReceiptSummaryView>
             Padding(
               padding: const EdgeInsetsDirectional.only(top: XpSpace.s6),
               child: Text(
-                l10n.a2uiSaveFailed,
+                failure == SaveFailure.rateNeeded
+                    ? l10n.a2uiSaveRateNeeded
+                    : l10n.a2uiSaveFailed,
                 style: type.meta.copyWith(color: colors.danger),
                 textAlign: TextAlign.center,
               ),

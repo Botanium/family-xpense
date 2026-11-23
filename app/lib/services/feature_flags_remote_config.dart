@@ -30,8 +30,9 @@ final class RemoteConfigFeatureFlags implements FeatureFlagSource {
   StreamSubscription<RemoteConfigUpdate>? _updates;
 
   @override
-  FeatureFlags get current => FeatureFlags(
-    appleSignInEnabled: _config.getBool(FeatureFlags.appleSignInKey),
+  FeatureFlags get current => FeatureFlags.fromValues(
+    getBool: _config.getBool,
+    getDouble: _config.getDouble,
   );
 
   @override

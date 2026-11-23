@@ -10,8 +10,10 @@ import 'package:firebase_app_check/firebase_app_check.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/misc.dart';
-
+import 'package:xpense_app/a2ui/testing/fake_xpense_actions.dart';
+import 'package:xpense_app/a2ui/xpense_surface_host.dart';
 import 'package:xpense_app/app.dart';
 import 'package:xpense_app/core/theme/theme.dart';
 import 'package:xpense_app/core/ui/ui.dart';
@@ -31,13 +33,19 @@ import 'package:xpense_app/data/read/home_reader.dart';
 import 'package:xpense_app/data/read/home_reader_firebase.dart';
 import 'package:xpense_app/data/read/home_reader_memory.dart';
 import 'package:xpense_app/data/read/sample_month_fake.dart';
+import 'package:xpense_app/data/rules_repository.dart';
+import 'package:xpense_app/data/rules_repository_firestore.dart';
 import 'package:xpense_app/data/transactions_repository.dart';
 import 'package:xpense_app/data/write/firestore_ledger_store.dart';
 import 'package:xpense_app/data/write/ledger_store.dart';
 import 'package:xpense_app/data/write/ledger_transactions_repository.dart';
 import 'package:xpense_app/data/write/memory_ledger_store.dart';
+import 'package:xpense_app/features/ask/ask_actions.dart';
+import 'package:xpense_app/features/ask/ask_household.dart';
+import 'package:xpense_app/features/ask/ledger_xpense_actions.dart';
 import 'package:xpense_app/services/agent_client.dart';
 import 'package:xpense_app/services/agent_client_fake.dart';
+import 'package:xpense_app/services/agent_client_remote.dart';
 import 'package:xpense_app/services/biometric_lock.dart';
 import 'package:xpense_app/services/biometric_lock_local_auth.dart';
 import 'package:xpense_app/services/clock.dart';
@@ -267,13 +275,94 @@ HouseholdRepository connectHouseholds(
   ),
 };
 
+/// The cloud capture services (ARCHITECTURE 5.2 and 5.3): the agent and
+/// the Decisions proxy on `xpense-agent`, or null in `fakes` and when no
+/// server address is set, which leaves the fakes (every cloud path then
+/// reports itself unavailable and the slip is built on the phone).
+({AgentClient agent, DecisionsClient decisions})? connectCaptureServices(
+  AppEnvironment environment,
+) {
+  final serverUrl = switch (environment) {
+    AppEnvironment.fakes => null,
+    AppEnvironment.dev ||
+    AppEnvironment.prod => usableServerUrl(serverUrlDefine),
+    AppEnvironment.emulators => usableServerUrl(
+      _or(serverUrlDefine, defaultLocalServer),
+    ),
+  };
+  if (serverUrl == null) return null;
+  // App Check cannot be emulated; the local server accepts any non-empty
+  // token (XPENSE_APP_CHECK=emulator).
+  Future<String?> appCheck() => environment.usesAppCheck
+      ? FirebaseAppCheck.instance.getToken()
+      : Future.value('emulator');
+  Future<String?> idToken({bool forceRefresh = false}) async =>
+      await FirebaseAuth.instance.currentUser?.getIdToken(forceRefresh);
+  return (
+    agent: RemoteAgentClient(
+      baseUrl: serverUrl,
+      idToken: idToken,
+      appCheckToken: appCheck,
+      timeout: RemoteAgentClient.defaultTimeout,
+    ),
+    decisions: HttpDecisionsClient(
+      baseUrl: serverUrl,
+      idToken: idToken,
+      appCheckToken: appCheck,
+      timeout: HttpDecisionsClient.defaultTimeout,
+    ),
+  );
+}
+
+/// The Ask cards' household and write path: the household from
+/// [askHouseholdProvider] (the same accounts the save path writes to),
+/// saves and Undo through the transaction write path (WP-20), the daily
+/// rate through the accounts repository. The inner in-memory actions keep
+/// navigation for now.
+XpenseActions connectXpenseActions(Ref ref) {
+  // Keeps the household's streams running while the actions are in use;
+  // read, not watched, so a new account does not reset an Ask thread.
+  ref.listen(askHouseholdProvider, (_, _) {});
+  return LedgerXpenseActions(
+    inner: FakeXpenseActions(),
+    transactions: ref.watch(transactionsRepositoryProvider),
+    accounts: ref.watch(accountsRepositoryProvider),
+    readHousehold: () => ref.read(askHouseholdProvider),
+    clock: ref.read(clockProvider),
+  );
+}
+
+/// The learned rules for the signed-in member (story S3.11): in Firestore
+/// once the member is in a household, in memory in `fakes` and until the
+/// membership is known.
+RulesRepository connectRules(Ref ref, {required AppEnvironment environment}) {
+  final membership = ref.watch(membershipProvider).value;
+  final uid = ref.watch(authRepositoryProvider).currentUser?.uid;
+  if (!environment.usesFirebase || uid == null || membership is! InHousehold) {
+    final memory = MemoryRulesRepository();
+    ref.onDispose(memory.dispose);
+    return memory;
+  }
+  final firestore = FirestoreRulesRepository(
+    firestore: FirebaseFirestore.instance,
+    hid: membership.household.id,
+    uid: uid,
+  );
+  ref.onDispose(firestore.dispose);
+  return firestore;
+}
+
 /// The accounts repository for [environment], following [households]. In
-/// `fakes` it holds the artboards' household (WP-13).
+/// `fakes` it holds the artboards' household (WP-13), kept in step with
+/// [transactions]' in-memory store: one household, as in Firestore.
 AccountsRepository connectAccounts(
   AppEnvironment environment, {
   required HouseholdRepository households,
+  TransactionsRepository? transactions,
 }) => switch (environment) {
-  AppEnvironment.fakes => FakeAccountsRepository.sample(),
+  AppEnvironment.fakes => FakeAccountsRepository.sample(
+    ledger: transactions == null ? null : memoryStoreOf(transactions),
+  ),
   // Firestore is already pointed at the emulator by connectHouseholds.
   AppEnvironment.dev || AppEnvironment.prod || AppEnvironment.emulators =>
     FirebaseAccountsRepository.connect(households: households),
@@ -326,7 +415,27 @@ Future<TransactionsRepository> connectTransactions(
 /// shows every save, delete and undo at once; Home reads the same store
 /// (WP-23, [memoryHomeReaderFor]). With [sampleMonth], the store holds a
 /// month of sample entries up to that day (the fakes build).
-NotifyingTransactionsRepository memoryTransactions({DateTime? sampleMonth}) {
+NotifyingTransactionsRepository memoryTransactions({
+  DateTime? sampleMonth,
+  Clock clock = const Clock(),
+}) {
+  final store = sampleLedgerStore(clock: clock);
+  if (sampleMonth != null) seedSampleMonth(store, sampleMonth);
+  final repository = NotifyingTransactionsRepository(
+    LedgerTransactionsRepository(store),
+    MemoryActivityReader(
+      read: () => store.transactions,
+      viewerUid: FakeAccountsRepository.sampleViewer,
+    ),
+  );
+  _memoryStores[repository] = store;
+  return repository;
+}
+
+/// The in-memory ledger behind [memoryTransactions]: the sample accounts,
+/// the default categories, and the sample household's 1,705 dinars per
+/// dollar, entered 30 days ago so entries of the last month find it.
+MemoryLedgerStore sampleLedgerStore({Clock clock = const Clock()}) {
   const viewer = FakeAccountsRepository.sampleViewer;
   final store = MemoryLedgerStore(
     scope: const LedgerScope(householdId: 'fake-household', uid: viewer),
@@ -347,13 +456,11 @@ NotifyingTransactionsRepository memoryTransactions({DateTime? sampleMonth}) {
   for (final c in defaultCategories) {
     store.categories[c.slug] = LedgerCategory(id: c.slug, kind: c.kind.name);
   }
-  if (sampleMonth != null) seedSampleMonth(store, sampleMonth);
-  final repository = NotifyingTransactionsRepository(
-    LedgerTransactionsRepository(store),
-    MemoryActivityReader(read: () => store.transactions, viewerUid: viewer),
-  );
-  _memoryStores[repository] = store;
-  return repository;
+  if (FxRate.forPair(FxPair.usdIqd, '1705') case Ok(:final value)) {
+    final day = householdDay(clock.daysAgo(30));
+    store.rates[day] = DayRate(day: day, rate: value, kind: 'market');
+  }
+  return store;
 }
 
 /// The store behind each memory write path, for the readers that follow it.
@@ -492,12 +599,17 @@ Future<Bootstrapped> bootstrap({required AppEnvironment environment}) async {
 
   final auth = await connectAuth(environment);
   final households = connectHouseholds(environment, auth: auth);
-  final accounts = connectAccounts(environment, households: households);
   final transactions = await connectTransactions(
     environment,
     households: households,
   );
+  final accounts = connectAccounts(
+    environment,
+    households: households,
+    transactions: transactions,
+  );
   final flags = await connectFeatureFlags(environment);
+  final capture = connectCaptureServices(environment);
   registerFontLicenses();
   final settings = await PrefsSettingsStore.open();
   await GlassSetup.initialize();
@@ -525,6 +637,10 @@ Future<Bootstrapped> bootstrap({required AppEnvironment environment}) async {
               households: households,
             ),
       featureFlags: flags,
+      xpenseActions: connectXpenseActions,
+      agentClient: capture?.agent,
+      decisionsClient: capture?.decisions,
+      rules: (ref) => connectRules(ref, environment: environment),
     ),
   );
 }
@@ -553,6 +669,8 @@ List<Override> appOverrides({
   OnDeviceLlm? onDeviceLlm,
   SpeechCapture? speechCapture,
   OcrEngine? ocrEngine,
+  XpenseActions Function(Ref ref)? xpenseActions,
+  RulesRepository Function(Ref ref)? rules,
 }) => [
   clockProvider.overrideWithValue(clock),
   settingsStoreProvider.overrideWithValue(settings),
@@ -585,4 +703,17 @@ List<Override> appOverrides({
   onDeviceLlmProvider.overrideWithValue(onDeviceLlm ?? FakeOnDeviceLlm()),
   speechCaptureProvider.overrideWithValue(speechCapture ?? FakeSpeechCapture()),
   ocrEngineProvider.overrideWithValue(ocrEngine ?? FakeOcrEngine()),
+  // Bootstrap passes connectXpenseActions (the household from the app's
+  // data, saves through the write path); tests pass a fake.
+  xpenseActionsProvider.overrideWith(
+    xpenseActions ?? (_) => FakeXpenseActions(),
+  ),
+  rulesRepositoryProvider.overrideWith(
+    rules ??
+        (ref) {
+          final memory = MemoryRulesRepository();
+          ref.onDispose(memory.dispose);
+          return memory;
+        },
+  ),
 ];

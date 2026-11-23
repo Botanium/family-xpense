@@ -78,6 +78,10 @@ final class HttpDecisionsClient implements DecisionsClient {
     DecideTransport? transport,
   }) : _transport = transport ?? _ioTransport;
 
+  /// The default limit (WP-33: about 10 s; the API answers in 0.3 s and
+  /// the phone's own pickers are the alternative).
+  static const Duration defaultTimeout = Duration(seconds: 10);
+
   /// The service origin, such as `https://xpense-agent-….run.app`.
   final Uri baseUrl;
 

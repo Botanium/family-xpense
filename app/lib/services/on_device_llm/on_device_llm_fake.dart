@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:xpense_app/services/on_device_llm/on_device_llm.dart';
 import 'package:xpense_app/services/service_failure.dart';
 import 'package:xpense_shared/xpense_shared.dart';
@@ -21,6 +23,9 @@ final class FakeOnDeviceLlm implements OnDeviceLlm {
   /// How many times [probe] ran.
   int probes = 0;
 
+  /// When set, [extractEntry] waits for it, so a test can act meanwhile.
+  Completer<void>? gate;
+
   @override
   Future<OnDeviceProbe> probe() async {
     probes++;
@@ -28,6 +33,8 @@ final class FakeOnDeviceLlm implements OnDeviceLlm {
   }
 
   @override
-  Future<Result<EntryDraft, ServiceFailure>> extractEntry(String text) async =>
-      extraction;
+  Future<Result<EntryDraft, ServiceFailure>> extractEntry(String text) async {
+    await gate?.future;
+    return extraction;
+  }
 }

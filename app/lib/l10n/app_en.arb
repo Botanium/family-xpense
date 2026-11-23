@@ -1292,9 +1292,53 @@
   "@askTitle": {
     "description": "Top bar title of Ask, the screen where the user talks, types or scans a receipt."
   },
-  "askPlaceholder": "Tell Xpense what you spent, earned or lent. Talking, typing and scanning arrive in a later version.",
-  "@askPlaceholder": {
-    "description": "Placeholder line on Ask until capture is built."
+  "askEmpty": "Tell Xpense what you spent, earned or lent, or ask about your money.",
+  "@askEmpty": {
+    "description": "Empty Ask thread: one line that says what to type."
+  },
+  "askModeDecide": "Smart: classification in cloud",
+  "@askModeDecide": {
+    "description": "Mode chip while the typed message would be classified by the cloud Decisions service: the words go to the cloud, nothing else."
+  },
+  "askThinking": "Working on it…",
+  "@askThinking": {
+    "description": "Busy line in the Ask thread while the cloud reads a message."
+  },
+  "askStop": "Stop",
+  "@askStop": {
+    "description": "Text button next to the busy line that cancels the running request."
+  },
+  "askRetry": "Retry",
+  "@askRetry": {
+    "description": "Text button on an Ask notice that sends the same message again."
+  },
+  "askFinishManually": "Finish manually",
+  "@askFinishManually": {
+    "description": "Text button on an Ask notice that builds the entry on the phone and asks for the missing fields."
+  },
+  "askNoticeOffline": "No connection. This message needs the cloud.",
+  "@askNoticeOffline": {
+    "description": "Ask notice when a message could not reach the server."
+  },
+  "askNoticeLimit": "Today's cloud limit for your household is used up. It resets tomorrow.",
+  "@askNoticeLimit": {
+    "description": "Ask notice when the household reached its daily limit of cloud requests."
+  },
+  "askNoticePrivacy": "On-device mode keeps this on your phone. Change the privacy mode in Settings to use the cloud.",
+  "@askNoticePrivacy": {
+    "description": "Ask notice when a message needs the cloud but the household is in On-device mode."
+  },
+  "askNoticeError": "Something went wrong with this message.",
+  "@askNoticeError": {
+    "description": "Ask notice for any other failure."
+  },
+  "askOffline": "Offline. Entries are made on this phone.",
+  "@askOffline": {
+    "description": "Offline banner under the Ask top bar."
+  },
+  "askSend": "Send",
+  "@askSend": {
+    "description": "Spoken label of the keyboard send action in the Ask dock."
   },
   "askModeOnDevice": "On-device",
   "@askModeOnDevice": {
@@ -1495,6 +1539,14 @@
   "a2uiSaveFailed": "Couldn't save. Your entries are still here.",
   "@a2uiSaveFailed": {
     "description": "Shown under the Save button when saving failed."
+  },
+  "a2uiSaveRateNeeded": "Enter today's dollar rate to save this.",
+  "@a2uiSaveRateNeeded": {
+    "description": "Shown under the Save button when the household has no dollar rate yet for an entry in another currency."
+  },
+  "a2uiRateEnter": "Enter rate",
+  "@a2uiRateEnter": {
+    "description": "Text button on a slip that opens the rate keypad when the household has never entered a dollar rate."
   },
   "a2uiUndo": "Undo",
   "@a2uiUndo": {
