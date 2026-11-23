@@ -332,6 +332,26 @@ void main() {
       expect(d.missing, contains('intent'));
     });
 
+    for (final text in [
+      'transferred 100 dollars to Savings from Checking',
+      'transferred 100 dollars from Checking to Savings',
+    ]) {
+      test('"$text": from Checking, to Savings', () {
+        final d = _draft(text);
+        expect(d.intent, 'transfer');
+        expect(d.accountId, 'acc_chk');
+        expect(d.toAccountId, 'acc_sav');
+      });
+    }
+
+    test('two accounts named with no direction leave both to ask', () {
+      final d = _draft('transferred 100 dollars Checking Savings');
+      expect(d.intent, 'transfer');
+      expect(d.accountId, isNull);
+      expect(d.toAccountId, isNull);
+      expect(d.missing, containsAll(['accountId', 'toAccountId']));
+    });
+
     test('a transfer never goes to the account it leaves from', () {
       final d = _draft(
         'moved 200 dollars from checking',

@@ -129,6 +129,37 @@ const _stopWords = {
   'at',
 };
 
+/// The accounts [raw] names, by the word before each: "from X" is where
+/// the money leaves, "to X" or "into X" where it arrives, and the rest say
+/// neither.
+@visibleForTesting
+({String? from, String? to, List<String> undirected}) accountDirections(
+  String raw,
+  FastParse parse,
+) {
+  final words = [
+    for (final t in tokenize(normalize(raw).text))
+      if (t.kind == TokenKind.word) t,
+  ];
+  String? from;
+  String? to;
+  final undirected = <String>[];
+  for (final h in parse.hints) {
+    final id = h.id;
+    if (h.kind != HintKind.account || id == null) continue;
+    final before = words.where((w) => w.end <= h.start).lastOrNull?.text;
+    switch (before) {
+      case 'from' when from == null:
+        from = id;
+      case 'to' || 'into' when to == null:
+        to = id;
+      default:
+        if (!undirected.contains(id)) undirected.add(id);
+    }
+  }
+  return (from: from, to: to, undirected: undirected);
+}
+
 /// The words of [raw] that name what the entry was for: the words after
 /// "at" or "from" (a merchant), else the remaining content words, at most
 /// four, in the member's casing. Null when nothing is left.
@@ -367,18 +398,34 @@ EntryDraft buildDraft({
     return false;
   }
 
+  // A transfer's accounts go by the words, not their order: "from X" is
+  // the source and "to X" the destination. One account with neither word
+  // is the source; two or more leave both to ask.
+  final directions = accountDirections(raw, parse);
+  final namedSource = isTransfer
+      ? directions.from ??
+            (directions.undirected.length == 1 &&
+                    directions.undirected.single != directions.to
+                ? directions.undirected.single
+                : null)
+      : parse.hints
+            .where((h) => h.kind == HintKind.account && h.id != null)
+            .firstOrNull
+            ?.id;
+  final namedAmbiguous =
+      isTransfer && directions.from == null && directions.undirected.length > 1;
+
   // Account: a rule, the account named, the only account, then Decisions.
   var accountId = rule(RuleField.accountId);
   var accountNamed = false;
   if (accountId != null) {
     confidence['account'] = ruleHitConfidence;
-  } else if (parse.hints
-          .where((h) => h.kind == HintKind.account && h.id != null)
-          .firstOrNull
-      case final named?) {
-    accountId = named.id;
+  } else if (namedSource != null) {
+    accountId = namedSource;
     accountNamed = true;
     confidence['account'] = 1;
+  } else if (namedAmbiguous) {
+    // Named, but which way round is unclear: the slip asks.
   } else if (household.accounts.length == 1) {
     accountId = household.accounts.single.id;
     confidence['account'] = 1;
@@ -414,7 +461,12 @@ EntryDraft buildDraft({
 
   String? toAccountId;
   if (isTransfer) {
-    if (policy.pick(decide?.toAccount, calibrated: calibrated) case final p?) {
+    if (directions.to case final to? when to != accountId) {
+      toAccountId = to;
+    } else if (namedAmbiguous) {
+      // As for the source.
+    } else if (policy.pick(decide?.toAccount, calibrated: calibrated)
+        case final p?) {
       if (household.account(p.value) != null && p.value != accountId) {
         toAccountId = p.value;
         if (p.show == FieldShow.guessed) guessed.add('toAccountId');
