@@ -162,4 +162,45 @@ void main() {
     );
     expect(_ask, findsNothing);
   });
+
+  testWidgets('a slip quote gives way to the rate answered here (Codex '
+      'review, PR #42)', (tester) async {
+    final app = LedgerApp();
+    final container = await app.pump(tester);
+    await pushTo(
+      tester,
+      container,
+      AppRoutes.addEntry,
+      extra: EntryDraft(
+        id: 'slip-1',
+        intent: 'expense',
+        amountMinor: 10000,
+        currency: 'IQD',
+        accountId: 'acc-cash',
+        categoryId: 'food',
+        occurredOn: '2026-11-22',
+        origin: 'parser',
+        // Previewed on the slip at the latest rate.
+        fx: FxQuote(pair: 'USD/IQD', pairRate: '1705', baseAmountMinor: 587),
+      ),
+    );
+
+    await _tap(tester, find.text('Change').last);
+    await _settle(tester);
+    await tester.tap(find.bySemanticsLabel('Delete').last);
+    await tester.pump();
+    await tester.tap(find.text('0').last);
+    await tester.pump();
+    await tester.tap(find.text('Save').last);
+    await _settle(tester);
+    await tester.pumpAndSettle();
+    expect(app.fx.written.single.rate.rateString, '1700');
+
+    await _tap(tester, find.text('Save expense'));
+    final [txn] = app.saved;
+    expect(txn['fx'], containsPair('pairRate', '1700'));
+    expect(txn['fx'], containsPair('asOf', '2026-11-22'));
+    await tester.pump(const Duration(seconds: 11));
+    await tester.pumpAndSettle();
+  });
 }

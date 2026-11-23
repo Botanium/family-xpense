@@ -12,6 +12,8 @@
 // This file is the interface features import. The Firestore adapter is
 // `fx_repository_firebase.dart` and the in-memory one is
 // `fx_repository_fake.dart`; only the composition root and tests name them.
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:xpense_app/data/write/ledger_transactions_repository.dart';
@@ -238,6 +240,44 @@ DailyRateAsk? dailyRateAsk({
 /// The household-local day of [now], `YYYY-MM-DD`.
 String rateDayOf(DateTime now) => householdDay(now);
 
+/// Today's household-local day, `YYYY-MM-DD`, by the injected clock. It
+/// moves on by itself at local midnight, so a screen left open overnight
+/// asks for the new day's rate (Codex review, PR #42);
+/// [RateDayNotifier.refresh] reads the clock again on demand.
+final NotifierProvider<RateDayNotifier, String> rateTodayProvider =
+    NotifierProvider<RateDayNotifier, String>(
+      RateDayNotifier.new,
+      name: 'rateTodayProvider',
+    );
+
+/// Holds [rateTodayProvider]'s day and rolls it over.
+class RateDayNotifier extends Notifier<String> {
+  Timer? _midnight;
+
+  @override
+  String build() {
+    ref.onDispose(() => _midnight?.cancel());
+    return _read();
+  }
+
+  /// Reads the clock again; changes the day only if it moved.
+  void refresh() {
+    final next = _read();
+    if (next != state) state = next;
+  }
+
+  String _read() {
+    final now = ref.read(clockProvider).now();
+    _midnight?.cancel();
+    final local = now.toLocal();
+    final nextDay = DateTime(local.year, local.month, local.day + 1);
+    // Should it fire a moment early, the day has not changed and the next
+    // timer is set again.
+    _midnight = Timer(nextDay.difference(local), refresh);
+    return rateDayOf(now);
+  }
+}
+
 /// The [FxRepository] for this run. Throws until the composition root sets
 /// it.
 final fxRepositoryProvider = Provider<FxRepository>(
@@ -263,8 +303,10 @@ final rateKindProvider = StreamProvider<RateKind>(
 final Provider<AsyncValue<DailyRate?>> latestDailyRateProvider =
     Provider<AsyncValue<DailyRate?>>((ref) {
       final rates = ref.watch(fxRatesProvider);
+      // Recomputed when the day moves on, so the window moves with it.
+      ref.watch(rateTodayProvider);
       final from = rateDayOf(
-        ref.watch(clockProvider).now().subtract(latestRateWindow),
+        ref.read(clockProvider).now().subtract(latestRateWindow),
       );
       return rates.whenData(
         (list) => list.where((r) => r.day.compareTo(from) >= 0).firstOrNull,

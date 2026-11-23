@@ -74,11 +74,13 @@ final class LedgerXpenseActions implements XpenseActions {
     String surfaceId,
     List<EntryDraft> drafts,
   ) async {
-    // After a rate answer, a quote made with an older rate is dropped, so
-    // the write path prices the entry with the household's rate for its
-    // date (the one just saved, for today).
-    final base = readHousehold().baseCurrency;
-    final priced = _answeredToday == null
+    // Once today's rate is entered (here, or by the partner on their
+    // phone), a quote made with an older rate is dropped, so the write
+    // path prices the entry with the household's rate for its date
+    // (WP-24, Codex review PR #42).
+    final household = readHousehold();
+    final base = household.baseCurrency;
+    final priced = _answeredToday == null && !household.rateEnteredToday
         ? drafts
         : [
             for (final d in drafts)

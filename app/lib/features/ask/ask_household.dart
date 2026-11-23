@@ -3,7 +3,6 @@ import 'package:xpense_app/a2ui/xpense_surface_host.dart';
 import 'package:xpense_app/data/accounts_repository.dart';
 import 'package:xpense_app/data/fx_repository.dart';
 import 'package:xpense_app/data/household_repository.dart';
-import 'package:xpense_app/services/clock.dart';
 import 'package:xpense_shared/xpense_shared.dart';
 
 /// The household the Ask cards and the parser use, from the same sources
@@ -59,7 +58,7 @@ XpenseHousehold xpenseHouseholdFrom({
 /// Whether someone in the household (this member or the partner) already
 /// entered today's rate: then a slip does not ask for it (D-16).
 bool _rateEnteredToday(Ref ref) {
-  final today = rateDayOf(ref.watch(clockProvider).now());
+  final today = ref.watch(rateTodayProvider);
   final rates = ref.watch(fxRatesProvider).value ?? const <DailyRate>[];
   return rates.any((r) => r.day == today);
 }

@@ -315,4 +315,23 @@ void _rateEnteredTodayTests() {
     expect(household.read().rateEnteredToday, isTrue);
     expect(household.read().latestRate, '1710');
   });
+
+  test('the next day, a slip asks again (Codex review, PR #42)', () async {
+    final accounts = FakeAccountsRepository.sample();
+    final services = TestServices(accounts: accounts);
+    final container = services.container();
+    final household = container.listen(askHouseholdProvider, (_, _) {});
+    await container.read(fxRatesProvider.future);
+    await accounts.fx.setRate(
+      householdDay(services.clock.now),
+      FxRate.forPair(FxPair.usdIqd, '1710').valueOrNull!,
+    );
+    await Future<void>.delayed(Duration.zero);
+    expect(household.read().rateEnteredToday, isTrue);
+
+    services.clock.advance(const Duration(days: 1));
+    container.read(rateTodayProvider.notifier).refresh();
+    expect(household.read().rateEnteredToday, isFalse);
+    expect(household.read().latestRate, '1710');
+  });
 }
