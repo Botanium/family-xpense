@@ -702,6 +702,33 @@ void main() {
       expect(visibleOf('$txns/t'), [owner, partner]);
     });
 
+    test('reads a binary protobuf body without failing', () async {
+      seedAccount(
+        'chk',
+        visibleTo: [owner, partner],
+        shared: true,
+        applied: [owner],
+      );
+      seedTxn('t', 'chk', visibleTo: [owner]);
+
+      // Eventarc sends Firestore events as protobuf; these bytes are not
+      // valid UTF-8 (Codex review, PR #41).
+      final response = await handler(
+        Request(
+          'POST',
+          Uri.parse('http://localhost$accountVisibilityPath'),
+          headers: {
+            'ce-document': '$accounts/chk',
+            'content-type': 'application/protobuf',
+          },
+          body: <int>[0x0a, 0xff, 0xfe, 0x80, 0x12, 0xc3, 0x28],
+        ),
+      );
+
+      expect(response.statusCode, 200);
+      expect(visibleOf('$txns/t'), [owner, partner]);
+    });
+
     test('drops an event that names no account', () async {
       final response = await post({'ce-document': 'users/u'});
       expect(response.statusCode, 204);

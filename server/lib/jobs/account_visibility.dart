@@ -540,7 +540,11 @@ Handler accountVisibilityHandler(AccountVisibilityJob job) => (request) async {
   if (request.method != 'POST') {
     return Response(405, headers: {'allow': 'POST'});
   }
-  final body = await request.readAsString();
+  // Firestore events arrive as binary protobuf (Eventarc refuses JSON for
+  // them), so the body is read as bytes and decoded leniently: only a JSON
+  // body is ever parsed, and the `ce-document` header names the account.
+  final bytes = await request.read().expand((chunk) => chunk).toList();
+  final body = utf8.decode(bytes, allowMalformed: true);
   final target = accountFromEvent(request.headers, body);
   if (target == null) {
     _log.warning({
