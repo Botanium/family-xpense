@@ -18,6 +18,9 @@ import 'package:xpense_app/core/ui/ui.dart';
 import 'package:xpense_app/data/accounts_repository.dart';
 import 'package:xpense_app/data/accounts_repository_fake.dart';
 import 'package:xpense_app/data/accounts_repository_firebase.dart';
+import 'package:xpense_app/data/activity_feed.dart';
+import 'package:xpense_app/data/activity_feed_firestore.dart';
+import 'package:xpense_app/data/activity_feed_memory.dart';
 import 'package:xpense_app/data/auth_repository.dart';
 import 'package:xpense_app/data/auth_repository_fake.dart';
 import 'package:xpense_app/data/auth_repository_firebase.dart';
@@ -283,7 +286,11 @@ Future<TransactionsRepository> connectTransactions(
 
 /// A write path in memory over the sample household's accounts
 /// (`FakeAccountsRepository.sample`), for the fakes build and tests.
-TransactionsRepository memoryTransactions() {
+TransactionsRepository memoryTransactions() => memoryLedger().$1;
+
+/// The memory write path and an Activity feed over the same store, so
+/// Activity shows every save, delete and undo at once (WP-22).
+(TransactionsRepository, ActivityFeed) memoryLedger() {
   const viewer = FakeAccountsRepository.sampleViewer;
   final store = MemoryLedgerStore(
     scope: const LedgerScope(householdId: 'fake-household', uid: viewer),
@@ -304,7 +311,14 @@ TransactionsRepository memoryTransactions() {
   for (final c in defaultCategories) {
     store.categories[c.slug] = LedgerCategory(id: c.slug, kind: c.kind.name);
   }
-  return LedgerTransactionsRepository(store);
+  final feed = MemoryActivityFeed(
+    read: () => store.transactions,
+    viewerUid: viewer,
+  );
+  return (
+    NotifyingTransactionsRepository(LedgerTransactionsRepository(store), feed),
+    feed,
+  );
 }
 
 /// The crash sink the two error handlers write to.
@@ -411,10 +425,12 @@ Future<Bootstrapped> bootstrap({required AppEnvironment environment}) async {
   final auth = await connectAuth(environment);
   final households = connectHouseholds(environment, auth: auth);
   final accounts = connectAccounts(environment, households: households);
-  final transactions = await connectTransactions(
-    environment,
-    households: households,
-  );
+  final (transactions, activityFeed) = environment == AppEnvironment.fakes
+      ? memoryLedger()
+      : (
+          await connectTransactions(environment, households: households),
+          FirestoreActivityFeed.connect(households: households),
+        );
   final flags = await connectFeatureFlags(environment);
   registerFontLicenses();
   final settings = await PrefsSettingsStore.open();
@@ -432,6 +448,7 @@ Future<Bootstrapped> bootstrap({required AppEnvironment environment}) async {
       householdRepository: households,
       accountsRepository: accounts,
       transactionsRepository: transactions,
+      activityFeed: activityFeed,
       featureFlags: flags,
     ),
   );
@@ -452,6 +469,7 @@ List<Override> appOverrides({
   required HouseholdRepository householdRepository,
   required AccountsRepository accountsRepository,
   TransactionsRepository? transactionsRepository,
+  ActivityFeed? activityFeed,
   SecureStore? secureStore,
   FeatureFlagSource? featureFlags,
   AgentClient? agentClient,
@@ -467,9 +485,7 @@ List<Override> appOverrides({
   authRepositoryProvider.overrideWithValue(authRepository),
   householdRepositoryProvider.overrideWithValue(householdRepository),
   accountsRepositoryProvider.overrideWithValue(accountsRepository),
-  transactionsRepositoryProvider.overrideWithValue(
-    transactionsRepository ?? memoryTransactions(),
-  ),
+  ..._ledgerOverrides(transactionsRepository, activityFeed),
   secureStoreProvider.overrideWithValue(secureStore ?? MemorySecureStore()),
   featureFlagSourceProvider.overrideWithValue(
     featureFlags ?? FakeFeatureFlags(),
@@ -482,3 +498,24 @@ List<Override> appOverrides({
   speechCaptureProvider.overrideWithValue(speechCapture ?? FakeSpeechCapture()),
   ocrEngineProvider.overrideWithValue(ocrEngine ?? FakeOcrEngine()),
 ];
+
+/// The write path and the Activity feed (WP-22). Without a write path, the
+/// memory one and a feed over it; with one but no feed, an empty feed.
+List<Override> _ledgerOverrides(
+  TransactionsRepository? transactions,
+  ActivityFeed? feed,
+) {
+  final pair = switch ((transactions, feed)) {
+    (final TransactionsRepository t, final ActivityFeed f) => (t, f),
+    (final TransactionsRepository t, null) => (
+      t,
+      MemoryActivityFeed.empty(viewerUid: FakeAccountsRepository.sampleViewer),
+    ),
+    (null, final ActivityFeed f) => (memoryTransactions(), f),
+    (null, null) => memoryLedger(),
+  };
+  return [
+    transactionsRepositoryProvider.overrideWithValue(pair.$1),
+    activityFeedProvider.overrideWithValue(pair.$2),
+  ];
+}
