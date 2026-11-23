@@ -183,6 +183,32 @@ void main() {
       expect(find.text('Save anyway'), findsOneWidget);
     });
 
+    testWidgets('D: a recurring guess at the configured threshold offers to '
+        'repeat once saved', (tester) async {
+      // 0.77 is over `recurring_offer` (0.75) but under the old 0.8.
+      expect(CaptureThresholds.defaults.recurringOffer, 0.75);
+      final services = TestServices();
+      services.decisions.result = Ok(
+        DecideResponse(
+          intent: ChoiceAnswer(
+            choice: 'expense',
+            confidence: 0.97,
+            probabilities: {'expense': 0.97},
+          ),
+          category: ChoiceAnswer(choice: 'groceries', confidence: 0.95),
+          account: ChoiceAnswer(choice: 'acc_chk', confidence: 0.95),
+          isRecurring: YesNoAnswer(probability: 0.77),
+        ),
+      );
+      await _openAsk(tester, services);
+      await _send(tester, 'spent 42.80 dollars at Costco');
+      await tester.tap(find.text('Save'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Saved.'), findsOneWidget);
+      expect(find.text('Make it repeat'), findsOneWidget);
+    });
+
     testWidgets('A: several entries go to the agent; its surface renders', (
       tester,
     ) async {

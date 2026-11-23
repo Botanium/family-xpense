@@ -11,11 +11,6 @@ import 'package:xpense_app/core/theme/theme.dart';
 import 'package:xpense_app/core/ui/ui.dart';
 import 'package:xpense_shared/xpense_shared.dart';
 
-/// A recurring guess at or above this probability offers to repeat the
-/// entry after it is saved. Moves to Remote Config with the confidence
-/// thresholds (WP-34, S3.10).
-const double recurringOfferThreshold = 0.8;
-
 /// The catalog `EntryList` (A2UI_CATALOG 3.2): one slip per draft, local
 /// editing through pickers, one save for all, Undo for ten seconds, and the
 /// recurring offer. Edits write the whole `/drafts` array back through the
@@ -254,9 +249,11 @@ class _EntryListViewState extends State<EntryListView>
     final offers = [
       for (final d in check.drafts)
         if (d.draft case final EntryDraft draft
+            // The hint is only there at or above the configured
+            // `recurring_offer` (the agent and the phone's draft builder
+            // both filter it), so the card trusts it.
             when saved != null &&
-                (draft.recurring?.probability ?? 0) >=
-                    recurringOfferThreshold &&
+                draft.recurring != null &&
                 !_recurringAnswered.contains(draft.id))
           draft,
     ];
