@@ -208,10 +208,22 @@ class AddManuallyFormState extends ConsumerState<AddManuallyForm> {
   }
 
   List<Account> _accounts() =>
-      (ref.read(accountsProvider).value ?? const <Account>[])
-          .where((a) => !a.archived || a.id == _values.accountId)
-          .toList()
-        ..sort((a, b) => a.order.compareTo(b.order));
+      _offered(ref.read(accountsProvider).value ?? const <Account>[]);
+
+  /// The accounts the form offers and checks against: the live ones, plus
+  /// any archived one the entry already uses (its source or a transfer's
+  /// destination, as saved or as chosen now), so an old entry stays
+  /// editable after its account was archived (Codex review, PR #39).
+  List<Account> _offered(List<Account> all) {
+    final used = {
+      ?widget.initial?.accountId,
+      ?widget.initial?.toAccountId,
+      ?_values.accountId,
+      ?_values.toAccountId,
+    };
+    return all.where((a) => !a.archived || used.contains(a.id)).toList()
+      ..sort((a, b) => a.order.compareTo(b.order));
+  }
 
   Currency _base() => switch (ref.read(membershipProvider).value) {
     InHousehold(:final household) => household.baseCurrency,
@@ -482,11 +494,9 @@ class AddManuallyFormState extends ConsumerState<AddManuallyForm> {
     final l10n = context.l10n;
     final colors = XpColors.of(context);
     final type = XpType.of(context);
-    final accounts =
-        (ref.watch(accountsProvider).value ?? const <Account>[])
-            .where((a) => !a.archived || a.id == _values.accountId)
-            .toList()
-          ..sort((a, b) => a.order.compareTo(b.order));
+    final accounts = _offered(
+      ref.watch(accountsProvider).value ?? const <Account>[],
+    );
     ref.watch(membershipProvider);
     final members = ref.watch(householdMembersProvider).value ?? const [];
     final viewer = ref.watch(accountsRepositoryProvider).viewerUid;

@@ -1,3 +1,4 @@
+import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:xpense_app/app.dart';
 import 'package:xpense_app/core/routing/routing.dart';
@@ -166,6 +167,53 @@ void main() {
     expect(find.widgetWithText(XpDisclosure, 'Groceries'), findsOneWidget);
     await tester.ensureVisible(find.text('Category changed'));
     expect(find.text('Dining out → Groceries'), findsOneWidget);
+  });
+
+  testWidgets('a transfer into an archived account can still be edited', (
+    tester,
+  ) async {
+    // Codex review, PR #39: the form dropped the archived destination, so
+    // even a note change was refused.
+    final app = LedgerApp();
+    final saved = await app.repository.saveEntries([
+      EntryDraft(
+        id: 'd1',
+        intent: 'transfer',
+        amountMinor: 22500,
+        currency: 'USD',
+        accountId: 'acc-checking',
+        toAccountId: 'acc-trip',
+        occurredOn: '2026-11-22',
+      ),
+    ]);
+    final id = saved.valueOrNull!.txnIds.single;
+    await app.services.accounts.setArchived('acc-trip', archived: true);
+    final container = await app.pump(tester);
+    await pushTo(tester, container, AppRoutes.entry(id));
+    expect(find.widgetWithText(XpDisclosure, 'Summer trip'), findsOneWidget);
+
+    await _tap(tester, find.widgetWithText(XpDisclosure, 'Note'));
+    expect(find.text('Edit entry'), findsOneWidget);
+    // The sheet still shows the archived destination.
+    expect(
+      find.descendant(
+        of: find.byType(GlassSheet),
+        matching: find.widgetWithText(XpDisclosure, 'Summer trip'),
+      ),
+      findsOneWidget,
+    );
+    await tester.enterText(
+      find.descendant(
+        of: find.widgetWithText(XpTextField, 'Note'),
+        matching: find.byType(EditableText),
+      ),
+      'Flights',
+    );
+    await _tap(tester, find.text('Save changes'));
+
+    expect(find.text('Edit entry'), findsNothing);
+    expect(_stored(app, id)['note'], 'Flights');
+    expect(_stored(app, id)['toAccountId'], 'acc-trip');
   });
 
   testWidgets('delete asks first, then offers Undo', (tester) async {
