@@ -6,18 +6,18 @@
 //
 //   cd firebase && firebase emulators:start --project demo-xpense \
 //     --only auth,firestore
-//   cd server && FIRESTORE_EMULATOR_HOST=127.0.0.1:8280 \
-//     dart run tool/seed_demo_household.dart
 //   cd server && FIREBASE_AUTH_EMULATOR_HOST=127.0.0.1:9099 \
 //     FIRESTORE_EMULATOR_HOST=127.0.0.1:8280 XPENSE_APP_CHECK=emulator \
 //     tool/with_gemini_key.sh genkit start -- dart run bin/server.dart
 //   cd app && flutter test integration_test/ask_emulator_test.dart \
 //     -d <simulator> --dart-define=XPENSE_ENV=emulators
 //
-// The test signs in as the seeded member `u_dara`, creating that Auth
-// emulator account first if it is missing (emulator admin API, never a real
-// project), and teaches one rule (as a corrected card would) so the first
-// message resolves on the phone. It prints `XPENSE_MARK <name>` before
+// Each run makes a new member in the Auth emulator (emulator admin API,
+// never a real project), who creates a household and a "Checking" account
+// through the app's own repositories, so the cards use ids the phone read
+// from Firestore, not the server's demo household. It teaches one rule (as
+// a corrected card would) so the first message resolves on the phone, and
+// saves that card through the write path. It prints `XPENSE_MARK <name>` before
 // each step, so a script watching the output can take simulator
 // screenshots, and `XPENSE_ROUTE` and `XPENSE_TRACE` lines for the PR.
 // Add --dart-define=XPENSE_DEMO_PACE=true to slow it down for the demo
@@ -33,6 +33,7 @@ import 'package:integration_test/integration_test.dart';
 import 'package:xpense_app/app.dart';
 import 'package:xpense_app/bootstrap.dart';
 import 'package:xpense_app/core/routing/routing.dart';
+import 'package:xpense_app/data/accounts_repository.dart';
 import 'package:xpense_app/data/auth_repository.dart';
 import 'package:xpense_app/data/household_repository.dart';
 import 'package:xpense_app/data/rules_repository.dart';
@@ -44,15 +45,12 @@ import 'onboarding_emulator_test.dart' show pause, pumpUntil;
 
 const bool _demoPace = bool.fromEnvironment('XPENSE_DEMO_PACE');
 
-/// The seeded member (`server/lib/runtime/demo_household.dart`) and a
-/// throwaway emulator password for it.
-const String _uid = 'u_dara';
-const String _email = 'dara@example.com';
+/// A throwaway emulator password for this run's member.
 const String _password = 'emulator-only-1';
 
-/// Creates the emulator account for [_uid] unless it exists. The Auth
-/// emulator accepts `Bearer owner` for its admin API.
-Future<void> _ensureEmulatorUser() async {
+/// Creates the Auth emulator account [uid]. The Auth emulator accepts
+/// `Bearer owner` for its admin API.
+Future<void> _createEmulatorUser(String uid, String email) async {
   final client = HttpClient();
   try {
     final request = await client.postUrl(
@@ -66,15 +64,14 @@ Future<void> _ensureEmulatorUser() async {
       ..set(HttpHeaders.authorizationHeader, 'Bearer owner');
     request.write(
       jsonEncode({
-        'localId': _uid,
-        'email': _email,
+        'localId': uid,
+        'email': email,
         'password': _password,
-        'displayName': 'Dara',
+        'displayName': 'Rana',
       }),
     );
     final response = await request.close();
     await response.drain<void>();
-    // 400 DUPLICATE_LOCAL_ID or EMAIL_EXISTS: already there.
   } finally {
     client.close(force: true);
   }
@@ -110,19 +107,20 @@ void main() {
       AppEnvironment.emulators,
       reason: 'run with --dart-define=XPENSE_ENV=emulators',
     );
-    await _ensureEmulatorUser();
+    final stamp = DateTime.now().millisecondsSinceEpoch;
+    final uid = 'u_ask_$stamp';
+    final email = 'ask$stamp@example.com';
+    await _createEmulatorUser(uid, email);
     final app = await bootstrap(environment: AppEnvironment.compiled);
     final container = ProviderContainer(overrides: app.overrides);
     addTearDown(container.dispose);
     final auth = container.read(authRepositoryProvider);
-    if (auth.currentUser?.uid != _uid) {
-      await auth.signOut();
-      final signedIn = await auth.signInWithEmail(
-        email: _email,
-        password: _password,
-      );
-      expect(auth.currentUser?.uid, _uid, reason: '$signedIn');
-    }
+    await auth.signOut();
+    final signedIn = await auth.signInWithEmail(
+      email: email,
+      password: _password,
+    );
+    expect(auth.currentUser?.uid, uid, reason: '$signedIn');
     await tester.pumpWidget(
       UncontrolledProviderScope(container: container, child: const XpenseApp()),
     );
@@ -131,19 +129,48 @@ void main() {
     addTearDown(membership.close);
     await pumpUntil(
       tester,
-      () => membership.read().value is InHousehold,
-      'the seeded household (run tool/seed_demo_household.dart)',
+      () => membership.read().value is NoHousehold,
+      'the new member to have no household',
     );
+
+    // A new household and account, as the member would make them (WP-12,
+    // WP-13).
+    final created = await container
+        .read(householdRepositoryProvider)
+        .create(name: 'Rana', displayName: 'Rana', baseCurrency: Currency.usd);
+    expect(created, isA<Ok<String, HouseholdFailure>>(), reason: '$created');
+    await pumpUntil(
+      tester,
+      () => membership.read().value is InHousehold,
+      'the new household',
+    );
+    final account = await container
+        .read(accountsRepositoryProvider)
+        .create(
+          const AccountDraft(
+            name: 'Checking',
+            kind: AccountKind.bank,
+            currency: Currency.usd,
+            scope: AccountScope.personal,
+            openingBalanceMinor: 250000,
+          ),
+        );
+    final accountId = switch (account) {
+      Ok(:final value) => value,
+      Err(:final failure) => fail('account not created: $failure'),
+    };
+    final hid = (created as Ok<String, HouseholdFailure>).value;
+    debugPrint('XPENSE_HOUSEHOLD $hid account $accountId');
 
     // Path L needs a learned rule: the parser never settles a category from
     // a keyword alone (AI_PIPELINE 2). Teach the one a corrected "Trader
     // Joes" card would (story S3.11), through the Firestore rules store.
     final rules = container.read(rulesRepositoryProvider);
-    const lesson = RuleLesson(
+    final lesson = RuleLesson(
       kind: RuleKind.merchant,
       pattern: 'Trader Joes',
       categoryId: 'groceries',
-      accountId: 'acc_chk',
+      accountId: accountId,
     );
     await rules.learn(lesson);
     await pumpUntil(
