@@ -166,7 +166,7 @@ void main() {
       expect(newExpress, endsWith(r'root = EntryList($/drafts)'));
     });
 
-    test('drops a partial update that rewrites an amount', () {
+    test("drops partial updates of a draft's fields", () {
       const express =
           'surface("cap_x")\n'
           r'$/drafts/0/amountMinor = 999'
@@ -192,14 +192,14 @@ void main() {
           },
         ], express),
       ], facts);
-      expect(result.violations.single.reason, 'amount_edit');
+      // Drafts change only through prepareEntries: a note is refused too.
+      expect(result.violations.map((v) => v.reason), [
+        'amount_edit',
+        'draft_edit',
+      ]);
       final part = result.parts.single;
-      expect((part['data'] as Map)['messages'] as List, hasLength(1));
-      expect(
-        (part['metadata'] as Map)[a2uiExpressKey],
-        'surface("cap_x")\n'
-        r'$/drafts/0/note = "ok"',
-      );
+      expect((part['data'] as Map)['messages'] as List, isEmpty);
+      expect((part['metadata'] as Map)[a2uiExpressKey], 'surface("cap_x")\n');
     });
 
     test('puts back the prepared draft even without a violation', () {
@@ -407,6 +407,150 @@ void main() {
       ], facts);
       expect(result.violations, isEmpty);
       expect(result.changed, isFalse);
+    });
+  });
+
+  // PR #30 review: drafts change only through prepareEntries, whatever
+  // path a model update writes them by.
+  group('model writes to /drafts', () {
+    // A provisional media amount the member must confirm.
+    final media = <String, dynamic>{
+      ..._draft('d1', 4500),
+      'accountId': 'acc_chk',
+      'categoryId': 'groceries',
+      'occurredOn': '2026-11-22',
+      'guessed': ['amountMinor', 'currency'],
+      'missing': ['amountMinor'],
+    };
+    final facts = GuardFacts.fromMessages([
+      {
+        'role': 'tool',
+        'content': [
+          {
+            'toolResponse': {
+              'name': 'prepareEntries',
+              'output': {
+                'drafts': [media],
+              },
+            },
+          },
+        ],
+      },
+    ]);
+    final saveable = <String, dynamic>{...media}
+      ..remove('missing')
+      ..remove('guessed');
+
+    Map<String, dynamic> update(String? path, Object? value, String express) =>
+        _part([
+          {
+            'version': '1.0',
+            'updateDataModel': {
+              'surfaceId': 'cap_x',
+              'path': ?path,
+              'value': value,
+            },
+          },
+        ], express);
+
+    List<Object?> messagesOf(Map<String, dynamic> part) =>
+        (part['data'] as Map)['messages'] as List;
+
+    Object? valueOf(Map<String, dynamic> part) =>
+        ((messagesOf(part).single! as Map)['updateDataModel'] as Map)['value'];
+
+    test('an update that clears missing or guessed is refused', () {
+      for (final path in [
+        '/drafts/0/missing',
+        '/drafts/0/guessed',
+        '/drafts/0/missing/0',
+        '/drafts//0/missing/',
+        'drafts/0/missing',
+      ]) {
+        final express = 'surface("cap_x")\n\$$path = []';
+        final result = guardParts([update(path, <Object?>[], express)], facts);
+        expect(result.violations.single.reason, 'draft_edit', reason: path);
+        expect(messagesOf(result.parts.single), isEmpty, reason: path);
+      }
+    });
+
+    test('an update that sets a field the member never wrote is refused', () {
+      final result = guardParts([
+        update('/drafts/0/accountId', 'acc_cash', 'x'),
+        update('/drafts/0/intent', 'income', 'x'),
+      ], facts);
+      expect(result.violations.map((v) => v.reason), [
+        'draft_edit',
+        'draft_edit',
+      ]);
+    });
+
+    test('a whole-draft update is put back to the prepared draft', () {
+      const express =
+          'surface("cap_x")\n'
+          r'$/drafts/0 = {id: "d1"}';
+      final result = guardParts([
+        update('/drafts/0', saveable, express),
+      ], facts);
+      expect(result.violations, isEmpty);
+      expect(result.changed, isTrue);
+      final part = result.parts.single;
+      expect(valueOf(part), media);
+      expect(
+        (part['metadata'] as Map)[a2uiExpressKey],
+        'surface("cap_x")\n\$/drafts/0 = ${jsonEncode(media)}',
+      );
+    });
+
+    test('a whole-draft update with a new id needs a backed amount', () {
+      final result = guardParts([
+        update('/drafts/0', {...saveable, 'id': 'd9'}, 'x'),
+      ], facts);
+      expect(result.violations.single.reason, 'unbacked_amount');
+      expect(messagesOf(result.parts.single), isEmpty);
+    });
+
+    test('a whole-model update gets the createSurface checks', () {
+      final restored = guardParts([
+        update(null, {
+          'drafts': [saveable],
+        }, 'x'),
+      ], facts);
+      expect(restored.violations, isEmpty);
+      expect(valueOf(restored.parts.single), {
+        'drafts': [media],
+      });
+
+      final root = guardParts([
+        update('/', {
+          'drafts': [
+            {...saveable, 'id': 'd9', 'amountMinor': 999},
+          ],
+          'result': {'totalMinor': 31337},
+        }, 'x'),
+      ], facts);
+      expect(root.violations.single.reason, 'unbacked_figure');
+      expect(messagesOf(root.parts.single), isEmpty);
+    });
+
+    test('drafts that are not an array are refused', () {
+      final result = guardParts([
+        update('/drafts', {'0': saveable}, 'x'),
+      ], facts);
+      expect(result.violations.single.reason, 'malformed');
+    });
+
+    test('the same draft twice is shown once', () {
+      final result = guardParts([
+        _part([
+          _create([media, saveable]),
+        ], 'x'),
+      ], facts);
+      expect(result.violations.single.reason, 'duplicate_draft');
+      final create =
+          (messagesOf(result.parts.single).single! as Map)['createSurface']
+              as Map;
+      expect((create['dataModel'] as Map)['drafts'], [media]);
     });
   });
 

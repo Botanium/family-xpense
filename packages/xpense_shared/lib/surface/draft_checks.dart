@@ -8,6 +8,8 @@
 library;
 
 import 'package:xpense_shared/money/currency.dart';
+import 'package:xpense_shared/money/money.dart';
+import 'package:xpense_shared/money/result.dart';
 import 'package:xpense_shared/schema/entry_draft.dart';
 import 'package:xpense_shared/schema/wire_values.dart';
 import 'package:xpense_shared/surface/surface_builder.dart';
@@ -208,6 +210,54 @@ List<String> missingFields(EntryDraft draft) {
     for (final field in required)
       if (json[field] == null) field,
   }.toList();
+}
+
+/// [draft] (a draft's JSON) with the currency of the account just picked
+/// for it, [accountCurrency].
+///
+/// An account holds only its own currency. When the draft's currency was
+/// only guessed (it is in `guessed`: the member named no currency), it
+/// follows the account, and the amount the member wrote keeps its major
+/// units: "groceries 45" guessed as 45.00 USD is 45 IQD on a dinar account.
+/// An amount the new currency cannot hold ("12.50" in dinars) is removed, so
+/// the slip asks for it. A currency the member wrote is left alone; the
+/// slip then reports [CurrencyMismatch] rather than change their words.
+Map<String, Object?> followAccountCurrency(
+  Map<String, Object?> draft,
+  String? accountCurrency,
+) {
+  final from = draft['currency'];
+  final guessed = draft['guessed'];
+  final to = Currency.tryParse(accountCurrency ?? '');
+  if (to == null ||
+      from == to.code ||
+      guessed is! List ||
+      !guessed.contains('currency')) {
+    return draft;
+  }
+  final next = Map<String, Object?>.of(draft)..['currency'] = to.code;
+  final rest = [
+    for (final g in guessed)
+      if (g != 'currency') g,
+  ];
+  if (rest.isEmpty) {
+    next.remove('guessed');
+  } else {
+    next['guessed'] = rest;
+  }
+  final amount = draft['amountMinor'];
+  if (amount is int) {
+    final old = Currency.tryParse(from is String ? from : '');
+    final moved = old == null
+        ? null
+        : Money.parseMajor(Money(amount, old).toMajorString(), to);
+    if (moved case Ok(:final value)) {
+      next['amountMinor'] = value.minorUnits;
+    } else {
+      next.remove('amountMinor');
+    }
+  }
+  return next;
 }
 
 List<DraftIssue> _referenceIssues(EntryDraft d, HouseholdRefs refs) {

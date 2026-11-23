@@ -198,4 +198,67 @@ void main() {
     expect(tooMany.canSave, isFalse);
     expect(checkDrafts(null, _refs).canSave, isFalse);
   });
+
+  // PR #30 review: an account picked on the phone settles a guessed
+  // currency; the amount keeps the major units the member wrote.
+  group('followAccountCurrency', () {
+    const guessed = <String, Object?>{
+      'id': 'd1',
+      'intent': 'expense',
+      'amountMinor': 4500,
+      'currency': 'USD',
+      'accountId': 'acc_cash',
+      'guessed': ['accountId', 'currency'],
+    };
+    const cash = HouseholdRefs(accountCurrencies: {'acc_cash': 'IQD'});
+
+    test('a guessed currency follows the account', () {
+      final next = followAccountCurrency(guessed, 'IQD');
+      expect(next['currency'], 'IQD');
+      expect(next['amountMinor'], 45);
+      expect(next['guessed'], ['accountId']);
+      expect(
+        checkDraft(next, cash).issues.whereType<CurrencyMismatch>(),
+        isEmpty,
+      );
+      expect(
+        followAccountCurrency({
+          ...guessed,
+          'amountMinor': 2500000,
+        }, 'IQD')['amountMinor'],
+        25000,
+      );
+    });
+
+    test('an amount the account currency cannot hold is asked again', () {
+      final next = followAccountCurrency({
+        ...guessed,
+        'amountMinor': 1250,
+        'guessed': ['currency'],
+      }, 'IQD');
+      expect(next['currency'], 'IQD');
+      expect(next.containsKey('amountMinor'), isFalse);
+      expect(next.containsKey('guessed'), isFalse);
+      expect(checkDraft(next, cash).missing, contains('amountMinor'));
+    });
+
+    test('dinars to dollars keep the written figure', () {
+      final next = followAccountCurrency({
+        ...guessed,
+        'amountMinor': 25000,
+        'currency': 'IQD',
+      }, 'USD');
+      expect((next['amountMinor'], next['currency']), (2500000, 'USD'));
+    });
+
+    test('a written currency, the same currency or no account stays', () {
+      final written = <String, Object?>{
+        ...guessed,
+        'guessed': ['accountId'],
+      };
+      expect(followAccountCurrency(written, 'IQD'), same(written));
+      expect(followAccountCurrency(guessed, 'USD'), same(guessed));
+      expect(followAccountCurrency(guessed, null), same(guessed));
+    });
+  });
 }

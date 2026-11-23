@@ -198,20 +198,21 @@ guardParts(List<Map<String, dynamic>> parts, GuardFacts facts) {
     for (final message in data['messages'] as List) {
       final result = _guardMessage(message, facts, violations);
       if (result == null) {
-        // An element update that failed: drop it and its Express line.
+        // An update that failed: drop it and its Express line.
         final update = (message as Map)['updateDataModel'] as Map;
+        final path = update['path'];
         if (express != null) {
-          express = rewriteAssignment(express, update['path'] as String, null);
+          express = rewriteAssignment(
+            express,
+            path is String ? path : '/',
+            null,
+          );
         }
         continue;
       }
       messages.add(result.message);
-      if (result.keptDrafts != null && express != null) {
-        express = rewriteAssignment(
-          express,
-          result.draftsPath!,
-          jsonEncode(result.keptDrafts),
-        );
+      if (result.rewritePath case final path? when express != null) {
+        express = rewriteAssignment(express, path, jsonEncode(result.rewrite));
       }
     }
     out.add(<String, dynamic>{
@@ -246,14 +247,8 @@ String? _unbackedFigures(List<Object?> messages, GuardFacts facts) {
     if (body is! Map) continue;
     final figures = <int>[];
     _figures(body['components'], figures);
-    final model = body['dataModel'];
-    if (model is Map) {
-      for (final MapEntry(:key, :value) in model.entries) {
-        // The key names a top-level scalar (`$/totalMinor = …`).
-        if (!_draftKeys.contains(key)) {
-          _figures(value, figures, key is String ? key : null);
-        }
-      }
+    if (body['dataModel'] case final Map<Object?, Object?> model) {
+      figures.addAll(_modelFigures(model));
     }
     if (!_figuresBacked(figures, facts)) return '${body['surfaceId']}';
   }
@@ -272,18 +267,16 @@ bool _figuresBacked(List<int> figures, GuardFacts facts) {
   return figures.every(allowed.contains);
 }
 
-/// The literal money figures an `updateDataModel` outside the drafts and
-/// receipt writes: a scalar takes its money-field name from the last path
-/// segment (`/result/totalMinor`), a map or list is searched as in a
-/// `createSurface` data model.
-List<int> _updateFigures(String path, Object? value) {
-  final segments = [
-    for (final s in path.split('/'))
-      if (s.isNotEmpty) s,
-  ];
-  if (segments.isEmpty || _draftKeys.contains(segments.first)) return const [];
+/// The literal money figures of a whole data model, outside the drafts and
+/// the receipt (checked as drafts). A top-level key names its scalar
+/// (`$/totalMinor = …`).
+List<int> _modelFigures(Map<Object?, Object?> model) {
   final figures = <int>[];
-  _figures(value, figures, segments.last);
+  for (final MapEntry(:key, :value) in model.entries) {
+    if (!_draftKeys.contains(key)) {
+      _figures(value, figures, key is String ? key : null);
+    }
+  }
   return figures;
 }
 
@@ -302,113 +295,176 @@ void _figures(Object? value, List<int> out, [String? key]) {
   }
 }
 
-final _elementPath = RegExp(r'^/drafts/(\d+)(/.*)?$');
+/// The segments of a data-model path as the A2UI data model reads it:
+/// empty segments dropped (`/drafts//0/`, `drafts/0` and `/drafts/0` are
+/// one place) and `~1`, `~0` unescaped. An empty list is the whole model.
+List<String> _segments(String? path) => [
+  for (final s in (path ?? '').split('/'))
+    if (s.isNotEmpty) s.replaceAll('~1', '/').replaceAll('~0', '~'),
+];
+
+/// What [_guardMessage] decided: the message to keep, and an Express
+/// assignment to rewrite (`$<path> = <value as JSON>`) when its value
+/// changed.
+typedef _Guarded = ({Object? message, String? rewritePath, Object? rewrite});
 
 /// Checks one A2UI message. Returns null when the whole message must be
-/// dropped; `keptDrafts` is set when a drafts array was filtered.
-({Object? message, List<Object?>? keptDrafts, String? draftsPath})?
-_guardMessage(
+/// dropped.
+///
+/// Drafts change only through `prepareEntries` (the capture rules: "never
+/// change, reorder, drop or add a draft or any of its fields"), so every way
+/// a message can write `/drafts` gets the same policy:
+/// - a drafts array (in `createSurface`, at `/drafts`, or inside a
+///   whole-model update) is filtered by [_filter];
+/// - one whole draft (`/drafts/N`) is put back to the prepared draft with
+///   its id, else checked by [GuardFacts.reject];
+/// - one field of a draft (`/drafts/N/missing`, `/drafts/N/accountId`…)
+///   is refused: it could clear what the tool asks the member to confirm,
+///   or set a field the member never wrote.
+_Guarded? _guardMessage(
   Object? message,
   GuardFacts facts,
   List<GuardViolation> violations,
 ) {
-  if (message is! Map) {
-    return (message: message, keptDrafts: null, draftsPath: null);
-  }
+  final keep = (message: message, rewritePath: null, rewrite: null);
+  if (message is! Map) return keep;
   final create = message['createSurface'];
   if (create is Map && create['dataModel'] is Map) {
     final model = create['dataModel'] as Map;
-    final drafts = model['drafts'];
-    if (drafts is List) {
-      final kept = _filter(drafts, facts, '${create['surfaceId']}', violations);
-      if (_same(kept, drafts)) {
-        return (message: message, keptDrafts: null, draftsPath: null);
-      }
-      return (
-        message: <String, dynamic>{
-          ...message.cast<String, dynamic>(),
-          'createSurface': <String, dynamic>{
-            ...create.cast<String, dynamic>(),
-            'dataModel': <String, dynamic>{
-              ...model.cast<String, dynamic>(),
-              'drafts': kept,
-            },
-          },
+    final kept = _filterModel(
+      model,
+      facts,
+      '${create['surfaceId']}',
+      violations,
+    );
+    if (kept == null) return keep;
+    return (
+      message: <String, dynamic>{
+        ...message.cast<String, dynamic>(),
+        'createSurface': <String, dynamic>{
+          ...create.cast<String, dynamic>(),
+          'dataModel': kept,
         },
-        keptDrafts: kept,
-        draftsPath: '/drafts',
-      );
-    }
+      },
+      rewritePath: '/drafts',
+      rewrite: kept['drafts'],
+    );
   }
   final update = message['updateDataModel'];
-  if (update is Map && update['path'] is String) {
-    final path = update['path'] as String;
-    final surfaceId = '${update['surfaceId']}';
-    if (path == '/drafts' && update['value'] is List) {
-      final drafts = update['value'] as List;
-      final kept = _filter(drafts, facts, surfaceId, violations);
-      if (_same(kept, drafts)) {
-        return (message: message, keptDrafts: null, draftsPath: null);
-      }
-      return (
-        message: <String, dynamic>{
-          ...message.cast<String, dynamic>(),
-          'updateDataModel': <String, dynamic>{
-            ...update.cast<String, dynamic>(),
-            'value': kept,
-          },
-        },
-        keptDrafts: kept,
-        draftsPath: '/drafts',
-      );
-    }
-    // Any other path (an answer's `/result/…`): its money figures must come
-    // from a tool, as in a createSurface.
-    if (!_figuresBacked(_updateFigures(path, update['value']), facts)) {
-      violations.add(
-        GuardViolation(surfaceId: surfaceId, reason: 'unbacked_figure'),
-      );
+  if (update is! Map) return keep;
+  final path = update['path'] is String ? update['path'] as String : null;
+  final segments = _segments(path);
+  final surfaceId = '${update['surfaceId']}';
+  final value = update['value'];
+  Map<String, dynamic> withValue(Object? v) => <String, dynamic>{
+    ...message.cast<String, dynamic>(),
+    'updateDataModel': <String, dynamic>{
+      ...update.cast<String, dynamic>(),
+      'value': v,
+    },
+  };
+  String? refuse(String reason) {
+    violations.add(GuardViolation(surfaceId: surfaceId, reason: reason));
+    return null;
+  }
+
+  // The whole data model: checked as a createSurface data model is.
+  if (segments.isEmpty) {
+    if (value is! Map) return keep;
+    if (!_figuresBacked(_modelFigures(value), facts)) {
+      refuse('unbacked_figure');
       return null;
     }
-    final element = _elementPath.firstMatch(path);
-    if (element != null) {
-      final rest = element.group(2);
-      // A whole draft: re-check it. Its amount or currency alone: refused;
-      // the prompt has the agent re-run prepareEntries and re-render.
-      final reason = rest == null ? facts.reject(update['value']) : null;
-      if (reason != null) {
-        violations.add(GuardViolation(surfaceId: surfaceId, reason: reason));
-        return null;
-      }
-      if (rest == '/amountMinor' || rest == '/currency') {
-        violations.add(
-          GuardViolation(surfaceId: surfaceId, reason: 'amount_edit'),
-        );
-        return null;
-      }
-    }
+    final kept = _filterModel(value, facts, surfaceId, violations);
+    if (kept == null) return keep;
+    return (message: withValue(kept), rewritePath: path ?? '/', rewrite: kept);
   }
-  return (message: message, keptDrafts: null, draftsPath: null);
+  if (segments.first != 'drafts') {
+    // Any other path (an answer's `/result/…`): its money figures must come
+    // from a tool, as in a createSurface.
+    final figures = <int>[];
+    _figures(value, figures, segments.last);
+    if (!_figuresBacked(figures, facts)) {
+      refuse('unbacked_figure');
+      return null;
+    }
+    return keep;
+  }
+  switch (segments.length) {
+    case 1:
+      // A null clears the drafts; anything but an array is not drafts.
+      if (value == null) return keep;
+      if (value is! List) {
+        refuse('malformed');
+        return null;
+      }
+      final kept = _filter(value, facts, surfaceId, violations);
+      if (_same(kept, value)) return keep;
+      return (message: withValue(kept), rewritePath: path, rewrite: kept);
+    case 2:
+      if (_prepared(value, facts) case final prepared?) {
+        if (_same([prepared], [value])) return keep;
+        return (
+          message: withValue(prepared),
+          rewritePath: path,
+          rewrite: prepared,
+        );
+      }
+      if (facts.reject(value) case final reason?) {
+        refuse(reason);
+        return null;
+      }
+      return keep;
+    default:
+      refuse(
+        const {'amountMinor', 'currency'}.contains(segments[2])
+            ? 'amount_edit'
+            : 'draft_edit',
+      );
+      return null;
+  }
+}
+
+/// [model] (a whole data model) with its drafts filtered, or null when it
+/// has no drafts array or every draft passed unchanged.
+Map<String, dynamic>? _filterModel(
+  Map<dynamic, dynamic> model,
+  GuardFacts facts,
+  String surfaceId,
+  List<GuardViolation> violations,
+) {
+  final drafts = model['drafts'];
+  if (drafts is! List) return null;
+  final kept = _filter(drafts, facts, surfaceId, violations);
+  if (_same(kept, drafts)) return null;
+  return <String, dynamic>{...model.cast<String, dynamic>(), 'drafts': kept};
 }
 
 /// The drafts a surface may show: a draft whose id `prepareEntries`
 /// returned is replaced by the tool's exact draft (the model drops or
-/// rewrites fields when it copies: confidence, guessed, recurring); any
-/// other draft is kept only when [GuardFacts.reject] passes it.
+/// rewrites fields when it copies: confidence, guessed, recurring, missing);
+/// any other draft is kept only when [GuardFacts.reject] passes it. A
+/// second draft with an id already shown is dropped: saved, it would record
+/// the same entry twice.
 List<Object?> _filter(
   List<Object?> drafts,
   GuardFacts facts,
   String surfaceId,
   List<GuardViolation> violations,
-) => [
-  for (final d in drafts)
-    if (_prepared(d, facts) case final prepared?)
-      prepared
-    else if (facts.reject(d) case final reason?)
-      ..._record(violations, surfaceId, d, reason)
-    else
-      d,
-];
+) {
+  final ids = <Object?>{};
+  return [
+    for (final d in drafts)
+      if (d is Map && d['id'] != null && !ids.add(d['id']))
+        ..._record(violations, surfaceId, d, 'duplicate_draft')
+      else if (_prepared(d, facts) case final prepared?)
+        prepared
+      else if (facts.reject(d) case final reason?)
+        ..._record(violations, surfaceId, d, reason)
+      else
+        d,
+  ];
+}
 
 Map<String, dynamic>? _prepared(Object? draft, GuardFacts facts) =>
     draft is Map ? facts.preparedDrafts[draft['id']] : null;

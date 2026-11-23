@@ -315,6 +315,69 @@ void main() {
       expect(_enabled(tester, 'Save'), isTrue);
     });
 
+    // PR #30 review: the agent asks for the account of "groceries 45",
+    // whose dollars were only a guess; the dinar wallet is offered.
+    _test('picking an account in another currency settles a guessed '
+        'currency', (tester) async {
+      final (:host, :actions, :sent) = hostWith([
+        {
+          'version': '1.0',
+          'createSurface': {
+            'surfaceId': 'cap_g45',
+            'catalogId': xpenseCatalogId,
+            'sendDataModel': false,
+            'components': [
+              {
+                'id': 'root',
+                'component': 'Column',
+                'children': ['ask', 'list'],
+              },
+              {
+                'id': 'ask',
+                'component': 'ChoicePrompt',
+                'question': 'Which account?',
+                'options': [
+                  {'label': 'Checking', 'value': 'acc_chk'},
+                  {'label': 'Cash', 'value': 'acc_cash'},
+                ],
+                'value': {'@path': '/drafts/0/accountId'},
+              },
+              {
+                'id': 'list',
+                'component': 'EntryList',
+                'drafts': {'@path': '/drafts'},
+              },
+            ],
+            'dataModel': {
+              'drafts': [
+                {
+                  'id': 'd1',
+                  'intent': 'expense',
+                  'amountMinor': 4500,
+                  'currency': 'USD',
+                  'accountId': 'acc_chk',
+                  'categoryId': 'groceries',
+                  'occurredOn': '2026-11-22',
+                  'missing': ['accountId'],
+                  'guessed': ['accountId', 'currency'],
+                },
+              ],
+            },
+          },
+        },
+      ]);
+      await pumpThread(tester, host);
+      await tester.tap(find.text('Cash').first);
+      await tester.pump();
+      expect(_model(host, 'cap_g45', '/drafts/0/accountId'), 'acc_cash');
+      expect(_model(host, 'cap_g45', '/drafts/0/currency'), 'IQD');
+      expect(_model(host, 'cap_g45', '/drafts/0/amountMinor'), 45);
+      expect(_model(host, 'cap_g45', '/drafts/0/missing'), isEmpty);
+      expect(_model(host, 'cap_g45', '/drafts/0/guessed'), isEmpty);
+      expect(_enabled(tester, 'Save'), isTrue);
+      expect(sent, isEmpty);
+    });
+
     _test("today's rate is asked inline and saved for the household", (
       tester,
     ) async {
