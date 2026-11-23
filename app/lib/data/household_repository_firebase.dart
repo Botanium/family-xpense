@@ -546,18 +546,5 @@ bool _isServerUrl(Uri uri) =>
 String initialOf(String name) =>
     name.isEmpty ? '' : String.fromCharCode(name.runes.first).toUpperCase();
 
-/// A UUID version 7 (RFC 9562): 48 bits of Unix milliseconds from [now],
-/// then random bits from [random]. Client-generated ids sort by time and
-/// make offline creates idempotent (DATA_MODEL 2).
-String uuidV7(DateTime now, Random random) {
-  final ms = now.millisecondsSinceEpoch;
-  final bytes = [
-    for (var i = 5; i >= 0; i--) (ms >> (8 * i)) & 0xff,
-    for (var i = 0; i < 10; i++) random.nextInt(256),
-  ];
-  bytes[6] = (bytes[6] & 0x0f) | 0x70; // version 7
-  bytes[8] = (bytes[8] & 0x3f) | 0x80; // variant 10
-  final hex = bytes.map((b) => b.toRadixString(16).padLeft(2, '0')).join();
-  return '${hex.substring(0, 8)}-${hex.substring(8, 12)}-'
-      '${hex.substring(12, 16)}-${hex.substring(16, 20)}-${hex.substring(20)}';
-}
+// Ids come from `uuidV7` in xpense_shared (ledger/uuid_v7.dart), shared
+// with the transaction write path.

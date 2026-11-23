@@ -427,22 +427,11 @@ int? openingBaseAmount({
 /// The effect of a stored transaction on account [accountId], signed, in
 /// the account's minor units (DATA_MODEL 3). Zero when it does not touch
 /// the account.
-int balanceEffect(Map<String, Object?> txn, String accountId) {
-  final amount = txn['amountMinor'];
-  if (amount is! int) return 0;
-  final type = txn['type'];
-  if (txn['toAccountId'] == accountId) {
-    final to = txn['toAmountMinor'];
-    return to is int ? to : amount;
-  }
-  if (txn['accountId'] != accountId) return 0;
-  return switch (type) {
-    'expense' || 'loan_given' || 'repayment_made' || 'transfer' => -amount,
-    'income' || 'loan_taken' || 'repayment_received' => amount,
-    'adjustment' => txn['adjustmentSign'] == -1 ? -amount : amount,
-    _ => 0,
-  };
-}
+int balanceEffect(Map<String, Object?> txn, String accountId) =>
+    // The shared table (xpense_shared ledger/balance_effects.dart), read as
+    // if live: the list shows what the entry does, deleted or not.
+    effectsOf(LedgerLine.fromFields({...txn, 'deletedAt': null}))
+        .account(accountId);
 
 /// Adds, edits, archives and shares accounts, and streams them.
 ///

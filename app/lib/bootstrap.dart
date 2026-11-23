@@ -1,10 +1,13 @@
 // The composition root (ARCHITECTURE 3.3): the one place that names
 // concrete implementations. Features see only the throwing providers in
 // `lib/services/`; this file overrides them.
+import 'dart:async';
 import 'dart:collection';
 import 'dart:io';
 
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_app_check/firebase_app_check.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/misc.dart';
@@ -21,6 +24,11 @@ import 'package:xpense_app/data/auth_repository_firebase.dart';
 import 'package:xpense_app/data/household_repository.dart';
 import 'package:xpense_app/data/household_repository_fake.dart';
 import 'package:xpense_app/data/household_repository_firebase.dart';
+import 'package:xpense_app/data/transactions_repository.dart';
+import 'package:xpense_app/data/write/firestore_ledger_store.dart';
+import 'package:xpense_app/data/write/ledger_store.dart';
+import 'package:xpense_app/data/write/ledger_transactions_repository.dart';
+import 'package:xpense_app/data/write/memory_ledger_store.dart';
 import 'package:xpense_app/services/agent_client.dart';
 import 'package:xpense_app/services/agent_client_fake.dart';
 import 'package:xpense_app/services/biometric_lock.dart';
@@ -41,6 +49,8 @@ import 'package:xpense_app/services/settings_store.dart';
 import 'package:xpense_app/services/settings_store_prefs.dart';
 import 'package:xpense_app/services/speech_capture.dart';
 import 'package:xpense_app/services/speech_capture_fake.dart';
+import 'package:xpense_app/services/write_journal_prefs.dart';
+import 'package:xpense_shared/xpense_shared.dart';
 
 /// Which backend a build talks to, from `--dart-define=XPENSE_ENV=…`.
 enum AppEnvironment {
@@ -232,6 +242,71 @@ AccountsRepository connectAccounts(
     FirebaseAccountsRepository.connect(households: households),
 };
 
+/// The transaction write path (WP-20) for [environment], following
+/// [households]. In `fakes` it writes to memory, over the artboards'
+/// accounts.
+///
+/// Changes an earlier run queued are re-applied whenever their member is
+/// in a household ([LedgerTransactionsRepository.resumePending]).
+Future<TransactionsRepository> connectTransactions(
+  AppEnvironment environment, {
+  required HouseholdRepository households,
+}) async {
+  if (environment == AppEnvironment.fakes) return memoryTransactions();
+  // Firestore is already pointed at the emulator by connectHouseholds.
+  final repository = LedgerTransactionsRepository(
+    FirestoreLedgerStore.connect(
+      auth: FirebaseAuth.instance,
+      firestore: FirebaseFirestore.instance,
+      households: households,
+    ),
+    journal: await PrefsWriteJournal.open(),
+  );
+  // Each time someone is in a household (a sign-in, a switch of member),
+  // their own queued changes are resumed.
+  households.watchMembership().where((m) => m is InHousehold).listen((_) {
+    unawaited(
+      repository.resumePending().catchError((Object e, StackTrace s) {
+        FlutterError.reportError(
+          FlutterErrorDetails(
+            exception: e,
+            stack: s,
+            library: 'bootstrap',
+            context: ErrorDescription('while resuming queued transactions'),
+          ),
+        );
+      }),
+    );
+  });
+  return repository;
+}
+
+/// A write path in memory over the sample household's accounts
+/// (`FakeAccountsRepository.sample`), for the fakes build and tests.
+TransactionsRepository memoryTransactions() {
+  const viewer = FakeAccountsRepository.sampleViewer;
+  final store = MemoryLedgerStore(
+    scope: const LedgerScope(householdId: 'fake-household', uid: viewer),
+    householdInfo: const LedgerHousehold(
+      baseCurrency: Currency.usd,
+      memberIds: [viewer, FakeAccountsRepository.samplePartner],
+    ),
+  );
+  for (final a in FakeAccountsRepository.sampleAccounts) {
+    store.accounts[a.id] = LedgerAccount(
+      id: a.id,
+      currency: a.currency,
+      visibleTo: a.visibleTo,
+      joint: a.scope == AccountScope.joint,
+      ownerUid: a.ownerUid,
+    );
+  }
+  for (final c in defaultCategories) {
+    store.categories[c.slug] = LedgerCategory(id: c.slug, kind: c.kind.name);
+  }
+  return LedgerTransactionsRepository(store);
+}
+
 /// The crash sink the two error handlers write to.
 ///
 /// It keeps the last [capacity] errors in memory and prints them in debug
@@ -336,6 +411,10 @@ Future<Bootstrapped> bootstrap({required AppEnvironment environment}) async {
   final auth = await connectAuth(environment);
   final households = connectHouseholds(environment, auth: auth);
   final accounts = connectAccounts(environment, households: households);
+  final transactions = await connectTransactions(
+    environment,
+    households: households,
+  );
   final flags = await connectFeatureFlags(environment);
   registerFontLicenses();
   final settings = await PrefsSettingsStore.open();
@@ -352,6 +431,7 @@ Future<Bootstrapped> bootstrap({required AppEnvironment environment}) async {
       authRepository: auth,
       householdRepository: households,
       accountsRepository: accounts,
+      transactionsRepository: transactions,
       featureFlags: flags,
     ),
   );
@@ -371,6 +451,7 @@ List<Override> appOverrides({
   required AuthRepository authRepository,
   required HouseholdRepository householdRepository,
   required AccountsRepository accountsRepository,
+  TransactionsRepository? transactionsRepository,
   SecureStore? secureStore,
   FeatureFlagSource? featureFlags,
   AgentClient? agentClient,
@@ -386,6 +467,9 @@ List<Override> appOverrides({
   authRepositoryProvider.overrideWithValue(authRepository),
   householdRepositoryProvider.overrideWithValue(householdRepository),
   accountsRepositoryProvider.overrideWithValue(accountsRepository),
+  transactionsRepositoryProvider.overrideWithValue(
+    transactionsRepository ?? memoryTransactions(),
+  ),
   secureStoreProvider.overrideWithValue(secureStore ?? MemorySecureStore()),
   featureFlagSourceProvider.overrideWithValue(
     featureFlags ?? FakeFeatureFlags(),
