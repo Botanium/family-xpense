@@ -1,7 +1,12 @@
 // The pure parts of Activity (WP-22): filters to queries, day groups and
 // their net, search, the question test, and the feed adapters' helpers.
+import 'dart:async';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:xpense_app/data/household_repository.dart';
+import 'package:xpense_app/data/household_repository_fake.dart';
 import 'package:xpense_app/data/read/activity_reader.dart';
 import 'package:xpense_app/data/read/activity_reader_firestore.dart';
 import 'package:xpense_app/data/read/activity_reader_memory.dart';
@@ -282,6 +287,142 @@ void main() {
         ),
         isTrue,
       );
+    });
+  });
+
+  group('Firestore reader scope and retries (Codex review, PR #38)', () {
+    const household = FakeHouseholdRepository.sampleHousehold;
+    const other = HouseholdSummary(
+      id: 'other-household',
+      name: 'Other',
+      baseCurrency: Currency.usd,
+      memberCount: 1,
+    );
+    final denied = FirebaseException(
+      plugin: 'cloud_firestore',
+      code: 'permission-denied',
+    );
+    const window = ActivityWindow(entries: [], hasMore: true);
+
+    // Reports go to the console, not to the test.
+    late FlutterExceptionHandler? saved;
+    setUp(() {
+      saved = FlutterError.onError;
+      FlutterError.onError = (_) {};
+    });
+    tearDown(() => FlutterError.onError = saved);
+
+    test('a listen refused right after joining is tried again', () async {
+      final memberships = StreamController<Membership>();
+      final opened = <String>[];
+      final windows = <ActivityWindow>[];
+      final errors = <Object>[];
+      final sub = FirestoreActivityReader.scoped(
+        membership: memberships.stream,
+        uid: () => 'me',
+        query: const ActivityQuery(limit: 50),
+        retryDelay: const Duration(milliseconds: 1),
+        open: (hid, uid, {required serverFilter}) {
+          opened.add(hid);
+          // The founding batch has not reached the server yet.
+          return opened.length < 3
+              ? Stream.error(denied)
+              : Stream.value(window);
+        },
+      ).listen(windows.add, onError: errors.add);
+      memberships.add(const InHousehold(household));
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+      expect(opened, [household.id, household.id, household.id]);
+      expect(windows, [window]);
+      expect(errors, isEmpty);
+      await sub.cancel();
+      await memberships.close();
+    });
+
+    test(
+      'after the retries, the error shows; the same scope listens again',
+      () async {
+        final memberships = StreamController<Membership>();
+        var refuse = true;
+        var opens = 0;
+        final windows = <ActivityWindow>[];
+        final errors = <Object>[];
+        final sub = FirestoreActivityReader.scoped(
+          membership: memberships.stream,
+          uid: () => 'me',
+          query: const ActivityQuery(limit: 50),
+          retries: 2,
+          retryDelay: const Duration(milliseconds: 1),
+          open: (hid, uid, {required serverFilter}) {
+            opens++;
+            return refuse ? Stream.error(denied) : Stream.value(window);
+          },
+        ).listen(windows.add, onError: errors.add);
+        memberships.add(const InHousehold(household));
+        await Future<void>.delayed(const Duration(milliseconds: 50));
+        expect(opens, 3); // the first try and two retries
+        expect(errors, [const ActivityNotAllowed()]);
+
+        // The same household again (a membership refresh) is no longer
+        // ignored once the listener has ended.
+        refuse = false;
+        memberships.add(const InHousehold(household));
+        await Future<void>.delayed(const Duration(milliseconds: 10));
+        expect(opens, 4);
+        expect(windows, [window]);
+        await sub.cancel();
+        await memberships.close();
+      },
+    );
+
+    test('a retry from an old household is dropped after a switch', () async {
+      final memberships = StreamController<Membership>();
+      final opened = <String>[];
+      final sub = FirestoreActivityReader.scoped(
+        membership: memberships.stream,
+        uid: () => 'me',
+        query: const ActivityQuery(limit: 50),
+        retryDelay: const Duration(milliseconds: 20),
+        open: (hid, uid, {required serverFilter}) {
+          opened.add(hid);
+          return hid == household.id
+              ? Stream.error(denied)
+              : Stream.value(window);
+        },
+      ).listen((_) {}, onError: (_) {});
+      memberships.add(const InHousehold(household));
+      await Future<void>.delayed(const Duration(milliseconds: 5));
+      memberships.add(const InHousehold(other));
+      await Future<void>.delayed(const Duration(milliseconds: 100));
+      expect(opened, [household.id, other.id]);
+      await sub.cancel();
+      await memberships.close();
+    });
+
+    test('a filter without an index falls back to the phone', () async {
+      final memberships = StreamController<Membership>();
+      final calls = <bool>[];
+      final sub = FirestoreActivityReader.scoped(
+        membership: memberships.stream,
+        uid: () => 'me',
+        query: const ActivityQuery(limit: 50, whoUid: 'me'),
+        open: (hid, uid, {required serverFilter}) {
+          calls.add(serverFilter);
+          return serverFilter
+              ? Stream.error(
+                  FirebaseException(
+                    plugin: 'cloud_firestore',
+                    code: 'failed-precondition',
+                  ),
+                )
+              : Stream.value(window);
+        },
+      ).listen((_) {});
+      memberships.add(const InHousehold(household));
+      await Future<void>.delayed(const Duration(milliseconds: 10));
+      expect(calls, [true, false]);
+      await sub.cancel();
+      await memberships.close();
     });
   });
 }
