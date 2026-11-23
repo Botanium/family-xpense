@@ -32,8 +32,9 @@ final class FirestoreHouseholdReader implements HouseholdReader {
   /// `complete: false`.
   final int maxTransactions;
 
-  /// How far back a missing day's rate is looked for.
-  static const rateLookbackDays = 60;
+  /// The days read first for a missing day's rate; older ones are read
+  /// only when these hold none.
+  static const rateWindowDays = 60;
 
   String _h(String hid) => 'households/$hid';
 
@@ -262,29 +263,40 @@ final class FirestoreHouseholdReader implements HouseholdReader {
   @override
   Future<FxDay?> fxRateOn(String hid, String date) =>
       _guard('fxRates', () async {
+        // That day's document, or the most recent earlier one, however old
+        // (DATA_MODEL 2.13). Document ids are YYYY-MM-DD, but Firestore
+        // does not scan ids descending, so read ascending and take the
+        // last: the last [rateWindowDays] days first, and only when they
+        // hold none, everything before them (a household that enters
+        // rates that rarely has few to read).
         final col = _db.collection('${_h(hid)}/fxRates');
-        final day = await col.doc(date).get();
-        if (day.data() case final d?) return _fx(date, d);
-        // The most recent earlier day. Document ids are YYYY-MM-DD, but
-        // Firestore cannot scan ids descending, so read the previous
-        // [rateLookbackDays] days in order and take the last.
-        final earlier =
-            (await col
-                    .whereFieldPath(
-                      fs.FieldPath.documentId,
-                      fs.WhereFilter.greaterThanOrEqual,
-                      col.doc(addDays(date, -rateLookbackDays)),
-                    )
-                    .whereFieldPath(
-                      fs.FieldPath.documentId,
-                      fs.WhereFilter.lessThan,
-                      col.doc(date),
-                    )
-                    .orderByFieldPath(fs.FieldPath.documentId)
-                    .get())
-                .docs;
-        if (earlier.isEmpty) return null;
-        return _fx(earlier.last.id, earlier.last.data());
+        final windowStart = col.doc(addDays(date, -rateWindowDays));
+        Future<List<fs.QueryDocumentSnapshot<Map<String, Object?>>>> ids(
+          fs.WhereFilter op,
+          fs.DocumentReference<Map<String, Object?>> bound, [
+          fs.DocumentReference<Map<String, Object?>>? from,
+        ]) async {
+          var q = col.whereFieldPath(fs.FieldPath.documentId, op, bound);
+          if (from != null) {
+            q = q.whereFieldPath(
+              fs.FieldPath.documentId,
+              fs.WhereFilter.greaterThanOrEqual,
+              from,
+            );
+          }
+          return (await q.orderByFieldPath(fs.FieldPath.documentId).get()).docs;
+        }
+
+        var found = await ids(
+          fs.WhereFilter.lessThanOrEqual,
+          col.doc(date),
+          windowStart,
+        );
+        if (found.isEmpty) {
+          found = await ids(fs.WhereFilter.lessThan, windowStart);
+        }
+        if (found.isEmpty) return null;
+        return _fx(found.last.id, found.last.data());
       });
 
   static FxDay? _fx(String date, Map<String, Object?> d) {

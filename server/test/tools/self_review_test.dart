@@ -495,6 +495,43 @@ void main() {
         'and bread 2',
         '45.20 dollars and 12.20 dollars',
       ]);
+      expect(e.transcripts, ['Tea 5', 'and bread 2']);
+    });
+
+    test("a shown transcript is the member's words for dates and the "
+        'classifier', () async {
+      const said = 'paid groceries 50 dollars yesterday';
+      final evidence = TurnEvidence(mediaTurn: true)
+        ..shownTexts.add(said)
+        ..transcripts.add(said);
+      final classifier = FakeEntryClassifier();
+      final out = await prepareEntries(
+        PrepareEntriesInput(
+          entries: [
+            ProposedEntry(
+              intent: 'expense',
+              amount: '50',
+              currency: 'USD',
+              text: said,
+              dateWords: 'yesterday',
+              categoryHint: 'groceries',
+            ),
+          ],
+        ),
+        dara,
+        ToolDeps(
+          reader: demoReader('2026-11-22'),
+          classifier: classifier,
+          thresholds: () async => const {},
+          turnText: () => const [],
+          clock: fixedClock,
+          evidence: () => evidence,
+        ),
+      );
+      final d = out.drafts.single;
+      expect(d.occurredOn, '2026-11-21');
+      expect(d.categoryId, 'groceries');
+      expect(classifier.calls.single.text, said);
     });
 
     test('a shown figure backs an amount; others need confirming', () async {

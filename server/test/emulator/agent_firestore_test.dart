@@ -141,6 +141,9 @@ void _tests() {
     expect(rate?.date, '2026-11-01');
     expect((await reader.fxRateOn('hh1', '2026-11-10'))?.kind, 'official');
     expect(await reader.fxRateOn('hh1', '2026-10-01'), isNull);
+    // PR #30 review: the most recent earlier rate, however old.
+    final later = await reader.fxRateOn('hh1', '2027-03-15');
+    expect((later?.date, later?.usdIqd), ('2026-11-10', '1530'));
   });
 
   test(

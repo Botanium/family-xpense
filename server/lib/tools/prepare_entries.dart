@@ -85,13 +85,16 @@ Future<PrepareEntriesOutput> prepareEntries(
     for (final text in [...texts, ...?evidence?.shownTexts])
       ...parseText(text, plain).amounts,
   ]);
+  // The member's words: typed text, and what they said in a voice note
+  // as the agent showed it back (the transcript).
+  final words = [...texts, ...?evidence?.transcripts];
 
   final builders = [
     for (final (i, e) in entries.indexed)
       _DraftBuilder(
         id: 'd${i + 1}',
         entry: e,
-        text: _memberText(e.text, texts),
+        text: _memberText(e.text, words),
         mediaTurn: mediaTurn,
         snap: snap,
         today: today.iso,

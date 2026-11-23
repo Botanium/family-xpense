@@ -42,7 +42,14 @@ final class TurnEvidence {
 
   /// Texts shown to the member this turn: transcripts, and the figures of
   /// a receipt written as words the fast parser reads ("12.50 dollars").
+  /// They back amounts.
   final List<String> shownTexts = [];
+
+  /// The transcripts alone: what the member said, shown back to them.
+  /// They count as the member's words for dates, account, category and
+  /// person words, and the classifier's description, like typed text. A
+  /// receipt's figures do not: they are not the member's words.
+  final List<String> transcripts = [];
 
   /// Runs [body] with this evidence as [current].
   Future<T> run<T>(Future<T> Function() body) =>
@@ -79,6 +86,7 @@ final class TurnEvidence {
             case 'Transcript':
               if (_resolve(c['text'], model) case final String text) {
                 shownTexts.add(text);
+                transcripts.add(text);
               }
             case 'ReceiptSummary':
               if (_resolve(c['receipt'], model)
