@@ -29,6 +29,7 @@ void main() {
     actions = LedgerXpenseActions(
       inner: inner,
       transactions: memoryTransactions(),
+      readHousehold: () => inner.household,
     );
   });
 

@@ -322,6 +322,24 @@ EntryDraft buildDraft({
   // duplicate answer was about the old figures.
   var currencyFollowed = false;
 
+  // As in the agent's `prepareEntries`: an account holds only its own
+  // currency. A guessed currency follows the chosen account, with the
+  // amount read again in it; a written one is kept. Returns whether
+  // [account] can hold the entry's currency now.
+  bool followAccount(HouseholdAccount account) {
+    if (currency == null || account.currency == currency) return true;
+    if (!currencyGuessed) return false;
+    final c = Currency.tryParse(account.currency);
+    if (c == null) return false;
+    if (Money.parseMajor(amount.value.toString(), c) case Ok(:final value)) {
+      currency = account.currency;
+      amountMinor = value.minorUnits;
+      currencyFollowed = true;
+      return true;
+    }
+    return false;
+  }
+
   // Account: a rule, the account named, the only account, then Decisions.
   var accountId = rule(RuleField.accountId);
   var accountNamed = false;
@@ -341,36 +359,26 @@ EntryDraft buildDraft({
       case final p?) {
     confidence['account'] = p.confidence;
     final account = household.account(p.value);
-    // As in the agent's `prepareEntries`: an account holds only its own
-    // currency. A written currency rules another account out; a guessed
-    // one follows the account, with the amount read again in it.
-    var fits =
-        account != null && (currency == null || account.currency == currency);
-    if (account != null && !fits && currencyGuessed) {
-      if (Currency.tryParse(account.currency) case final c?) {
-        if (Money.parseMajor(amount.value.toString(), c) case Ok(
-          :final value,
-        )) {
-          currency = account.currency;
-          amountMinor = value.minorUnits;
-          currencyFollowed = true;
-          fits = true;
-        }
-      }
-    }
-    if (fits) {
-      accountId = account!.id;
+    // A written currency rules another account out.
+    if (account != null && followAccount(account)) {
+      accountId = account.id;
       if (p.show == FieldShow.guessed) guessed.add('accountId');
     }
+  }
+  // An account the rules, the words or the household settled keeps it;
+  // a guessed currency moves to it.
+  if (household.account(accountId) case final account?) {
+    followAccount(account);
   }
   // A currency the parser could not read: the account's, else the base
   // currency, and the amount read in it. As in the agent's
   // `prepareEntries`, it stays Guessed unless the member named the account.
   if (currency == null && amount != null) {
     final fromAccount = household.account(accountId)?.currency;
-    currency = fromAccount ?? household.baseCurrency;
+    final code = fromAccount ?? household.baseCurrency;
+    currency = code;
     if (fromAccount == null || !accountNamed) guessed.add('currency');
-    if (Currency.tryParse(currency) case final c?) {
+    if (Currency.tryParse(code) case final c?) {
       if (Money.parseMajor(amount.value.toString(), c) case Ok(:final value)) {
         amountMinor = value.minorUnits;
       }

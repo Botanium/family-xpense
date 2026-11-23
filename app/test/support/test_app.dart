@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/misc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:xpense_app/a2ui/testing/fake_xpense_actions.dart';
+import 'package:xpense_app/a2ui/xpense_surface_host.dart';
 import 'package:xpense_app/app.dart';
 import 'package:xpense_app/bootstrap.dart';
 import 'package:xpense_app/core/ui/ui.dart';
@@ -119,6 +120,10 @@ final class TestServices {
   /// Learned rules.
   final MemoryRulesRepository rules = MemoryRulesRepository();
 
+  /// Replaces [actions] when set, such as with bootstrap's
+  /// `connectXpenseActions`.
+  XpenseActions Function(Ref ref)? xpenseActionsFor;
+
   /// Time.
   final TestClock clock = TestClock();
 
@@ -139,7 +144,7 @@ final class TestServices {
     speechCapture: speech,
     agentClient: agent,
     decisionsClient: decisions,
-    xpenseActions: actions,
+    xpenseActions: xpenseActionsFor ?? (_) => actions,
     rules: (_) => rules,
   );
 

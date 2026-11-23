@@ -12,8 +12,7 @@
 //     FIRESTORE_EMULATOR_HOST=127.0.0.1:8280 XPENSE_APP_CHECK=emulator \
 //     tool/with_gemini_key.sh genkit start -- dart run bin/server.dart
 //   cd app && flutter test integration_test/ask_emulator_test.dart \
-//     -d <simulator> --dart-define=XPENSE_ENV=emulators \
-//     --dart-define=XPENSE_DEMO_HOUSEHOLD=true
+//     -d <simulator> --dart-define=XPENSE_ENV=emulators
 //
 // The test signs in as the seeded member `u_dara`, creating that Auth
 // emulator account first if it is missing (emulator admin API, never a real

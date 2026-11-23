@@ -34,6 +34,7 @@ import 'package:xpense_app/data/write/ledger_store.dart';
 import 'package:xpense_app/data/write/ledger_transactions_repository.dart';
 import 'package:xpense_app/data/write/memory_ledger_store.dart';
 import 'package:xpense_app/features/ask/ask_actions.dart';
+import 'package:xpense_app/features/ask/ask_household.dart';
 import 'package:xpense_app/features/ask/ledger_xpense_actions.dart';
 import 'package:xpense_app/services/agent_client.dart';
 import 'package:xpense_app/services/agent_client_fake.dart';
@@ -276,58 +277,20 @@ HouseholdRepository connectHouseholds(
   );
 }
 
-/// `--dart-define=XPENSE_DEMO_HOUSEHOLD=true` (dev and emulators only)
-/// gives the in-memory write path the household that
-/// `server/tool/seed_demo_household.dart` writes to the emulator, so the
-/// agent's and Decisions' ids resolve on the phone in a local end-to-end
-/// run. Until the household cache arrives (WP-13, WP-20) the phone does not
-/// read accounts and categories from Firestore.
-const String demoHouseholdDefine = String.fromEnvironment(
-  'XPENSE_DEMO_HOUSEHOLD',
-);
-
-/// The server's demo household (`server/lib/runtime/demo_household.dart`)
-/// as the member `u_dara` sees it.
-final XpenseHousehold demoXpenseHousehold = XpenseHousehold(
-  baseCurrency: 'USD',
-  accounts: const [
-    HouseholdAccount(id: 'acc_chk', name: 'Checking', currency: 'USD'),
-    HouseholdAccount(
-      id: 'acc_visa',
-      name: 'Joint Visa ••4021',
-      currency: 'USD',
-    ),
-    HouseholdAccount(id: 'acc_cash_iqd', name: 'Cash wallet', currency: 'IQD'),
-  ],
-  categories: [
-    // All of them, as the server's demo household has: a category with no
-    // parent, such as `other_expense`, can be a leaf.
-    for (final c in defaultCategories)
-      HouseholdCategory(id: c.slug, name: c.nameIn('en')),
-  ],
-  people: const [HouseholdItem(id: 'p_alex', name: 'Alex')],
-  loans: const [HouseholdItem(id: 'loan_alex', name: 'Alex')],
-  partnerName: 'Shilan',
-  latestRate: '1520',
-);
-
-/// The household cache and write path for the Ask cards. Saves and Undo go
-/// through [transactions] (WP-20); the household cache is still the
-/// in-memory one (the demo household when [demoHouseholdDefine] asks for
-/// it outside prod, else the sample) until the phone reads accounts and
-/// categories from Firestore.
-XpenseActions connectXpenseActions(
-  AppEnvironment environment, {
-  required TransactionsRepository transactions,
-}) => LedgerXpenseActions(
-  inner: FakeXpenseActions(
-    household:
-        demoHouseholdDefine == 'true' && environment != AppEnvironment.prod
-        ? demoXpenseHousehold
-        : sampleHousehold,
-  ),
-  transactions: transactions,
-);
+/// The Ask cards' household and write path: the household from
+/// [askHouseholdProvider] (the same accounts the save path writes to),
+/// saves and Undo through the transaction write path (WP-20). The inner
+/// in-memory actions keep the rate entry and navigation for now.
+XpenseActions connectXpenseActions(Ref ref) {
+  // Keeps the household's streams running while the actions are in use;
+  // read, not watched, so a new account does not reset an Ask thread.
+  ref.listen(askHouseholdProvider, (_, _) {});
+  return LedgerXpenseActions(
+    inner: FakeXpenseActions(),
+    transactions: ref.watch(transactionsRepositoryProvider),
+    readHousehold: () => ref.read(askHouseholdProvider),
+  );
+}
 
 /// The learned rules for the signed-in member (story S3.11): in Firestore
 /// once the member is in a household, in memory in `fakes` and until the
@@ -553,10 +516,7 @@ Future<Bootstrapped> bootstrap({required AppEnvironment environment}) async {
       accountsRepository: accounts,
       transactionsRepository: transactions,
       featureFlags: flags,
-      xpenseActions: connectXpenseActions(
-        environment,
-        transactions: transactions,
-      ),
+      xpenseActions: connectXpenseActions,
       agentClient: capture?.agent,
       decisionsClient: capture?.decisions,
       rules: (ref) => connectRules(ref, environment: environment),
@@ -586,7 +546,7 @@ List<Override> appOverrides({
   OnDeviceLlm? onDeviceLlm,
   SpeechCapture? speechCapture,
   OcrEngine? ocrEngine,
-  XpenseActions? xpenseActions,
+  XpenseActions Function(Ref ref)? xpenseActions,
   RulesRepository Function(Ref ref)? rules,
 }) => [
   clockProvider.overrideWithValue(clock),
@@ -610,9 +570,11 @@ List<Override> appOverrides({
   onDeviceLlmProvider.overrideWithValue(onDeviceLlm ?? FakeOnDeviceLlm()),
   speechCaptureProvider.overrideWithValue(speechCapture ?? FakeSpeechCapture()),
   ocrEngineProvider.overrideWithValue(ocrEngine ?? FakeOcrEngine()),
-  // Tests get the in-memory fake; bootstrap passes saves through the
-  // transaction write path (connectXpenseActions).
-  xpenseActionsProvider.overrideWithValue(xpenseActions ?? FakeXpenseActions()),
+  // Bootstrap passes connectXpenseActions (the household from the app's
+  // data, saves through the write path); tests pass a fake.
+  xpenseActionsProvider.overrideWith(
+    xpenseActions ?? (_) => FakeXpenseActions(),
+  ),
   rulesRepositoryProvider.overrideWith(
     rules ??
         (ref) {

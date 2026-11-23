@@ -282,6 +282,16 @@ void main() {
       expect(d.duplicate, isNull);
     });
 
+    test('a guessed currency follows the account a rule picks', () {
+      // 15000 alone reads as IQD; the rule says Costco is Checking (USD).
+      final d = _draft('Costco 15000', rules: [_costco]);
+      expect(d.accountId, 'acc_chk');
+      expect(d.currency, 'USD');
+      expect(d.amountMinor, 1500000);
+      expect(d.guessed, contains('currency'));
+      expect(d.fx, isNull, reason: 'USD is the base currency');
+    });
+
     test('a transfer never goes to the account it leaves from', () {
       final d = _draft(
         'moved 200 dollars from checking',

@@ -5,14 +5,22 @@ import 'package:xpense_shared/xpense_shared.dart';
 
 /// [XpenseActions] whose saves go through the transaction write path
 /// (WP-20, `TransactionsRepository.saveEntries`): one batch per card, all
-/// or nothing. Everything else (the household cache, rates, navigation) is
-/// [inner]'s.
+/// or nothing. The household comes from [readHousehold]; rates and
+/// navigation are [inner]'s.
 final class LedgerXpenseActions implements XpenseActions {
-  /// Saves through [transactions]; the rest goes to [inner].
-  new({required this.inner, required this.transactions});
+  /// Saves through [transactions]; reads the household with
+  /// [readHousehold] each time; the rest goes to [inner].
+  new({
+    required this.inner,
+    required this.transactions,
+    required this.readHousehold,
+  });
 
-  /// The household cache, rates and navigation.
+  /// Rates and navigation.
   final XpenseActions inner;
+
+  /// Reads the current household cache.
+  final XpenseHousehold Function() readHousehold;
 
   /// The write path.
   final TransactionsRepository transactions;
@@ -21,7 +29,7 @@ final class LedgerXpenseActions implements XpenseActions {
   final Map<String, SavedEntries> _saved = {};
 
   @override
-  XpenseHousehold get household => inner.household;
+  XpenseHousehold get household => readHousehold();
 
   @override
   Future<SaveOutcome> saveDrafts(
