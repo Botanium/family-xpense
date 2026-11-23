@@ -21,6 +21,8 @@ dependencies:
   clock: ^1.1.3
   # Firebase client (L-12). Firestore only in lib/data/ and the root.
   cloud_firestore: ^7.2.0
+  # Rule ids hash the full pattern (WP-34); the server uses it too.
+  crypto: ^3.0.8
   # Standalone Cupertino and Material libraries (D-22).
   cupertino_ui: ^1.1.7
   firebase_analytics: ^13.1.0

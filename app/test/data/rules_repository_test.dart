@@ -25,7 +25,7 @@ void main() {
       await Future<void>.delayed(Duration.zero);
       expect(changes, hasLength(1));
       final rule = repo.current.single;
-      expect(rule.id, 'merchant_costco');
+      expect(rule.id, ruleIdFor(RuleKind.merchant, 'costco'));
       expect(rule.pattern, 'costco');
       expect(
         applyRules('paid 30 at costco', repo.current).map((r) => r.value),
@@ -54,7 +54,7 @@ void main() {
       final rule = repo.current.single;
       expect(rule.categoryId, 'household');
       expect(rule.accountId, 'acc_chk', reason: 'kept from the first lesson');
-      expect(repo.hits['merchant_costco'], 2);
+      expect(repo.hits[ruleIdFor(RuleKind.merchant, 'costco')], 2);
     });
 
     test('an empty lesson or pattern teaches nothing', () async {
@@ -71,12 +71,52 @@ void main() {
   });
 
   test('rule ids are stable and Firestore-safe', () {
+    final id = ruleIdFor(RuleKind.merchant, "Joe's Café #2");
+    expect(id, matches(RegExp(r'^merchant_joe_s_caf_2_[0-9a-f]{8}$')));
+    expect(ruleIdFor(RuleKind.merchant, "  JOE'S café #2 "), id);
     expect(
-      ruleIdFor(RuleKind.merchant, "Joe's Café #2"),
-      'merchant_joe_s_caf_2',
+      ruleIdFor(RuleKind.keyword, '!!!'),
+      matches(RegExp(r'^keyword_x_[0-9a-f]{8}$')),
     );
-    expect(ruleIdFor(RuleKind.keyword, '!!!'), 'keyword_x');
-    expect(ruleIdFor(RuleKind.keyword, 'a' * 300).length, 120);
+    final long = ruleIdFor(RuleKind.keyword, 'a' * 300);
+    expect(long.length, 120);
+    expect(long, matches(RegExp(r'_[0-9a-f]{8}$')), reason: 'hash kept');
+  });
+
+  test('patterns the slug cannot tell apart keep separate rules', () {
+    // Both slug to `caf`, and both Arabic names to nothing.
+    expect(
+      ruleIdFor(RuleKind.merchant, 'Café'),
+      isNot(ruleIdFor(RuleKind.merchant, 'Cafè')),
+    );
+    expect(
+      ruleIdFor(RuleKind.merchant, 'مطعم'),
+      isNot(ruleIdFor(RuleKind.merchant, 'مقهى')),
+    );
+  });
+
+  test('two colliding merchants keep their own rules', () async {
+    final rules = MemoryRulesRepository();
+    addTearDown(rules.dispose);
+    await rules.learn(
+      const RuleLesson(
+        kind: RuleKind.merchant,
+        pattern: 'Café',
+        categoryId: 'dining',
+      ),
+    );
+    await rules.learn(
+      const RuleLesson(
+        kind: RuleKind.merchant,
+        pattern: 'Cafè',
+        categoryId: 'groceries',
+      ),
+    );
+    expect(rules.current, hasLength(2));
+    expect(
+      {for (final r in rules.current) r.pattern: r.categoryId},
+      {rulePattern('Café'): 'dining', rulePattern('Cafè'): 'groceries'},
+    );
   });
 
   group('stored form (DATA_MODEL 2.12)', () {

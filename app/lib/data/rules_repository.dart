@@ -6,7 +6,9 @@
 // Firestore adapter is `rules_repository_firestore.dart`, named only by the
 // composition root and tests.
 import 'dart:async';
+import 'dart:convert';
 
+import 'package:crypto/crypto.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:xpense_shared/xpense_shared.dart';
@@ -78,13 +80,24 @@ String rulePattern(String text) => normalizeText(text).trim();
 
 /// A stable rule id for [kind] and [pattern], so learning the same pattern
 /// again updates one rule instead of adding another. Firestore-safe:
-/// `[a-z0-9_]`, at most 120 characters.
+/// `[a-z0-9_]`, at most 120 characters. The readable slug drops what is
+/// not ASCII ("café" and "cafè" both give `caf`), so the id ends with 8 hex
+/// of the SHA-256 of the whole normalised pattern, and different patterns
+/// never share a rule.
 String ruleIdFor(RuleKind kind, String pattern) {
-  final slug = rulePattern(pattern)
+  final normalised = rulePattern(pattern);
+  final hash = sha256
+      .convert(utf8.encode(normalised))
+      .toString()
+      .substring(0, 8);
+  var slug = normalised
       .replaceAll(RegExp('[^a-z0-9]+'), '_')
       .replaceAll(RegExp(r'^_+|_+$'), '');
-  final id = '${kind.wire}_${slug.isEmpty ? 'x' : slug}';
-  return id.length <= 120 ? id : id.substring(0, 120);
+  if (slug.isEmpty) slug = 'x';
+  // Room for the kind, two underscores and the hash.
+  final room = 120 - kind.wire.length - 2 - hash.length;
+  if (slug.length > room) slug = slug.substring(0, room);
+  return '${kind.wire}_${slug}_$hash';
 }
 
 /// [rule] with the fields [lesson] sets replaced; the rest kept.
