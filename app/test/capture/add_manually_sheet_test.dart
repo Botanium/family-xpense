@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:xpense_app/core/routing/routing.dart';
 import 'package:xpense_app/core/ui/ui.dart';
+import 'package:xpense_app/data/write/ledger_store.dart';
 import 'package:xpense_shared/xpense_shared.dart';
 
 import 'ledger_app.dart';
@@ -303,6 +304,46 @@ void main() {
     await _tap(tester, find.text('Cancel'));
     expect(find.text('Add manually'), findsNothing);
     expect(find.text('Discard changes'), findsNothing);
+  });
+
+  testWidgets('a failure toast closes with the sheet (Codex review, PR #39)', (
+    tester,
+  ) async {
+    final app = LedgerApp();
+    await _openSheet(tester, app);
+    await tester.enterText(_amountInput(), '5');
+    await _tap(tester, find.text('Food'));
+    app.memory.failNextCommit = const StoreFailure(
+      StoreFailureKind.unknown,
+      'test',
+    );
+    await _tap(tester, find.text('Save expense'));
+    expect(find.text("Couldn't save. Try again."), findsOneWidget);
+    expect(find.text('Retry'), findsOneWidget);
+
+    await _tap(tester, _inSheet(find.text('Cancel')));
+    await _tap(tester, find.text('Discard changes'));
+    expect(find.text('Add manually'), findsNothing);
+    // Its Retry would act on a form that is gone.
+    expect(find.text("Couldn't save. Try again."), findsNothing);
+    expect(find.text('Retry'), findsNothing);
+    expect(app.saved, isEmpty);
+  });
+
+  testWidgets('Retry saves again while the sheet is open', (tester) async {
+    final app = LedgerApp();
+    await _openSheet(tester, app);
+    await tester.enterText(_amountInput(), '5');
+    await _tap(tester, find.text('Food'));
+    app.memory.failNextCommit = const StoreFailure(
+      StoreFailureKind.unknown,
+      'test',
+    );
+    await _tap(tester, find.text('Save expense'));
+    await _tap(tester, find.text('Retry'));
+    expect(find.text('Add manually'), findsNothing);
+    expect(app.saved, hasLength(1));
+    await _toastGone(tester);
   });
 
   group('dismissing (Codex review, PR #39)', () {

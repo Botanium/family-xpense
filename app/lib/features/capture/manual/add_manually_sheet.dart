@@ -208,8 +208,14 @@ class AddManuallyFormState extends ConsumerState<AddManuallyForm> {
     _note.dispose();
     _person.dispose();
     _rate.dispose();
+    // A failure toast belongs to this form: its Retry would act on a form
+    // that is gone (Codex review, PR #39). The saved toast outlives it.
+    _dismissFailure?.call();
     super.dispose();
   }
+
+  /// Dismisses the failure toast on screen, if any.
+  VoidCallback? _dismissFailure;
 
   void _reveal(ManualField field) {
     if (!mounted) return;
@@ -286,6 +292,9 @@ class AddManuallyFormState extends ConsumerState<AddManuallyForm> {
 
   /// Closes without saving; asks first when something was changed.
   void cancel() {
+    // The toast would sit over the discard question's buttons.
+    _dismissFailure?.call();
+    _dismissFailure = null;
     final navigator = Navigator.of(context);
     if (!dirty || _saving) {
       if (!_saving) navigator.pop();
@@ -310,6 +319,8 @@ class AddManuallyFormState extends ConsumerState<AddManuallyForm> {
   /// Checks the form and saves it through the write path.
   Future<void> save() async {
     if (_saving) return;
+    _dismissFailure?.call();
+    _dismissFailure = null;
     final accounts = _accounts();
     final values = _resolved(accounts);
     final check = checkManualEntry(
@@ -370,6 +381,9 @@ class AddManuallyFormState extends ConsumerState<AddManuallyForm> {
     final l10n = context.l10n;
     final saved = outcome.saved;
     final offline = outcome.ack == WriteAck.queued;
+    _dismissFailure?.call();
+    _dismissFailure = null;
+    // These outlive the sheet; their actions use only the repository.
     if (saved != null) {
       showUndoToast(
         context: context,
@@ -406,11 +420,16 @@ class AddManuallyFormState extends ConsumerState<AddManuallyForm> {
     final l10n = context.l10n;
     final retry =
         failure is TransactionConflict || failure is TransactionsUnknown;
-    showUndoToast(
+    _dismissFailure?.call();
+    _dismissFailure = showUndoToast(
       context: context,
       message: l10n.manualFailure(placed.toast ?? failure),
       actionLabel: retry ? l10n.captureManualRetry : l10n.captureManualOk,
-      onAction: retry ? () => unawaited(save()) : () {},
+      onAction: retry
+          ? () {
+              if (mounted) unawaited(save());
+            }
+          : () {},
     );
   }
 

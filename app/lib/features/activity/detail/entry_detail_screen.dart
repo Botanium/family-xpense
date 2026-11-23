@@ -62,6 +62,27 @@ class EntryDetailScreen extends ConsumerStatefulWidget {
 class _EntryDetailScreenState extends ConsumerState<EntryDetailScreen> {
   bool _busy = false;
 
+  /// Dismisses the failure toast on screen, if any. Failure toasts are
+  /// about this screen and close with it; the Undo toast after a delete
+  /// outlives it (its action uses only the repository).
+  VoidCallback? _dismissFailure;
+
+  @override
+  void dispose() {
+    _dismissFailure?.call();
+    super.dispose();
+  }
+
+  void _showFailure(String message) {
+    _dismissFailure?.call();
+    _dismissFailure = showUndoToast(
+      context: context,
+      message: message,
+      actionLabel: context.l10n.activityEntryOk,
+      onAction: () {},
+    );
+  }
+
   void _edit(String field) =>
       unawaited(context.push(AppRoutes.editEntry(widget.txnId, field: field)));
 
@@ -92,12 +113,7 @@ class _EntryDetailScreenState extends ConsumerState<EntryDetailScreen> {
         }
       case Err(:final failure):
         unawaited(XpHaptics.warning());
-        showUndoToast(
-          context: context,
-          message: _failureMessage(failure),
-          actionLabel: l10n.activityEntryOk,
-          onAction: () {},
-        );
+        _showFailure(_failureMessage(failure));
     }
   }
 
@@ -155,12 +171,7 @@ class _EntryDetailScreenState extends ConsumerState<EntryDetailScreen> {
         if (viewer == null) return;
         final restored = restoreDraft(txn, revision, viewerUid: viewer);
         if (restored == null) {
-          showUndoToast(
-            context: context,
-            message: context.l10n.activityEntryFailInvalid,
-            actionLabel: context.l10n.activityEntryOk,
-            onAction: () {},
-          );
+          _showFailure(context.l10n.activityEntryFailInvalid);
           return;
         }
         unawaited(

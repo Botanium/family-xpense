@@ -637,6 +637,26 @@ void main() {
     );
   });
 
+  testWidgets('a failure toast closes when you leave the entry', (
+    tester,
+  ) async {
+    final app = LedgerApp();
+    final id = await seedEntry(app);
+    final container = await app.pump(tester);
+    await pushTo(tester, container, AppRoutes.entry(id));
+    app.memory.failNextCommit = const StoreFailure(
+      StoreFailureKind.unknown,
+      'test',
+    );
+    await _tap(tester, find.widgetWithText(XpButton, 'Delete entry'));
+    await _tap(tester, find.text('Delete entry').last);
+    expect(find.text("That didn't work. Try again."), findsOneWidget);
+
+    await _tap(tester, find.bySemanticsLabel('Back'));
+    expect(find.text('ENTRY'), findsNothing);
+    expect(find.text("That didn't work. Try again."), findsNothing);
+  });
+
   testWidgets('delete asks first, then offers Undo', (tester) async {
     final app = LedgerApp();
     final id = await seedEntry(app);
