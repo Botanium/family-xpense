@@ -246,8 +246,8 @@ AccountsRepository connectAccounts(
 /// [households]. In `fakes` it writes to memory, over the artboards'
 /// accounts.
 ///
-/// Changes an earlier run queued are re-applied once a household is known
-/// ([LedgerTransactionsRepository.resumePending]).
+/// Changes an earlier run queued are re-applied whenever their member is
+/// in a household ([LedgerTransactionsRepository.resumePending]).
 Future<TransactionsRepository> connectTransactions(
   AppEnvironment environment, {
   required HouseholdRepository households,
@@ -262,22 +262,22 @@ Future<TransactionsRepository> connectTransactions(
     ),
     journal: await PrefsWriteJournal.open(),
   );
-  unawaited(
-    households
-        .watchMembership()
-        .firstWhere((m) => m is InHousehold)
-        .then((_) => repository.resumePending())
-        .catchError((Object e, StackTrace s) {
-          FlutterError.reportError(
-            FlutterErrorDetails(
-              exception: e,
-              stack: s,
-              library: 'bootstrap',
-              context: ErrorDescription('while resuming queued transactions'),
-            ),
-          );
-        }),
-  );
+  // Each time someone is in a household (a sign-in, a switch of member),
+  // their own queued changes are resumed.
+  households.watchMembership().where((m) => m is InHousehold).listen((_) {
+    unawaited(
+      repository.resumePending().catchError((Object e, StackTrace s) {
+        FlutterError.reportError(
+          FlutterErrorDetails(
+            exception: e,
+            stack: s,
+            library: 'bootstrap',
+            context: ErrorDescription('while resuming queued transactions'),
+          ),
+        );
+      }),
+    );
+  });
   return repository;
 }
 

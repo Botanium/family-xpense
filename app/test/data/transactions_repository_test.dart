@@ -1263,6 +1263,33 @@ void main() {
         expect(journal.entries, isEmpty);
       });
 
+      test("another member's sign-in keeps the record for its owner", () async {
+        final id = await saveOne(repo, draft());
+        store.goOnline(online: false);
+        await repo.editEntry(id, draft(amount: 4000));
+        // The app restarts with the partner signed in on this phone.
+        store.restart();
+        final next = LedgerTransactionsRepository(store, journal: journal)
+          ..lateFailures.listen(late.add);
+        store
+          ..remoteEdit(id, {'note': 'partner'})
+          ..scope = const LedgerScope(householdId: 'h1', uid: partner);
+        final resumed = next.resumePending();
+        store.goOnline(online: true);
+        await resumed;
+        expect(journal.entries, hasLength(1), reason: 'not theirs to resume');
+        expect(store.serverTransactions[id]!['amountMinor'], 1250);
+
+        // The owner signs in again: their change is re-applied.
+        store.scope = const LedgerScope(householdId: 'h1', uid: me);
+        await next.resumePending();
+        await pumpEventQueue();
+        expect(store.serverTransactions[id]!['amountMinor'], 4000);
+        expect(store.serverBalances['joint-usd'], -4000);
+        expect(journal.entries, isEmpty);
+        expect(late, isEmpty);
+      });
+
       test('synced writes leave nothing in the journal', () async {
         final id = await saveOne(repo, draft());
         await repo.editEntry(id, draft(amount: 5));

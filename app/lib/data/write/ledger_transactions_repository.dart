@@ -131,19 +131,38 @@ final class LedgerTransactionsRepository implements TransactionsRepository {
   /// queue has reached the server; reports through [lateFailures] what
   /// cannot be re-applied. The composition root calls it once a household
   /// is known. Firestore keeps a queued batch across a restart, but not the
-  /// callback that would re-apply it (Codex review, PR #35).
+  /// callback that would re-apply it (Codex review, PR #35). Only the
+  /// signed-in member's records in the current household are resumed.
   Future<void> resumePending() async {
+    final previous = _resuming;
+    final done = Completer<void>();
+    _resuming = done.future;
+    try {
+      await previous;
+      await _resume();
+    } finally {
+      done.complete();
+    }
+  }
+
+  /// The running [resumePending], so two never overlap.
+  Future<void>? _resuming;
+
+  Future<void> _resume() async {
     final scope = _store.scope;
-    final pending = [..._journal.entries];
-    if (scope == null || pending.isEmpty) return;
+    if (scope == null) return;
+    // Another member's or household's records stay until their owner signs
+    // in on this phone again (Codex review, PR #35).
+    final pending = [
+      for (final e in _journal.entries)
+        if (e.householdId == scope.householdId && e.uid == scope.uid) e,
+    ];
+    if (pending.isEmpty) return;
     await _store.settle();
     for (final entry in pending) {
       // Handled in this run already.
       if (!_journal.entries.any((e) => e.revId == entry.revId)) continue;
       await _journal.remove(entry.revId);
-      if (entry.householdId != scope.householdId || entry.uid != scope.uid) {
-        continue;
-      }
       if (await _store.hasRevision(entry.txnId, entry.revId)) continue;
       final op = _Op.fromJournal(entry.op, entry.payload);
       if (op == null) continue;
