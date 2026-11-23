@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:xpense_app/core/ui/ui.dart';
+import 'package:xpense_app/features/home/home_screen.dart';
 import 'package:xpense_app/features/settings_privacy/lock/app_lock_controller.dart';
 import 'package:xpense_app/services/biometric_lock.dart';
 import 'package:xpense_app/services/settings_store.dart';
@@ -55,7 +56,7 @@ void main() {
     await tester.tap(find.text('Unlock with Face ID'));
     await tester.pumpAndSettle();
     expect(find.byType(LockOverlay), findsNothing);
-    expect(find.text('HOME'), findsOneWidget);
+    expect(find.byType(HomeScreen), findsOneWidget);
   });
 
   testWidgets('a lockout shows a notice under the button', (tester) async {

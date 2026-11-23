@@ -47,11 +47,125 @@ class AppLocalizationsEn extends AppLocalizations {
   String get homeTitle => 'Home';
 
   @override
-  String get homePlaceholder =>
-      'Your balance, this month\'s spending and recent entries will appear here.';
+  String homeHeader(String month, String household) {
+    return '$month · $household';
+  }
+
+  @override
+  String get homeNotifications => 'Notifications';
 
   @override
   String get homeSettingsButton => 'Settings';
+
+  @override
+  String get homeHouseholdBalance => 'Household balance';
+
+  @override
+  String get homeYourView => 'Your view';
+
+  @override
+  String homeMonthDelta(String amount) {
+    return '$amount this month';
+  }
+
+  @override
+  String homeUnconvertedNote(String currency) {
+    return '$currency accounts aren\'t included until there\'s a rate.';
+  }
+
+  @override
+  String get homeDailySpending => 'Daily spending';
+
+  @override
+  String homeDailyAverage(String amount) {
+    return 'Avg $amount/day';
+  }
+
+  @override
+  String homeChartSummary(
+    String first,
+    String last,
+    String average,
+    String busiest,
+  ) {
+    return 'Daily spending from $first to $last. Average $average a day. Highest on $busiest.';
+  }
+
+  @override
+  String homeChartSummaryToday(String first, String last, String average) {
+    return 'Daily spending from $first to $last. Average $average a day. Today is the highest.';
+  }
+
+  @override
+  String get homeChartSummaryEmpty => 'No spending yet this month.';
+
+  @override
+  String get homeIncome => 'Income';
+
+  @override
+  String get homeSpent => 'Spent';
+
+  @override
+  String get homeSaved => 'Saved';
+
+  @override
+  String get homeNudgeTryAsk => 'Spent something? Just say it.';
+
+  @override
+  String get homeNudgeTryAskAction => 'Ask';
+
+  @override
+  String get homeRecent => 'Recent';
+
+  @override
+  String get homeSeeAll => 'See all';
+
+  @override
+  String get homeRecentEmpty => 'No entries yet. Say or type one to start.';
+
+  @override
+  String get homeRecentEmptyAction => 'Add an entry';
+
+  @override
+  String homeRecentMeta(String category, String who) {
+    return '$category · $who';
+  }
+
+  @override
+  String get homeWhoYou => 'You';
+
+  @override
+  String get homeWhoJoint => 'Joint';
+
+  @override
+  String get homeWhoPartner => 'Partner';
+
+  @override
+  String get homeTypeExpense => 'Expense';
+
+  @override
+  String get homeTypeIncome => 'Income';
+
+  @override
+  String get homeTypeTransfer => 'Transfer';
+
+  @override
+  String get homeTypeSavings => 'Savings';
+
+  @override
+  String get homeTypeLoan => 'Loan';
+
+  @override
+  String get homeTypeRepayment => 'Repayment';
+
+  @override
+  String get homeTypeAdjustment => 'Adjustment';
+
+  @override
+  String get homeLoadError => 'Couldn\'t load this month.';
+
+  @override
+  String get homeRetry => 'Try again';
 
   @override
   String get activityTitle => 'Activity';

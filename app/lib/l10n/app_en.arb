@@ -49,15 +49,212 @@
   "@homeTitle": {
     "description": "Top bar title of Home."
   },
-  "homePlaceholder": "Your balance, this month's spending and recent entries will appear here.",
-  "@homePlaceholder": {
-    "description": "Placeholder line on Home until the Home screen is built."
+  "homeHeader": "{month} · {household}",
+  "@homeHeader": {
+    "description": "Mono header on Home: the month and the household name, upper-cased in code.",
+    "placeholders": {
+      "month": {
+        "type": "String",
+        "example": "Nov 2026"
+      },
+      "household": {
+        "type": "String",
+        "example": "Our home"
+      }
+    }
+  },
+  "homeNotifications": "Notifications",
+  "@homeNotifications": {
+    "description": "VoiceOver label of the bell button on Home."
   },
   "homeSettingsButton": "Settings",
   "@homeSettingsButton": {
-    "description": "VoiceOver label of the glass button on Home that opens Settings."
+    "description": "VoiceOver label of the avatar pair on Home, which opens Settings."
   },
-
+  "homeHouseholdBalance": "Household balance",
+  "@homeHouseholdBalance": {
+    "description": "Label over the hero figure when the viewer sees every account."
+  },
+  "homeYourView": "Your view",
+  "@homeYourView": {
+    "description": "Label over the hero figure when the partner keeps accounts private, so the total is only what the viewer sees."
+  },
+  "homeMonthDelta": "{amount} this month",
+  "@homeMonthDelta": {
+    "description": "Line under the hero: this month's income less spending, with its sign. Upper-cased in code.",
+    "placeholders": {
+      "amount": {
+        "type": "String",
+        "example": "+1,240.00"
+      }
+    }
+  },
+  "homeUnconvertedNote": "{currency} accounts aren't included until there's a rate.",
+  "@homeUnconvertedNote": {
+    "description": "Note under the hero when accounts in another currency cannot be converted for want of a rate.",
+    "placeholders": {
+      "currency": {
+        "type": "String",
+        "example": "IQD"
+      }
+    }
+  },
+  "homeDailySpending": "Daily spending",
+  "@homeDailySpending": {
+    "description": "Caption over the daily spending chart."
+  },
+  "homeDailyAverage": "Avg {amount}/day",
+  "@homeDailyAverage": {
+    "description": "Mono caption beside the chart: average spending per day this month. Upper-cased in code.",
+    "placeholders": {
+      "amount": {
+        "type": "String",
+        "example": "210"
+      }
+    }
+  },
+  "homeChartSummary": "Daily spending from {first} to {last}. Average {average} a day. Highest on {busiest}.",
+  "@homeChartSummary": {
+    "description": "VoiceOver summary of the daily spending chart.",
+    "placeholders": {
+      "first": {
+        "type": "String",
+        "example": "November 1"
+      },
+      "last": {
+        "type": "String",
+        "example": "November 21"
+      },
+      "average": {
+        "type": "String",
+        "example": "USD 210"
+      },
+      "busiest": {
+        "type": "String",
+        "example": "November 11"
+      }
+    }
+  },
+  "homeChartSummaryToday": "Daily spending from {first} to {last}. Average {average} a day. Today is the highest.",
+  "@homeChartSummaryToday": {
+    "description": "VoiceOver summary of the daily spending chart when today has the most spending.",
+    "placeholders": {
+      "first": {
+        "type": "String",
+        "example": "November 1"
+      },
+      "last": {
+        "type": "String",
+        "example": "November 21"
+      },
+      "average": {
+        "type": "String",
+        "example": "USD 210"
+      }
+    }
+  },
+  "homeChartSummaryEmpty": "No spending yet this month.",
+  "@homeChartSummaryEmpty": {
+    "description": "VoiceOver summary of the daily spending chart when nothing has been spent this month."
+  },
+  "homeIncome": "Income",
+  "@homeIncome": {
+    "description": "Ledger row on Home: income this month."
+  },
+  "homeSpent": "Spent",
+  "@homeSpent": {
+    "description": "Ledger row on Home: spending this month."
+  },
+  "homeSaved": "Saved",
+  "@homeSaved": {
+    "description": "Ledger row on Home: moved to savings goals this month."
+  },
+  "homeNudgeTryAsk": "Spent something? Just say it.",
+  "@homeNudgeTryAsk": {
+    "description": "The nudge row on Home until real nudges arrive: invites the user to capture an entry."
+  },
+  "homeNudgeTryAskAction": "Ask",
+  "@homeNudgeTryAskAction": {
+    "description": "Text action of the Home nudge that opens Ask."
+  },
+  "homeRecent": "Recent",
+  "@homeRecent": {
+    "description": "Section label over the latest entries on Home."
+  },
+  "homeSeeAll": "See all",
+  "@homeSeeAll": {
+    "description": "Link beside Recent that opens Activity."
+  },
+  "homeRecentEmpty": "No entries yet. Say or type one to start.",
+  "@homeRecentEmpty": {
+    "description": "Shown under Recent when there are no entries."
+  },
+  "homeRecentEmptyAction": "Add an entry",
+  "@homeRecentEmptyAction": {
+    "description": "Action under the empty Recent list; opens Ask."
+  },
+  "homeRecentMeta": "{category} · {who}",
+  "@homeRecentMeta": {
+    "description": "Meta line of a Recent row: category (or type) and whose it is.",
+    "placeholders": {
+      "category": {
+        "type": "String",
+        "example": "Groceries"
+      },
+      "who": {
+        "type": "String",
+        "example": "You"
+      }
+    }
+  },
+  "homeWhoYou": "You",
+  "@homeWhoYou": {
+    "description": "Whose an entry is: the viewer's."
+  },
+  "homeWhoJoint": "Joint",
+  "@homeWhoJoint": {
+    "description": "Whose an entry is: both partners'."
+  },
+  "homeWhoPartner": "Partner",
+  "@homeWhoPartner": {
+    "description": "Whose an entry is: the partner's, when their name is unknown."
+  },
+  "homeTypeExpense": "Expense",
+  "@homeTypeExpense": {
+    "description": "Fallback category text of a Recent row: an expense with no known category."
+  },
+  "homeTypeIncome": "Income",
+  "@homeTypeIncome": {
+    "description": "Fallback category text of a Recent row: income with no known category."
+  },
+  "homeTypeTransfer": "Transfer",
+  "@homeTypeTransfer": {
+    "description": "Category text of a transfer in Recent."
+  },
+  "homeTypeSavings": "Savings",
+  "@homeTypeSavings": {
+    "description": "Category text of a move to a savings goal in Recent."
+  },
+  "homeTypeLoan": "Loan",
+  "@homeTypeLoan": {
+    "description": "Category text of a loan given or taken in Recent."
+  },
+  "homeTypeRepayment": "Repayment",
+  "@homeTypeRepayment": {
+    "description": "Category text of a loan repayment in Recent."
+  },
+  "homeTypeAdjustment": "Adjustment",
+  "@homeTypeAdjustment": {
+    "description": "Category text of a balance adjustment in Recent."
+  },
+  "homeLoadError": "Couldn't load this month.",
+  "@homeLoadError": {
+    "description": "Shown on Home when the month's entries fail to load."
+  },
+  "homeRetry": "Try again",
+  "@homeRetry": {
+    "description": "Action that reloads Home after an error."
+  },
   "activityTitle": "Activity",
   "@activityTitle": {
     "description": "Top bar title of Activity."

@@ -27,6 +27,10 @@ import 'package:xpense_app/data/household_repository_firebase.dart';
 import 'package:xpense_app/data/read/activity_reader.dart';
 import 'package:xpense_app/data/read/activity_reader_firestore.dart';
 import 'package:xpense_app/data/read/activity_reader_memory.dart';
+import 'package:xpense_app/data/read/home_reader.dart';
+import 'package:xpense_app/data/read/home_reader_firebase.dart';
+import 'package:xpense_app/data/read/home_reader_memory.dart';
+import 'package:xpense_app/data/read/sample_month_fake.dart';
 import 'package:xpense_app/data/transactions_repository.dart';
 import 'package:xpense_app/data/write/firestore_ledger_store.dart';
 import 'package:xpense_app/data/write/ledger_store.dart';
@@ -255,7 +259,9 @@ Future<TransactionsRepository> connectTransactions(
   AppEnvironment environment, {
   required HouseholdRepository households,
 }) async {
-  if (environment == AppEnvironment.fakes) return memoryTransactions();
+  if (environment == AppEnvironment.fakes) {
+    return memoryTransactions(sampleMonth: DateTime.now());
+  }
   // Firestore is already pointed at the emulator by connectHouseholds.
   final repository = LedgerTransactionsRepository(
     FirestoreLedgerStore.connect(
@@ -287,8 +293,10 @@ Future<TransactionsRepository> connectTransactions(
 /// A write path in memory over the sample household's accounts
 /// (`FakeAccountsRepository.sample`), for the fakes build and tests. It
 /// carries an Activity reader over the same store (WP-22), so Activity
-/// shows every save, delete and undo at once.
-NotifyingTransactionsRepository memoryTransactions() {
+/// shows every save, delete and undo at once; Home reads the same store
+/// (WP-23, [memoryHomeReaderFor]). With [sampleMonth], the store holds a
+/// month of sample entries up to that day (the fakes build).
+NotifyingTransactionsRepository memoryTransactions({DateTime? sampleMonth}) {
   const viewer = FakeAccountsRepository.sampleViewer;
   final store = MemoryLedgerStore(
     scope: const LedgerScope(householdId: 'fake-household', uid: viewer),
@@ -309,10 +317,30 @@ NotifyingTransactionsRepository memoryTransactions() {
   for (final c in defaultCategories) {
     store.categories[c.slug] = LedgerCategory(id: c.slug, kind: c.kind.name);
   }
-  return NotifyingTransactionsRepository(
+  if (sampleMonth != null) seedSampleMonth(store, sampleMonth);
+  final repository = NotifyingTransactionsRepository(
     LedgerTransactionsRepository(store),
     MemoryActivityReader(read: () => store.transactions, viewerUid: viewer),
   );
+  _memoryStores[repository] = store;
+  return repository;
+}
+
+/// The store behind each memory write path, for the readers that follow it.
+final Expando<MemoryLedgerStore> _memoryStores = Expando('memoryStores');
+
+/// The store behind [transactions] when it is a memory write path made by
+/// [memoryTransactions], for tests that seed it; null otherwise.
+MemoryLedgerStore? memoryStoreOf(TransactionsRepository transactions) =>
+    _memoryStores[transactions];
+
+/// Home's reader in memory: over the store of the memory write path, so a
+/// save shows on Home at once, else an empty one.
+HomeReader memoryHomeReaderFor(TransactionsRepository transactions) {
+  final store = memoryStoreOf(transactions);
+  return store == null
+      ? const MemoryHomeReader.empty()
+      : MemoryHomeReader(store);
 }
 
 /// The Activity reader in memory: the one the memory write path carries,
@@ -452,6 +480,13 @@ Future<Bootstrapped> bootstrap({required AppEnvironment environment}) async {
       activityReader: environment == AppEnvironment.fakes
           ? null
           : FirestoreActivityReader.connect(households: households),
+      homeReader: environment == AppEnvironment.fakes
+          ? null
+          : FirebaseHomeReader(
+              auth: FirebaseAuth.instance,
+              firestore: FirebaseFirestore.instance,
+              households: households,
+            ),
       featureFlags: flags,
     ),
   );
@@ -473,6 +508,7 @@ List<Override> appOverrides({
   required AccountsRepository accountsRepository,
   TransactionsRepository? transactionsRepository,
   ActivityReader? activityReader,
+  HomeReader? homeReader,
   SecureStore? secureStore,
   FeatureFlagSource? featureFlags,
   AgentClient? agentClient,
@@ -495,6 +531,11 @@ List<Override> appOverrides({
     (ref) =>
         activityReader ??
         memoryActivityReaderFor(ref.watch(transactionsRepositoryProvider)),
+  ),
+  homeReaderProvider.overrideWith(
+    (ref) =>
+        homeReader ??
+        memoryHomeReaderFor(ref.watch(transactionsRepositoryProvider)),
   ),
   secureStoreProvider.overrideWithValue(secureStore ?? MemorySecureStore()),
   featureFlagSourceProvider.overrideWithValue(
