@@ -483,29 +483,9 @@ EntryDraft buildDraft({
           uncalibratedCap: policy.thresholds.onDeviceCap,
         );
 
-  // Exchange rate, when the entry is not in the base currency.
-  FxQuote? fx;
-  final minor = amountMinor;
-  final code = Currency.tryParse(currency ?? '');
-  final money = minor == null || code == null ? null : Money(minor, code);
-  final base = Currency.tryParse(household.baseCurrency);
-  final pairRate = household.latestRate;
-  if (money != null &&
-      base != null &&
-      pairRate != null &&
-      money.currency != base) {
-    if (FxRate.parse(FxPair.usdIqd.code, pairRate) case Ok(value: final rate)) {
-      if (toBaseAmount(money, base, rate: rate) case Ok(
-        value: final converted,
-      )) {
-        fx = FxQuote(
-          pair: FxPair.usdIqd.code,
-          pairRate: rate.rateString,
-          baseAmountMinor: converted.minorUnits,
-        );
-      }
-    }
-  }
+  // No exchange-rate quote: the write path prices the entry with the
+  // household's rate for the entry's date (the server's first), and the
+  // slip shows its preview from the latest rate without storing it.
 
   final title = titleOf(raw, parse)?.text;
   final draft = EntryDraft(
@@ -521,7 +501,6 @@ EntryDraft buildDraft({
     title: title == null || title.length <= 80 ? title : title.substring(0, 80),
     personName: personName,
     personId: personId,
-    fx: fx,
     confidence: confidence.isEmpty
         ? null
         : DraftConfidence(

@@ -163,7 +163,9 @@ class _EntrySlipViewState extends State<EntrySlipView> {
   Widget _amount(BuildContext context) {
     final draft = _draft;
     final base = widget.household.baseCurrency;
-    final fx = draft.fx?.baseAmountMinor;
+    // A quote the draft carries, else a preview at the latest rate, shown
+    // only: the save prices the entry with the rate for its date.
+    final fx = draft.fx?.baseAmountMinor ?? _previewBaseAmount(draft, base);
     return CatalogMoneyText(
       amountMinor: draft.amountMinor ?? 0,
       currency: draft.currency,
@@ -173,6 +175,27 @@ class _EntrySlipViewState extends State<EntrySlipView> {
           ? approxLabel(context, fx, base)
           : null,
     );
+  }
+
+  int? _previewBaseAmount(EntryDraft draft, String base) {
+    final minor = draft.amountMinor;
+    final currency = Currency.tryParse(draft.currency ?? '');
+    final baseCurrency = Currency.tryParse(base);
+    final latest = widget.household.latestRate;
+    if (minor == null ||
+        currency == null ||
+        baseCurrency == null ||
+        latest == null ||
+        currency == baseCurrency) {
+      return null;
+    }
+    final rate = FxRate.parse(FxPair.usdIqd.code, latest).valueOrNull;
+    if (rate == null) return null;
+    return toBaseAmount(
+      Money(minor, currency),
+      baseCurrency,
+      rate: rate,
+    ).valueOrNull?.minorUnits;
   }
 
   bool get _needsRate =>

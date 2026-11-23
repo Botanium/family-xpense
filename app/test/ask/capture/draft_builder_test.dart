@@ -124,13 +124,12 @@ void main() {
       expect(d.origin, 'parser');
     });
 
-    test('IQD gets the base amount at the latest rate', () {
+    test('IQD carries no quote: the save prices it for its date', () {
       final d = _draft('lunch 10000 dinars from cash');
       expect(d.currency, 'IQD');
       expect(d.accountId, 'acc_cash');
-      expect(d.fx?.pair, 'USD/IQD');
-      expect(d.fx?.pairRate, '1705');
-      expect(d.fx?.baseAmountMinor, 587);
+      // The latest rate (1705) is only the slip's preview.
+      expect(d.fx, isNull);
     });
 
     test('a currency read from the magnitude alone is Guessed', () {

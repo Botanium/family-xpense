@@ -1,9 +1,14 @@
 // Ask saves through the transaction write path (WP-20).
+import 'package:clock/clock.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:xpense_app/a2ui/testing/fake_xpense_actions.dart';
 import 'package:xpense_app/a2ui/xpense_surface_host.dart';
 import 'package:xpense_app/bootstrap.dart';
+import 'package:xpense_app/data/accounts_repository_fake.dart';
 import 'package:xpense_app/data/transactions_repository.dart';
+import 'package:xpense_app/data/write/ledger_store.dart';
+import 'package:xpense_app/data/write/ledger_transactions_repository.dart';
+import 'package:xpense_app/data/write/memory_ledger_store.dart';
 import 'package:xpense_app/features/ask/ledger_xpense_actions.dart';
 import 'package:xpense_shared/xpense_shared.dart';
 
@@ -20,16 +25,24 @@ EntryDraft _draft({String accountId = 'acc-checking'}) => EntryDraft(
   origin: 'decisions',
 );
 
+final _clock = Clock.fixed(DateTime(2026, 11, 23, 12));
+
 void main() {
   late FakeXpenseActions inner;
+  late FakeAccountsRepository accounts;
+  late MemoryLedgerStore store;
   late LedgerXpenseActions actions;
 
   setUp(() {
     inner = FakeXpenseActions();
+    accounts = FakeAccountsRepository.sample();
+    store = sampleLedgerStore(clock: _clock);
     actions = LedgerXpenseActions(
       inner: inner,
-      transactions: memoryTransactions(),
+      transactions: LedgerTransactionsRepository(store),
+      accounts: accounts,
       readHousehold: () => inner.household,
+      clock: _clock,
     );
   });
 
@@ -62,9 +75,44 @@ void main() {
     expect(saveFailureOf(const TransactionsUnknown('x')), SaveFailure.unknown);
   });
 
-  test('the rest goes to the inner actions', () async {
+  test('the household is the one read, until a rate is answered', () {
     expect(actions.household, same(inner.household));
+  });
+
+  test("a rate answer is saved as today's rate, not in the fake", () async {
     await actions.setDailyRate('1500');
-    expect(inner.household.latestRate, '1500');
+    expect([for (final r in accounts.dailyRates) r.rateString], ['1500']);
+    expect(inner.calls.where((c) => c.method == 'setDailyRate'), isEmpty);
+    expect(actions.household.latestRate, '1500');
+    expect(actions.household.rateEnteredToday, isTrue, reason: 'no prompt');
+  });
+
+  test('after a rate answer, a card quoted at an older rate saves at the '
+      "day's rate", () async {
+    await actions.setDailyRate('1500');
+    // The same Firestore collection the write path reads.
+    store.rates['2026-11-23'] = DayRate(
+      day: '2026-11-23',
+      rate: FxRate.forPair(FxPair.usdIqd, '1500').valueOrNull!,
+      kind: 'market',
+    );
+    final outcome = await actions.saveDrafts('s1', [
+      EntryDraft(
+        id: 'd2',
+        intent: 'expense',
+        amountMinor: 15000,
+        currency: 'IQD',
+        accountId: 'acc-cash',
+        categoryId: 'groceries',
+        who: 'me',
+        occurredOn: '2026-11-23',
+        title: 'Bread',
+        origin: 'agent',
+        fx: FxQuote(pair: 'USD/IQD', pairRate: '1705', baseAmountMinor: 880),
+      ),
+    ]) as DraftsSaved;
+    final stored = store.transactions[outcome.txnIds.single]!;
+    expect((stored['fx']! as Map)['pairRate'], '1500');
+    expect(stored['baseAmountMinor'], 1000);
   });
 }

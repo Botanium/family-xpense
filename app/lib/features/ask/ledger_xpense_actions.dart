@@ -1,23 +1,37 @@
 import 'package:flutter/foundation.dart';
 import 'package:xpense_app/a2ui/xpense_surface_host.dart';
+import 'package:xpense_app/data/accounts_repository.dart';
 import 'package:xpense_app/data/transactions_repository.dart';
+import 'package:xpense_app/services/clock.dart';
 import 'package:xpense_shared/xpense_shared.dart';
 
 /// [XpenseActions] whose saves go through the transaction write path
 /// (WP-20, `TransactionsRepository.saveEntries`): one batch per card, all
-/// or nothing. The household comes from [readHousehold]; rates and
-/// navigation are [inner]'s.
+/// or nothing. The household comes from [readHousehold]; the daily rate is
+/// written through [accounts] (`fxRates/{day}`); navigation is [inner]'s.
 final class LedgerXpenseActions implements XpenseActions {
   /// Saves through [transactions]; reads the household with
   /// [readHousehold] each time; the rest goes to [inner].
   new({
     required this.inner,
     required this.transactions,
+    required this.accounts,
     required this.readHousehold,
+    this.clock = const Clock(),
   });
 
-  /// Rates and navigation.
+  /// Navigation and the rest the write path does not cover.
   final XpenseActions inner;
+
+  /// Where the daily rate is saved.
+  final AccountsRepository accounts;
+
+  /// Today, for the rate answered today.
+  final Clock clock;
+
+  // The rate the member answered and when, until the household's own rate
+  // stream says the same.
+  ({String rate, DateTime at})? _answered;
 
   /// Reads the current household cache.
   final XpenseHousehold Function() readHousehold;
@@ -29,14 +43,48 @@ final class LedgerXpenseActions implements XpenseActions {
   final Map<String, SavedEntries> _saved = {};
 
   @override
-  XpenseHousehold get household => readHousehold();
+  XpenseHousehold get household {
+    final h = readHousehold();
+    final answered = _answeredToday;
+    if (answered == null) return h;
+    return XpenseHousehold(
+      baseCurrency: h.baseCurrency,
+      accounts: h.accounts,
+      categories: h.categories,
+      people: h.people,
+      loans: h.loans,
+      goals: h.goals,
+      partnerName: h.partnerName,
+      latestRate: answered,
+      rateEnteredToday: true,
+    );
+  }
+
+  String? get _answeredToday {
+    final a = _answered;
+    if (a == null) return null;
+    final now = clock.now();
+    final sameDay =
+        a.at.year == now.year && a.at.month == now.month && a.at.day == now.day;
+    return sameDay ? a.rate : null;
+  }
 
   @override
   Future<SaveOutcome> saveDrafts(
     String surfaceId,
     List<EntryDraft> drafts,
   ) async {
-    final result = await transactions.saveEntries(drafts);
+    // After a rate answer, a quote made with an older rate is dropped, so
+    // the write path prices the entry with the household's rate for its
+    // date (the one just saved, for today).
+    final base = readHousehold().baseCurrency;
+    final priced = _answeredToday == null
+        ? drafts
+        : [
+            for (final d in drafts)
+              if (d.fx != null && d.currency != base) withoutFx(d) else d,
+          ];
+    final result = await transactions.saveEntries(priced);
     switch (result) {
       case Ok(:final value):
         _saved[value.groupId] = value;
@@ -64,7 +112,21 @@ final class LedgerXpenseActions implements XpenseActions {
   Future<void> learn(DraftCorrection correction) => inner.learn(correction);
 
   @override
-  Future<void> setDailyRate(String pairRate) => inner.setDailyRate(pairRate);
+  Future<void> setDailyRate(String pairRate) async {
+    final rate = FxRate.parse(FxPair.usdIqd.code, pairRate).valueOrNull;
+    if (rate == null) {
+      debugPrint('rate not saved: malformed');
+      return;
+    }
+    final result = await accounts.setDailyRate(rate);
+    switch (result) {
+      case Ok():
+        _answered = (rate: rate.rateString, at: clock.now());
+      case Err(:final failure):
+        // The prompt stays; the slip asks again.
+        debugPrint('rate not saved: ${failure.code}');
+    }
+  }
 
   @override
   Future<void> setRecurring(String draftId, RecurringMode mode) =>
@@ -106,3 +168,8 @@ SaveFailure saveFailureOf(TransactionsFailure failure) => switch (failure) {
   TransactionConflict() ||
   TransactionsUnknown() => SaveFailure.unknown,
 };
+
+/// [draft] without its exchange-rate quote.
+@visibleForTesting
+EntryDraft withoutFx(EntryDraft draft) =>
+    EntryDraft.fromJson({...draft.toJson()}..remove('fx'));

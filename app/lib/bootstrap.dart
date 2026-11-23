@@ -279,8 +279,9 @@ HouseholdRepository connectHouseholds(
 
 /// The Ask cards' household and write path: the household from
 /// [askHouseholdProvider] (the same accounts the save path writes to),
-/// saves and Undo through the transaction write path (WP-20). The inner
-/// in-memory actions keep the rate entry and navigation for now.
+/// saves and Undo through the transaction write path (WP-20), the daily
+/// rate through the accounts repository. The inner in-memory actions keep
+/// navigation for now.
 XpenseActions connectXpenseActions(Ref ref) {
   // Keeps the household's streams running while the actions are in use;
   // read, not watched, so a new account does not reset an Ask thread.
@@ -288,7 +289,9 @@ XpenseActions connectXpenseActions(Ref ref) {
   return LedgerXpenseActions(
     inner: FakeXpenseActions(),
     transactions: ref.watch(transactionsRepositoryProvider),
+    accounts: ref.watch(accountsRepositoryProvider),
     readHousehold: () => ref.read(askHouseholdProvider),
+    clock: ref.read(clockProvider),
   );
 }
 
@@ -365,7 +368,13 @@ Future<TransactionsRepository> connectTransactions(
 
 /// A write path in memory over the sample household's accounts
 /// (`FakeAccountsRepository.sample`), for the fakes build and tests.
-TransactionsRepository memoryTransactions() {
+TransactionsRepository memoryTransactions({Clock clock = const Clock()}) =>
+    LedgerTransactionsRepository(sampleLedgerStore(clock: clock));
+
+/// The in-memory ledger behind [memoryTransactions]: the sample accounts,
+/// the default categories, and the sample household's 1,705 dinars per
+/// dollar, entered 30 days ago so entries of the last month find it.
+MemoryLedgerStore sampleLedgerStore({Clock clock = const Clock()}) {
   const viewer = FakeAccountsRepository.sampleViewer;
   final store = MemoryLedgerStore(
     scope: const LedgerScope(householdId: 'fake-household', uid: viewer),
@@ -386,7 +395,11 @@ TransactionsRepository memoryTransactions() {
   for (final c in defaultCategories) {
     store.categories[c.slug] = LedgerCategory(id: c.slug, kind: c.kind.name);
   }
-  return LedgerTransactionsRepository(store);
+  if (FxRate.forPair(FxPair.usdIqd, '1705') case Ok(:final value)) {
+    final day = householdDay(clock.daysAgo(30));
+    store.rates[day] = DayRate(day: day, rate: value, kind: 'market');
+  }
+  return store;
 }
 
 /// The crash sink the two error handlers write to.

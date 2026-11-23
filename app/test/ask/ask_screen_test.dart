@@ -142,6 +142,28 @@ void main() {
       expect(saved.amountMinor, 4280);
     });
 
+    testWidgets('an entry in dinars previews its dollars at the latest rate '
+        'without storing a quote', (tester) async {
+      final services = TestServices();
+      await services.rules.learn(
+        const RuleLesson(
+          kind: RuleKind.merchant,
+          pattern: 'samoon',
+          categoryId: 'groceries',
+          accountId: 'acc_cash',
+        ),
+      );
+      await _openAsk(tester, services);
+      await _send(tester, 'Samoon 10000 dinars');
+      // 10,000 / 1,705, shown only.
+      expect(find.text('≈ USD 5.87'), findsOneWidget);
+      await tester.tap(find.text('Save'));
+      await tester.pumpAndSettle();
+      final saved = services.actions.saved.values.single.single;
+      expect(saved.currency, 'IQD');
+      expect(saved.fx, isNull);
+    });
+
     testWidgets('D: one uncertain entry asks /decide and shows the policy', (
       tester,
     ) async {

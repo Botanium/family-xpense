@@ -191,6 +191,16 @@ final class FakeAccountsRepository implements AccountsRepository {
     _changes.add(null);
   }
 
+  /// The rates saved through [setDailyRate], in order.
+  final List<FxRate> dailyRates = [];
+
+  @override
+  Future<Result<void, AccountsFailure>> setDailyRate(FxRate rate) async {
+    dailyRates.add(rate);
+    setRate(rate);
+    return const Ok(null);
+  }
+
   /// Replaces the members, as a partner joining would.
   void setMembers(List<HouseholdMember> members) {
     _members = members;
