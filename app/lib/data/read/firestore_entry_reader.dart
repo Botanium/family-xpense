@@ -1,6 +1,7 @@
 // [EntryReader] over Firestore: snapshot listeners on one
 // transaction and its revisions. The cache answers first, so the screen
-// works offline; a server timestamp still pending reads as null.
+// works offline; a server timestamp still pending reads as null. A
+// listener the rules refuse is started again (`listen_retry.dart`).
 import 'dart:async';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -8,6 +9,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:xpense_app/data/household_repository.dart';
 import 'package:xpense_app/data/mappers/transaction_mapper.dart';
 import 'package:xpense_app/data/read/entry_reader.dart';
+import 'package:xpense_app/data/read/listen_retry.dart';
 import 'package:xpense_app/data/write/ledger_store.dart';
 
 /// [EntryReader] over Firestore.
@@ -38,60 +40,67 @@ final class FirestoreEntryReader implements EntryReader {
   final FirebaseFirestore _firestore;
   final LedgerScope? Function() _scope;
 
-  DocumentReference<Map<String, dynamic>>? _doc(String id) {
-    final hid = _scope()?.householdId;
-    if (hid == null) return null;
-    return _firestore
-        .collection('households')
-        .doc(hid)
-        .collection('transactions')
-        .doc(id);
-  }
+  DocumentReference<Map<String, dynamic>> _doc(LedgerScope scope, String id) =>
+      _firestore
+          .collection('households')
+          .doc(scope.householdId)
+          .collection('transactions')
+          .doc(id);
+
+  /// A listener on the current scope that is started again while the
+  /// rules refuse it (a household founded a moment ago; see
+  /// [listenWithRetry]); other Firestore errors read as [empty].
+  Stream<T> _watch<T>(
+    T empty,
+    Stream<T> Function(DocumentReference<Map<String, dynamic>> doc) build,
+    String id,
+  ) => listenWithRetry<T, LedgerScope>(
+    scope: _scope,
+    listen: (scope) => build(_doc(scope, id)),
+    empty: empty,
+    refused: isPermissionDenied,
+  ).transform(_refusedAs<T>(empty));
 
   @override
-  Stream<EntryRecord?> watchEntry(String id) {
-    final ref = _doc(id);
-    if (ref == null) return Stream.value(null);
-    return ref
-        .snapshots(includeMetadataChanges: true)
-        .map((snap) {
-          final data = snap.data();
-          if (data == null) return null;
-          final plain = _plain(data);
-          final txn = transactionFromFields(id, plain);
-          if (txn == null) return null;
-          return EntryRecord(
-            txn: txn,
-            createdAt: switch (plain['createdAt']) {
-              final DateTime t => t,
-              _ => null,
-            },
-            syncing: snap.metadata.hasPendingWrites,
-          );
-        })
-        // A refused read (no longer visible) reads as "not found".
-        .transform(_refusedAs<EntryRecord?>(null))
-        .distinct();
-  }
+  Stream<EntryRecord?> watchEntry(String id) => _watch<EntryRecord?>(
+    null,
+    (doc) => doc.snapshots(includeMetadataChanges: true).map((snap) {
+      final data = snap.data();
+      if (data == null) return null;
+      final plain = _plain(data);
+      final txn = transactionFromFields(id, plain);
+      if (txn == null) return null;
+      return EntryRecord(
+        txn: txn,
+        createdAt: switch (plain['createdAt']) {
+          final DateTime t => t,
+          _ => null,
+        },
+        syncing: snap.metadata.hasPendingWrites,
+      );
+    }),
+    id,
+  ).distinct();
 
   @override
-  Stream<List<EntryRevision>> watchRevisions(String id) {
-    final ref = _doc(id);
-    if (ref == null) return Stream.value(const []);
-    return ref
-        .collection('revisions')
-        .orderBy('rev', descending: true)
-        .snapshots()
-        .map(
-          (snap) => newestFirst([
-            for (final doc in snap.docs)
-              ?revisionFromFields(doc.id, _plain(doc.data())),
-          ]),
-        )
-        .transform(_refusedAs<List<EntryRevision>>(const []));
-  }
+  Stream<List<EntryRevision>> watchRevisions(String id) =>
+      _watch<List<EntryRevision>>(
+        const [],
+        (doc) => doc
+            .collection('revisions')
+            .orderBy('rev', descending: true)
+            .snapshots()
+            .map(
+              (snap) => newestFirst([
+                for (final d in snap.docs)
+                  ?revisionFromFields(d.id, _plain(d.data())),
+              ]),
+            ),
+        id,
+      );
 
-  /// Turns a Firestore error (the rules refused the read) into [value].
+  /// Turns any other Firestore error into [value]: the entry reads as
+  /// "not found".
   static StreamTransformer<T, T> _refusedAs<T>(T value) =>
       StreamTransformer.fromHandlers(
         handleError: (error, stack, sink) => error is FirebaseException
