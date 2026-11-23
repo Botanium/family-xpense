@@ -85,7 +85,10 @@ Already enabled: `run`, `secretmanager`, `firestore`, `datastore`,
 `generativelanguage`, `firebase`, `firebaserules`, `firebaseinstallations`,
 `firebaseremoteconfig`, `storage`, and others.
 
-Not enabled yet (the server deploy needs it): `cloudbuild` (server/DEPLOY.md step 2).
+Enabled on 2026-11-23 for the first server deploy: `cloudbuild`. Right after
+enabling it, `gcloud builds submit` was refused for a few minutes with a
+misleading "serviceusage.services.use" permission error; it worked once the
+API had propagated (no grant was needed).
 
 ### 3.4 Firestore
 
@@ -249,6 +252,14 @@ dev flavor (`com.apple.developer.applesignin` and
   token the App Check SDK logs, then Firebase console → App Check → Apps →
   Family Xpense Dev → ⋮ → Manage debug tokens → Add. Debug tokens are secrets:
   never commit or paste them into issues, PRs or chat.
+- Phone builds (free Personal Team, D-39): App Attest cannot be signed, so
+  the dev flavor uses the debug provider with a token given at build time
+  (`--dart-define=XPENSE_APP_CHECK_DEBUG_TOKEN`, ignored in `prod`).
+  `tools/install_dev_on_iphone.sh` generates it, registers it on "Family
+  Xpense Dev" through the App Check API with the owner's gcloud login, and
+  keeps it in `~/.config/xpense/appcheck-debug-token-dev` (mode 600). One
+  such token was registered on 2026-11-23, display name
+  `install_dev_on_iphone <Mac name>`. Owner checklist: `docs/PHONE_TESTING.md`.
 - Enforcement: **off** for Firestore, Storage and Auth in development, so the
   simulator and early builds are not blocked while the App Check flow is
   being built. Turn it on in development once a simulator build has shown
@@ -330,7 +341,34 @@ cd firebase
 firebase emulators:exec --project demo-xpense --only auth,firestore,storage "echo ok"
 ```
 
-## 5. Server deployment (follow-up, not WP-01)
+## 5. Server deployment
+
+**Deployed on 2026-11-23** (public service only):
+
+| | |
+|---|---|
+| Artifact Registry | `me-central1-docker.pkg.dev/expense-family-cc6ee/xpense` (Docker), created then |
+| Image | `…/xpense/server:455834d` (main at PR #35), built with Cloud Build in `me-central1` |
+| Service | `xpense-agent`, `https://xpense-agent-648682359990.me-central1.run.app` |
+| Runtime account | `xpense-agent-run` |
+| Settings | `XPENSE_ROLE=agent`, `GOOGLE_CLOUD_PROJECT=expense-family-cc6ee`, secret `GEMINI_API_KEY:latest` (version 2), 1 CPU, 512 Mi, concurrency 40, timeout 60 s, 0 to 4 instances, `--allow-unauthenticated` |
+| Checked | `/health` 200; `/v1/ping` 401 without tokens; with a throwaway email user's ID token and an App Check token from the registered debug token, `/v1/ping` 200 and `/v1/agent` answered with an A2UI card; a bad App Check token gives 401 `invalid_app_check`. The test user, its household and its agent sessions were deleted afterwards. |
+
+`xpense-jobs` is **not** deployed yet (step 6), so the account-visibility
+trigger (WP-13) does not exist either. Steps 6 and 7 need the IAM bindings
+there, which the owner runs.
+
+To redeploy after a server change, from the repository root (zsh):
+
+```bash
+B=(--project=expense-family-cc6ee --billing-project=expense-family-cc6ee)
+IMAGE=me-central1-docker.pkg.dev/expense-family-cc6ee/xpense/server:$(git rev-parse --short HEAD)
+gcloud builds submit . $B --region=me-central1 --config=server/cloudbuild.yaml --substitutions=_IMAGE=$IMAGE
+gcloud run deploy xpense-agent $B --region=me-central1 --image=$IMAGE
+```
+
+`gcloud run deploy` with only `--image` keeps the account, settings and
+secret of the running service.
 
 WP-04's `server/DEPLOY.md` is written for `xpense-dev`. When it is run, use:
 
@@ -340,7 +378,7 @@ AGENT_SA=xpense-agent-run@$PROJECT.iam.gserviceaccount.com
 JOBS_SA=xpense-jobs-run@$PROJECT.iam.gserviceaccount.com
 ```
 
-- Step 2: only `cloudbuild` is missing; the rest is enabled.
+- Step 2: done (`cloudbuild` enabled 2026-11-23).
 - Step 3 (permissions): **skip**. WP-01 already granted narrower equivalents
   (3.10). Do not add `roles/firebaseauth.viewer`, `roles/firebaseauth.admin`
   or `roles/firebasecloudmessaging.admin`.
