@@ -24,6 +24,10 @@ import 'package:xpense_app/data/auth_repository_firebase.dart';
 import 'package:xpense_app/data/household_repository.dart';
 import 'package:xpense_app/data/household_repository_fake.dart';
 import 'package:xpense_app/data/household_repository_firebase.dart';
+import 'package:xpense_app/data/sample_month_fake.dart';
+import 'package:xpense_app/data/transactions_reader.dart';
+import 'package:xpense_app/data/transactions_reader_firebase.dart';
+import 'package:xpense_app/data/transactions_reader_memory.dart';
 import 'package:xpense_app/data/transactions_repository.dart';
 import 'package:xpense_app/data/write/firestore_ledger_store.dart';
 import 'package:xpense_app/data/write/ledger_store.dart';
@@ -242,17 +246,20 @@ AccountsRepository connectAccounts(
     FirebaseAccountsRepository.connect(households: households),
 };
 
-/// The transaction write path (WP-20) for [environment], following
-/// [households]. In `fakes` it writes to memory, over the artboards'
-/// accounts.
+/// The transaction write path (WP-20) and read path (WP-23) for
+/// [environment], following [households]. In `fakes` both work in memory,
+/// over the artboards' accounts and a sample month of entries.
 ///
 /// Changes an earlier run queued are re-applied whenever their member is
 /// in a household ([LedgerTransactionsRepository.resumePending]).
-Future<TransactionsRepository> connectTransactions(
+Future<(TransactionsRepository, TransactionsReader)> connectTransactions(
   AppEnvironment environment, {
   required HouseholdRepository households,
 }) async {
-  if (environment == AppEnvironment.fakes) return memoryTransactions();
+  if (environment == AppEnvironment.fakes) {
+    final ledger = memoryLedger(sampleMonth: DateTime.now());
+    return (ledger.repository, ledger.reader);
+  }
   // Firestore is already pointed at the emulator by connectHouseholds.
   final repository = LedgerTransactionsRepository(
     FirestoreLedgerStore.connect(
@@ -278,12 +285,29 @@ Future<TransactionsRepository> connectTransactions(
       }),
     );
   });
-  return repository;
+  final reader = FirebaseTransactionsReader(
+    auth: FirebaseAuth.instance,
+    firestore: FirebaseFirestore.instance,
+    households: households,
+  );
+  return (repository, reader);
 }
+
+/// The write and read paths over one in-memory ledger.
+typedef MemoryLedger = ({
+  MemoryLedgerStore store,
+  TransactionsRepository repository,
+  TransactionsReader reader,
+});
 
 /// A write path in memory over the sample household's accounts
 /// (`FakeAccountsRepository.sample`), for the fakes build and tests.
-TransactionsRepository memoryTransactions() {
+TransactionsRepository memoryTransactions() => memoryLedger().repository;
+
+/// A ledger in memory over the sample household's accounts
+/// (`FakeAccountsRepository.sample`), for the fakes build and tests. With
+/// [sampleMonth], it holds a month of sample entries up to that day.
+MemoryLedger memoryLedger({DateTime? sampleMonth}) {
   const viewer = FakeAccountsRepository.sampleViewer;
   final store = MemoryLedgerStore(
     scope: const LedgerScope(householdId: 'fake-household', uid: viewer),
@@ -304,7 +328,12 @@ TransactionsRepository memoryTransactions() {
   for (final c in defaultCategories) {
     store.categories[c.slug] = LedgerCategory(id: c.slug, kind: c.kind.name);
   }
-  return LedgerTransactionsRepository(store);
+  if (sampleMonth != null) seedSampleMonth(store, sampleMonth);
+  return (
+    store: store,
+    repository: LedgerTransactionsRepository(store),
+    reader: MemoryTransactionsReader(store),
+  );
 }
 
 /// The crash sink the two error handlers write to.
@@ -411,7 +440,7 @@ Future<Bootstrapped> bootstrap({required AppEnvironment environment}) async {
   final auth = await connectAuth(environment);
   final households = connectHouseholds(environment, auth: auth);
   final accounts = connectAccounts(environment, households: households);
-  final transactions = await connectTransactions(
+  final (transactions, transactionsReader) = await connectTransactions(
     environment,
     households: households,
   );
@@ -432,6 +461,7 @@ Future<Bootstrapped> bootstrap({required AppEnvironment environment}) async {
       householdRepository: households,
       accountsRepository: accounts,
       transactionsRepository: transactions,
+      transactionsReader: transactionsReader,
       featureFlags: flags,
     ),
   );
@@ -452,6 +482,7 @@ List<Override> appOverrides({
   required HouseholdRepository householdRepository,
   required AccountsRepository accountsRepository,
   TransactionsRepository? transactionsRepository,
+  TransactionsReader? transactionsReader,
   SecureStore? secureStore,
   FeatureFlagSource? featureFlags,
   AgentClient? agentClient,
@@ -459,26 +490,38 @@ List<Override> appOverrides({
   OnDeviceLlm? onDeviceLlm,
   SpeechCapture? speechCapture,
   OcrEngine? ocrEngine,
-}) => [
-  clockProvider.overrideWithValue(clock),
-  settingsStoreProvider.overrideWithValue(settings),
-  biometricLockProvider.overrideWithValue(biometricLock),
-  glassControllerProvider.overrideWithValue(glass),
-  authRepositoryProvider.overrideWithValue(authRepository),
-  householdRepositoryProvider.overrideWithValue(householdRepository),
-  accountsRepositoryProvider.overrideWithValue(accountsRepository),
-  transactionsRepositoryProvider.overrideWithValue(
-    transactionsRepository ?? memoryTransactions(),
-  ),
-  secureStoreProvider.overrideWithValue(secureStore ?? MemorySecureStore()),
-  featureFlagSourceProvider.overrideWithValue(
-    featureFlags ?? FakeFeatureFlags(),
-  ),
-  agentClientProvider.overrideWithValue(agentClient ?? FakeAgentClient()),
-  decisionsClientProvider.overrideWithValue(
-    decisionsClient ?? FakeDecisionsClient(),
-  ),
-  onDeviceLlmProvider.overrideWithValue(onDeviceLlm ?? FakeOnDeviceLlm()),
-  speechCaptureProvider.overrideWithValue(speechCapture ?? FakeSpeechCapture()),
-  ocrEngineProvider.overrideWithValue(ocrEngine ?? FakeOcrEngine()),
-];
+}) {
+  // Without a given write or read path, both share one ledger in memory, so
+  // what a test saves shows where it reads.
+  final ledger = transactionsRepository == null || transactionsReader == null
+      ? memoryLedger()
+      : null;
+  return [
+    clockProvider.overrideWithValue(clock),
+    settingsStoreProvider.overrideWithValue(settings),
+    biometricLockProvider.overrideWithValue(biometricLock),
+    glassControllerProvider.overrideWithValue(glass),
+    authRepositoryProvider.overrideWithValue(authRepository),
+    householdRepositoryProvider.overrideWithValue(householdRepository),
+    accountsRepositoryProvider.overrideWithValue(accountsRepository),
+    transactionsRepositoryProvider.overrideWithValue(
+      transactionsRepository ?? ledger!.repository,
+    ),
+    transactionsReaderProvider.overrideWithValue(
+      transactionsReader ?? ledger!.reader,
+    ),
+    secureStoreProvider.overrideWithValue(secureStore ?? MemorySecureStore()),
+    featureFlagSourceProvider.overrideWithValue(
+      featureFlags ?? FakeFeatureFlags(),
+    ),
+    agentClientProvider.overrideWithValue(agentClient ?? FakeAgentClient()),
+    decisionsClientProvider.overrideWithValue(
+      decisionsClient ?? FakeDecisionsClient(),
+    ),
+    onDeviceLlmProvider.overrideWithValue(onDeviceLlm ?? FakeOnDeviceLlm()),
+    speechCaptureProvider.overrideWithValue(
+      speechCapture ?? FakeSpeechCapture(),
+    ),
+    ocrEngineProvider.overrideWithValue(ocrEngine ?? FakeOcrEngine()),
+  ];
+}

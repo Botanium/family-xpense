@@ -90,6 +90,17 @@ final class MemoryLedgerStore implements LedgerStore {
   /// Batches waiting for [goOnline].
   int get pendingBatches => _pending.length;
 
+  /// Fires after anything changes what [transactions] returns, so readers
+  /// (`MemoryTransactionsReader`) can emit again.
+  Stream<void> get changes => _changes.stream;
+  final StreamController<void> _changes = StreamController<void>.broadcast(
+    sync: true,
+  );
+
+  void _changed() {
+    if (!_changes.isClosed) _changes.add(null);
+  }
+
   @override
   DateTime now() => _clock.now();
 
@@ -177,12 +188,14 @@ final class MemoryLedgerStore implements LedgerStore {
     if (uid == null) return const Err(StoreFailure(StoreFailureKind.denied));
     if (!_online) {
       _pending.add(_Pending(plan, uid, onLateFailure));
+      _changed();
       return const Ok(WriteAck.queued);
     }
     final refused = _check(_server, plan, uid);
     if (refused != null) return Err(refused);
     _apply(_server, plan, uid, _clock.now());
     committedBatches++;
+    _changed();
     return const Ok(WriteAck.synced);
   }
 
@@ -203,6 +216,7 @@ final class MemoryLedgerStore implements LedgerStore {
       _apply(_server, p.plan, p.uid, _clock.now());
       committedBatches++;
     }
+    _changed();
     for (final settled in _settling) {
       settled.complete();
     }
@@ -220,6 +234,14 @@ final class MemoryLedgerStore implements LedgerStore {
       'revId': newId(),
       'prevRevId': doc['revId'],
     };
+    _changed();
+  }
+
+  /// Puts transaction [id] with [fields] on the server as it is, without
+  /// checks or balance effects: sample data for the fakes build and tests.
+  void seedTransaction(String id, Map<String, Object?> fields) {
+    _server.txns[id] = fields;
+    _changed();
   }
 
   /// Sets account [id]'s balance on the server, as a drifted aggregate.
