@@ -26,7 +26,9 @@ final class ToolDeps {
     HouseholdSnapshots? snapshots,
     Clock? clock,
     TurnEvidence? Function()? evidence,
-  }) : evidence = evidence ?? (() => TurnEvidence.current),
+    Future<bool> Function(String hid)? decisionsLeft,
+  }) : decisionsLeft = decisionsLeft ?? _always,
+       evidence = evidence ?? (() => TurnEvidence.current),
        clock = clock ?? const Clock(),
        snapshots = snapshots ?? HouseholdSnapshots(reader, clock: clock);
 
@@ -50,6 +52,12 @@ final class ToolDeps {
 
   /// The wall clock.
   final Clock clock;
+
+  /// Whether household `hid` has `decisions` allowance left today; checked
+  /// before each classifier call, which counts against it like `/decide`.
+  final Future<bool> Function(String hid) decisionsLeft;
+
+  static Future<bool> _always(String _) async => true;
 }
 
 /// Reads a threshold with its documented default.

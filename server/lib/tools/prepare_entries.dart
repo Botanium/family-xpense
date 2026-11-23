@@ -81,17 +81,20 @@ Future<PrepareEntriesOutput> prepareEntries(
   // receipt) backs amounts too; unbacked figures become provisional.
   final evidence = deps.evidence();
   final mediaTurn = evidence?.mediaTurn ?? false;
+  // What the agent showed counts only when the member sent audio or an
+  // image in this session: in a text-only session a Transcript is the
+  // model's own text, not something the member said.
+  final shown = mediaTurn ? evidence!.shownTexts : const <String>[];
   final pool = _AmountPool([
-    for (final text in [...texts, ...?evidence?.shownTexts])
-      ...parseText(text, plain).amounts,
+    for (final text in [...texts, ...shown]) ...parseText(text, plain).amounts,
   ]);
   // The member's words: typed text, and what they said in a voice note
   // as the agent showed it back (the transcript). The latest member
   // message comes last (`_memberText` falls back to it): this turn's
   // transcript after a voice note, the typed text after a typed message.
-  final transcripts = evidence?.transcripts ?? const <String>[];
+  final transcripts = mediaTurn ? evidence!.transcripts : const <String>[];
   final receiptFigures = [
-    for (final t in evidence?.shownTexts ?? const <String>[])
+    for (final t in shown)
       if (!transcripts.contains(t)) t,
   ];
   final words = (evidence?.latestMedia ?? false)
@@ -610,6 +613,9 @@ final class _DraftBuilder {
       // nearest date first) and asks only when it has some.
       if (amountMinor != null && currency != null) DecideQuestion.duplicate,
     };
+    // The household's daily `decisions` allowance spent: no classification,
+    // as when the classifier is unavailable (fields stay asked or guessed).
+    if (!await _decisionsLeft(context, deps)) return;
     final DecideResponse answer;
     try {
       answer = await deps.classifier.classify(
@@ -767,6 +773,7 @@ final class _DraftBuilder {
     }
     duplicate = null;
     if (amountMinor == null || currency == null) return;
+    if (!await _decisionsLeft(context, deps)) return;
     final DecideResponse answer;
     try {
       answer = await deps.classifier.classify(
@@ -794,6 +801,19 @@ final class _DraftBuilder {
     }
     if (answer.unavailable ?? false) return;
     _applyDuplicate(answer, t);
+  }
+
+  static Future<bool> _decisionsLeft(
+    XpenseContext context,
+    ToolDeps deps,
+  ) async {
+    try {
+      return await deps.decisionsLeft(context.hid);
+    } on Object catch (e) {
+      // Usage unreadable: skip the paid call rather than overspend.
+      _log.warning('decisions allowance unreadable', e);
+      return false;
+    }
   }
 
   static double? _probability(ChoiceAnswer a, String key) {

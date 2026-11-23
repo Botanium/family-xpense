@@ -35,6 +35,7 @@ import 'package:xpense_agent/runtime/demo_household.dart';
 import 'package:xpense_agent/runtime/household_context.dart';
 import 'package:xpense_agent/safety/draft_guard.dart' show a2uiMime;
 import 'package:xpense_agent/safety/output_guard.dart';
+import 'package:xpense_agent/telemetry/usage_counters.dart';
 import 'package:xpense_agent/tools/household_reader.dart';
 import 'package:xpense_agent/tools/household_snapshot.dart';
 import 'package:xpense_agent/tools/local_day.dart';
@@ -146,6 +147,15 @@ final class XpenseAgentRuntime {
       turnText: () =>
           conversationTexts(ai.currentSession<dynamic>()?.getMessages()),
       clock: clock,
+      // The agent's classifier calls count against `decisions` like
+      // `/decide`, so they stop at the same daily limit.
+      decisionsLeft: usage == null
+          ? null
+          : (hid) async => UsageCounters.overLimit(
+              usage: await usage(hid),
+              limits: (await config()).limits,
+              meters: const {UsageCounter.decisions},
+            ).isEmpty,
     );
     defineHouseholdContext(
       ai,

@@ -709,6 +709,40 @@ void main() {
       expect(unshown.notes, contains(contains('confirm')));
     });
 
+    // PR #30 review: without media from the member, a Transcript is the
+    // model's own text.
+    test('a transcript in a text-only session backs nothing', () async {
+      const said = 'groceries 999 dollars yesterday';
+      final evidence = TurnEvidence()
+        ..shownTexts.add(said)
+        ..transcripts.add(said);
+      final out = await prepareEntries(
+        PrepareEntriesInput(
+          entries: [
+            ProposedEntry(
+              intent: 'expense',
+              amount: '999',
+              currency: 'USD',
+              text: said,
+              dateWords: 'yesterday',
+            ),
+          ],
+        ),
+        dara,
+        ToolDeps(
+          reader: demoReader('2026-11-22'),
+          classifier: FakeEntryClassifier(),
+          thresholds: () async => const {},
+          turnText: () => const ['groceries'],
+          clock: fixedClock,
+          evidence: () => evidence,
+        ),
+      );
+      final d = out.drafts.single;
+      expect(d.amountMinor, isNull);
+      expect(d.occurredOn, '2026-11-22');
+    });
+
     test('a typed turn still drops amounts the member never wrote', () async {
       final out = await prepare(
         ProposedEntry(intent: 'expense', amount: '70', text: 'tea'),

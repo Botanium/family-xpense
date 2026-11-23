@@ -24,6 +24,7 @@ Future<({XpenseAgentRuntime rt, Genkit ai, List<String> turns})> _runtime({
   Script? flash,
   Map<String, Object?> config = const {},
   UsageReader? usage,
+  EntryClassifier? classifier,
 }) async {
   final ai = Genkit(plugins: [A2uiPlugin()], promptDir: 'prompts');
   defineScripted(ai, 'test/lite', lite);
@@ -33,7 +34,7 @@ Future<({XpenseAgentRuntime rt, Genkit ai, List<String> turns})> _runtime({
     ai: ai,
     catalogJson: await readCatalogJson(),
     reader: demoReader('2026-11-22'),
-    classifier: FakeEntryClassifier(),
+    classifier: classifier ?? FakeEntryClassifier(),
     config: () async => RuntimeConfig.fromDocument(<String, Object?>{
       'models': const {'agent': 'lite', 'escalation': 'flash'},
       ...config,
@@ -405,6 +406,29 @@ void main() {
       );
       await rt.agent.chat().send(message: photo, context: demoContext);
       expect(turns.single, endsWith(':images=1'));
+    });
+
+    // PR #30 review: the agent's classifier calls stop at the daily
+    // `decisions` limit, like /decide; the capture still works, unclassified.
+    test('classification stops at the decisions limit', () async {
+      Future<FakeEntryClassifier> run(int used) async {
+        final classifier = FakeEntryClassifier();
+        final lite = Script(entries: salaryGroceries, render: scriptedCapture);
+        final (:rt, ai: _, turns: _) = await _runtime(
+          lite: lite,
+          classifier: classifier,
+          usage: usedToday({UsageCounter.decisions: used}),
+        );
+        final summary = await rt.runTurn(
+          'Salary came in 3200 and groceries were 1400',
+          context: demoContext,
+        );
+        expect(_draftsOf(_creates(summary).single), hasLength(2));
+        return classifier;
+      }
+
+      expect((await run(600)).calls, isEmpty);
+      expect((await run(599)).calls, isNotEmpty);
     });
 
     test('a text turn ignores media allowances already spent', () async {
