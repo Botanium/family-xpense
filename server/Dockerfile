@@ -30,12 +30,15 @@ RUN dart pub get --offline --enforce-lockfile \
  && dart compile exe bin/server.dart -o /out/server
 
 # Minimal serving image: the binary, the system files AOT binaries need
-# (libc, CA certificates, time zones) from /runtime/, and the prompt files,
-# which Genkit loads from ./prompts at startup.
+# (libc, CA certificates, time zones) from /runtime/, the prompt files,
+# which Genkit loads from ./prompts at startup, and the Xpense catalog,
+# which the agent loads from ./catalog (an AOT binary cannot resolve
+# package: URIs).
 FROM scratch
 COPY --from=build /runtime/ /
 COPY --from=build /out/server /app/bin/server
 COPY --from=build /src/server/prompts/ /app/prompts/
+COPY --from=build /src/packages/xpense_shared/lib/catalog/xpense_catalog.json /app/catalog/xpense_catalog.json
 WORKDIR /app
 
 # Cloud Run sets PORT (8080) and the deploy sets XPENSE_ROLE and
