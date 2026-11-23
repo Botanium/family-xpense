@@ -162,17 +162,214 @@ abstract class AppLocalizations {
   /// **'Home'**
   String get homeTitle;
 
-  /// Placeholder line on Home until the Home screen is built.
+  /// Mono header on Home: the month and the household name, upper-cased in code.
   ///
   /// In en, this message translates to:
-  /// **'Your balance, this month\'s spending and recent entries will appear here.'**
-  String get homePlaceholder;
+  /// **'{month} · {household}'**
+  String homeHeader(String month, String household);
 
-  /// VoiceOver label of the glass button on Home that opens Settings.
+  /// VoiceOver label of the bell button on Home.
+  ///
+  /// In en, this message translates to:
+  /// **'Notifications'**
+  String get homeNotifications;
+
+  /// VoiceOver label of the avatar pair on Home, which opens Settings.
   ///
   /// In en, this message translates to:
   /// **'Settings'**
   String get homeSettingsButton;
+
+  /// Label over the hero figure when the viewer sees every account.
+  ///
+  /// In en, this message translates to:
+  /// **'Household balance'**
+  String get homeHouseholdBalance;
+
+  /// Label over the hero figure when the partner keeps accounts private, so the total is only what the viewer sees.
+  ///
+  /// In en, this message translates to:
+  /// **'Your view'**
+  String get homeYourView;
+
+  /// Line under the hero: this month's income less spending, with its sign. Upper-cased in code.
+  ///
+  /// In en, this message translates to:
+  /// **'{amount} this month'**
+  String homeMonthDelta(String amount);
+
+  /// Note under the hero when accounts in another currency cannot be converted for want of a rate.
+  ///
+  /// In en, this message translates to:
+  /// **'{currency} accounts aren\'t included until there\'s a rate.'**
+  String homeUnconvertedNote(String currency);
+
+  /// Caption over the daily spending chart.
+  ///
+  /// In en, this message translates to:
+  /// **'Daily spending'**
+  String get homeDailySpending;
+
+  /// Mono caption beside the chart: average spending per day this month. Upper-cased in code.
+  ///
+  /// In en, this message translates to:
+  /// **'Avg {amount}/day'**
+  String homeDailyAverage(String amount);
+
+  /// VoiceOver summary of the daily spending chart.
+  ///
+  /// In en, this message translates to:
+  /// **'Daily spending from {first} to {last}. Average {average} a day. Highest on {busiest}.'**
+  String homeChartSummary(
+    String first,
+    String last,
+    String average,
+    String busiest,
+  );
+
+  /// VoiceOver summary of the daily spending chart when today has the most spending.
+  ///
+  /// In en, this message translates to:
+  /// **'Daily spending from {first} to {last}. Average {average} a day. Today is the highest.'**
+  String homeChartSummaryToday(String first, String last, String average);
+
+  /// VoiceOver summary of the daily spending chart when nothing has been spent this month.
+  ///
+  /// In en, this message translates to:
+  /// **'No spending yet this month.'**
+  String get homeChartSummaryEmpty;
+
+  /// Ledger row on Home: income this month.
+  ///
+  /// In en, this message translates to:
+  /// **'Income'**
+  String get homeIncome;
+
+  /// Ledger row on Home: spending this month.
+  ///
+  /// In en, this message translates to:
+  /// **'Spent'**
+  String get homeSpent;
+
+  /// Ledger row on Home: moved to savings goals this month.
+  ///
+  /// In en, this message translates to:
+  /// **'Saved'**
+  String get homeSaved;
+
+  /// The nudge row on Home until real nudges arrive: invites the user to capture an entry.
+  ///
+  /// In en, this message translates to:
+  /// **'Spent something? Just say it.'**
+  String get homeNudgeTryAsk;
+
+  /// Text action of the Home nudge that opens Ask.
+  ///
+  /// In en, this message translates to:
+  /// **'Ask'**
+  String get homeNudgeTryAskAction;
+
+  /// Section label over the latest entries on Home.
+  ///
+  /// In en, this message translates to:
+  /// **'Recent'**
+  String get homeRecent;
+
+  /// Link beside Recent that opens Activity.
+  ///
+  /// In en, this message translates to:
+  /// **'See all'**
+  String get homeSeeAll;
+
+  /// Shown under Recent when there are no entries.
+  ///
+  /// In en, this message translates to:
+  /// **'No entries yet. Say or type one to start.'**
+  String get homeRecentEmpty;
+
+  /// Action under the empty Recent list; opens Ask.
+  ///
+  /// In en, this message translates to:
+  /// **'Add an entry'**
+  String get homeRecentEmptyAction;
+
+  /// Meta line of a Recent row: category (or type) and whose it is.
+  ///
+  /// In en, this message translates to:
+  /// **'{category} · {who}'**
+  String homeRecentMeta(String category, String who);
+
+  /// Whose an entry is: the viewer's.
+  ///
+  /// In en, this message translates to:
+  /// **'You'**
+  String get homeWhoYou;
+
+  /// Whose an entry is: both partners'.
+  ///
+  /// In en, this message translates to:
+  /// **'Joint'**
+  String get homeWhoJoint;
+
+  /// Whose an entry is: the partner's, when their name is unknown.
+  ///
+  /// In en, this message translates to:
+  /// **'Partner'**
+  String get homeWhoPartner;
+
+  /// Fallback category text of a Recent row: an expense with no known category.
+  ///
+  /// In en, this message translates to:
+  /// **'Expense'**
+  String get homeTypeExpense;
+
+  /// Fallback category text of a Recent row: income with no known category.
+  ///
+  /// In en, this message translates to:
+  /// **'Income'**
+  String get homeTypeIncome;
+
+  /// Category text of a transfer in Recent.
+  ///
+  /// In en, this message translates to:
+  /// **'Transfer'**
+  String get homeTypeTransfer;
+
+  /// Category text of a move to a savings goal in Recent.
+  ///
+  /// In en, this message translates to:
+  /// **'Savings'**
+  String get homeTypeSavings;
+
+  /// Category text of a loan given or taken in Recent.
+  ///
+  /// In en, this message translates to:
+  /// **'Loan'**
+  String get homeTypeLoan;
+
+  /// Category text of a loan repayment in Recent.
+  ///
+  /// In en, this message translates to:
+  /// **'Repayment'**
+  String get homeTypeRepayment;
+
+  /// Category text of a balance adjustment in Recent.
+  ///
+  /// In en, this message translates to:
+  /// **'Adjustment'**
+  String get homeTypeAdjustment;
+
+  /// Shown on Home when the month's entries fail to load.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t load this month.'**
+  String get homeLoadError;
+
+  /// Action that reloads Home after an error.
+  ///
+  /// In en, this message translates to:
+  /// **'Try again'**
+  String get homeRetry;
 
   /// Top bar title of Activity.
   ///

@@ -4,6 +4,7 @@
 // the largest text size we test builds without overflow.
 import 'package:flutter_test/flutter_test.dart';
 import 'package:material_ui/material_ui.dart';
+import 'package:xpense_app/features/activity/activity_screen.dart';
 
 import '../ui/ui_harness.dart'
     show goldenSkipReason, goldensSupported, loadSignalFonts;
@@ -64,7 +65,15 @@ void main() {
         ..platformBrightnessTestValue = brightness;
       addTearDown(tester.platformDispatcher.clearAllTestValues);
       await pumpActivity(tester);
-      expect(find.text('Costco', skipOffstage: false), findsOneWidget);
+      // Scoped to Activity: Home, offstage in the shell, reads the same
+      // store and lists Costco too (WP-23).
+      expect(
+        find.descendant(
+          of: find.byType(ActivityScreen, skipOffstage: false),
+          matching: find.text('Costco', skipOffstage: false),
+        ),
+        findsOneWidget,
+      );
       await tester.drag(find.text('Costco'), const Offset(-200, 0));
       await tester.pumpAndSettle();
       expect(find.text('Delete'), findsOneWidget);
