@@ -1,4 +1,4 @@
-// [TransactionsReader] over Firestore: snapshot listeners on one
+// [EntryReader] over Firestore: snapshot listeners on one
 // transaction and its revisions. The cache answers first, so the screen
 // works offline; a server timestamp still pending reads as null.
 import 'dart:async';
@@ -7,11 +7,11 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:xpense_app/data/household_repository.dart';
 import 'package:xpense_app/data/mappers/transaction_mapper.dart';
-import 'package:xpense_app/data/transactions_reader.dart';
+import 'package:xpense_app/data/read/entry_reader.dart';
 import 'package:xpense_app/data/write/ledger_store.dart';
 
-/// [TransactionsReader] over Firestore.
-final class FirestoreTransactionsReader implements TransactionsReader {
+/// [EntryReader] over Firestore.
+final class FirestoreEntryReader implements EntryReader {
   /// Creates the reader. [_scope] says who reads in which household.
   new({required this._firestore, required this._scope});
 
@@ -21,7 +21,7 @@ final class FirestoreTransactionsReader implements TransactionsReader {
     required FirebaseAuth auth,
     required FirebaseFirestore firestore,
     required HouseholdRepository households,
-  }) => FirestoreTransactionsReader(
+  }) => FirestoreEntryReader(
     firestore: firestore,
     scope: () {
       final uid = auth.currentUser?.uid;

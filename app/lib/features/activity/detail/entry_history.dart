@@ -3,7 +3,7 @@
 // Pure: tested without widgets.
 import 'package:flutter/foundation.dart';
 import 'package:xpense_app/data/mappers/transaction_mapper.dart';
-import 'package:xpense_app/data/transactions_reader.dart';
+import 'package:xpense_app/data/read/entry_reader.dart';
 import 'package:xpense_app/data/transactions_repository.dart';
 import 'package:xpense_shared/xpense_shared.dart';
 

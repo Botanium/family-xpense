@@ -6,7 +6,7 @@ import 'package:material_ui/material_ui.dart';
 import 'package:xpense_app/core/routing/routing.dart';
 import 'package:xpense_app/data/accounts_repository.dart';
 import 'package:xpense_app/data/mappers/transaction_mapper.dart';
-import 'package:xpense_app/data/transactions_reader.dart';
+import 'package:xpense_app/data/read/entry_reader.dart';
 import 'package:xpense_app/features/capture/manual/add_manually_sheet.dart';
 import 'package:xpense_app/features/capture/manual/manual_entry.dart';
 import 'package:xpense_shared/xpense_shared.dart';
@@ -78,7 +78,7 @@ class _EditEntryLauncherState extends ConsumerState<EditEntryLauncher> {
 
   Future<void> _open() async {
     final record = await ref
-        .read(transactionsReaderProvider)
+        .read(entryReaderProvider)
         .watchEntry(widget.txnId)
         .first;
     final viewer = ref.read(accountsRepositoryProvider).viewerUid;

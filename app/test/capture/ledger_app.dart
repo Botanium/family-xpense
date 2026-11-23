@@ -7,7 +7,7 @@ import 'package:xpense_app/app.dart';
 import 'package:xpense_app/bootstrap.dart';
 import 'package:xpense_app/data/accounts_repository.dart';
 import 'package:xpense_app/data/accounts_repository_fake.dart';
-import 'package:xpense_app/data/read/memory_transactions_reader.dart';
+import 'package:xpense_app/data/read/memory_entry_reader.dart';
 import 'package:xpense_app/data/write/ledger_store.dart';
 import 'package:xpense_app/data/write/ledger_transactions_repository.dart';
 import 'package:xpense_app/data/write/memory_ledger_store.dart';
@@ -67,7 +67,7 @@ final class LedgerApp {
       services,
       memory,
       LedgerTransactionsRepository(store),
-      MemoryTransactionsReader(store),
+      MemoryEntryReader(store),
     );
   }
 
@@ -83,7 +83,7 @@ final class LedgerApp {
   final LedgerTransactionsRepository repository;
 
   /// The read side.
-  final MemoryTransactionsReader reader;
+  final MemoryEntryReader reader;
 
   /// Every stored transaction, oldest first.
   List<Map<String, Object?>> get saved => memory.transactions.values.toList();
@@ -99,7 +99,7 @@ final class LedgerApp {
       householdRepository: services.households,
       accountsRepository: services.accounts,
       transactionsRepository: repository,
-      transactionsReader: reader,
+      entryReader: reader,
       featureFlags: services.flags,
       onDeviceLlm: services.onDeviceLlm,
       speechCapture: services.speech,

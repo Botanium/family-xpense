@@ -9,7 +9,7 @@ import 'package:xpense_app/core/theme/theme.dart';
 import 'package:xpense_app/core/ui/ui.dart';
 import 'package:xpense_app/data/accounts_repository.dart';
 import 'package:xpense_app/data/household_repository.dart';
-import 'package:xpense_app/data/transactions_reader.dart';
+import 'package:xpense_app/data/read/entry_reader.dart';
 import 'package:xpense_app/data/transactions_repository.dart';
 import 'package:xpense_app/features/activity/detail/entry_history.dart';
 import 'package:xpense_app/features/activity/detail/entry_labels.dart';

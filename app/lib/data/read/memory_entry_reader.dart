@@ -1,11 +1,11 @@
-// [TransactionsReader] over the in-memory ledger, for the fakes build and
+// [EntryReader] over the in-memory ledger, for the fakes build and
 // tests. [ObservedLedgerStore] wraps the `MemoryLedgerStore` the write path
 // commits to and says when it changed, so the reader's streams update
 // after every save, edit, delete and restore, as Firestore's listeners do.
 import 'dart:async';
 
 import 'package:xpense_app/data/mappers/transaction_mapper.dart';
-import 'package:xpense_app/data/transactions_reader.dart';
+import 'package:xpense_app/data/read/entry_reader.dart';
 import 'package:xpense_app/data/transactions_repository.dart';
 import 'package:xpense_app/data/write/ledger_store.dart';
 import 'package:xpense_app/data/write/memory_ledger_store.dart';
@@ -82,8 +82,8 @@ final class ObservedLedgerStore implements LedgerStore {
   }
 }
 
-/// [TransactionsReader] over an [ObservedLedgerStore].
-final class MemoryTransactionsReader implements TransactionsReader {
+/// [EntryReader] over an [ObservedLedgerStore].
+final class MemoryEntryReader implements EntryReader {
   /// Creates the reader.
   new(this._store);
 

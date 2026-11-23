@@ -2,12 +2,16 @@
 // detail screen (WP-21, DESIGN_SYSTEM screen 17).
 //
 // This file is the interface features import. The Firestore adapter is
-// `read/firestore_transactions_reader.dart` and the in-memory one
-// `read/memory_transactions_reader.dart`; only the composition root and
+// `firestore_entry_reader.dart` and the in-memory one
+// `memory_entry_reader.dart`, next to it; only the composition root and
 // tests name them. Writes never go through here: they go through
 // `TransactionsRepository` (D-10).
 //
-// WP-22 (Activity) can add its list queries to this interface.
+// Each read package owns its own reader (WP-22 `activity_reader.dart`,
+// WP-23 `home_reader.dart`). These are single-document reads, not
+// queries: a member reads only an entry they can see (`visibleTo`, as
+// the rules check), and a deleted one still reads, so its detail screen
+// can show it as deleted with Restore.
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/misc.dart';
@@ -118,7 +122,7 @@ final class EntryRevision {
 
 /// Reads transactions the member can see. Reads come from the phone's
 /// cache first, so they work offline.
-abstract interface class TransactionsReader {
+abstract interface class EntryReader {
   /// Transaction [id], live; null while it does not exist or the member
   /// cannot see it.
   Stream<EntryRecord?> watchEntry(String id);
@@ -127,27 +131,26 @@ abstract interface class TransactionsReader {
   Stream<List<EntryRevision>> watchRevisions(String id);
 }
 
-/// The [TransactionsReader] for this run. Throws until the composition
+/// The [EntryReader] for this run. Throws until the composition
 /// root sets it.
-final transactionsReaderProvider = Provider<TransactionsReader>(
-  (ref) => throw UnimplementedError(
-    'transactionsReaderProvider is set in bootstrap()',
-  ),
-  name: 'transactionsReaderProvider',
+final entryReaderProvider = Provider<EntryReader>(
+  (ref) =>
+      throw UnimplementedError('entryReaderProvider is set in bootstrap()'),
+  name: 'entryReaderProvider',
 );
 
 /// One transaction, live.
 final StreamProviderFamily<EntryRecord?, String> entryProvider = StreamProvider
     .autoDispose
     .family<EntryRecord?, String>(
-      (ref, id) => ref.watch(transactionsReaderProvider).watchEntry(id),
+      (ref, id) => ref.watch(entryReaderProvider).watchEntry(id),
       name: 'entryProvider',
     );
 
 /// One transaction's revisions, live, newest first.
 final StreamProviderFamily<List<EntryRevision>, String> entryRevisionsProvider =
     StreamProvider.autoDispose.family<List<EntryRevision>, String>(
-      (ref, id) => ref.watch(transactionsReaderProvider).watchRevisions(id),
+      (ref, id) => ref.watch(entryReaderProvider).watchRevisions(id),
       name: 'entryRevisionsProvider',
     );
 

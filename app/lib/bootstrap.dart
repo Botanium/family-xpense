@@ -24,9 +24,9 @@ import 'package:xpense_app/data/auth_repository_firebase.dart';
 import 'package:xpense_app/data/household_repository.dart';
 import 'package:xpense_app/data/household_repository_fake.dart';
 import 'package:xpense_app/data/household_repository_firebase.dart';
-import 'package:xpense_app/data/read/firestore_transactions_reader.dart';
-import 'package:xpense_app/data/read/memory_transactions_reader.dart';
-import 'package:xpense_app/data/transactions_reader.dart';
+import 'package:xpense_app/data/read/entry_reader.dart';
+import 'package:xpense_app/data/read/firestore_entry_reader.dart';
+import 'package:xpense_app/data/read/memory_entry_reader.dart';
 import 'package:xpense_app/data/transactions_repository.dart';
 import 'package:xpense_app/data/write/firestore_ledger_store.dart';
 import 'package:xpense_app/data/write/ledger_store.dart';
@@ -286,7 +286,7 @@ Future<TransactionsRepository> connectTransactions(
 
 /// The read side (WP-21) for [environment], following [households]. In
 /// `fakes` use [memoryLedger], whose reader shares the write path's store.
-TransactionsReader connectTransactionsReader(
+EntryReader connectEntryReader(
   AppEnvironment environment, {
   required HouseholdRepository households,
 }) => switch (environment) {
@@ -294,7 +294,7 @@ TransactionsReader connectTransactionsReader(
   // Firestore is already pointed at the emulator by connectHouseholds.
   AppEnvironment.dev ||
   AppEnvironment.prod ||
-  AppEnvironment.emulators => FirestoreTransactionsReader.connect(
+  AppEnvironment.emulators => FirestoreEntryReader.connect(
     auth: FirebaseAuth.instance,
     firestore: FirebaseFirestore.instance,
     households: households,
@@ -307,12 +307,11 @@ TransactionsRepository memoryTransactions() => memoryLedger().repository;
 
 /// The in-memory write path and a reader over the same store, so what is
 /// saved shows on the entry detail screen.
-({TransactionsRepository repository, TransactionsReader reader})
-memoryLedger() {
+({TransactionsRepository repository, EntryReader reader}) memoryLedger() {
   final store = ObservedLedgerStore(_sampleLedgerStore());
   return (
     repository: LedgerTransactionsRepository(store),
-    reader: MemoryTransactionsReader(store),
+    reader: MemoryEntryReader(store),
   );
 }
 
@@ -448,9 +447,8 @@ Future<Bootstrapped> bootstrap({required AppEnvironment environment}) async {
   final transactions =
       memory?.repository ??
       await connectTransactions(environment, households: households);
-  final transactionsReader =
-      memory?.reader ??
-      connectTransactionsReader(environment, households: households);
+  final entryReader =
+      memory?.reader ?? connectEntryReader(environment, households: households);
   final flags = await connectFeatureFlags(environment);
   registerFontLicenses();
   final settings = await PrefsSettingsStore.open();
@@ -468,7 +466,7 @@ Future<Bootstrapped> bootstrap({required AppEnvironment environment}) async {
       householdRepository: households,
       accountsRepository: accounts,
       transactionsRepository: transactions,
-      transactionsReader: transactionsReader,
+      entryReader: entryReader,
       featureFlags: flags,
     ),
   );
@@ -489,7 +487,7 @@ List<Override> appOverrides({
   required HouseholdRepository householdRepository,
   required AccountsRepository accountsRepository,
   TransactionsRepository? transactionsRepository,
-  TransactionsReader? transactionsReader,
+  EntryReader? entryReader,
   SecureStore? secureStore,
   FeatureFlagSource? featureFlags,
   AgentClient? agentClient,
@@ -499,7 +497,7 @@ List<Override> appOverrides({
   OcrEngine? ocrEngine,
 }) {
   // With neither given, the reader reads what the write path writes.
-  final memory = transactionsRepository == null && transactionsReader == null
+  final memory = transactionsRepository == null && entryReader == null
       ? memoryLedger()
       : null;
   return [
@@ -513,8 +511,8 @@ List<Override> appOverrides({
     transactionsRepositoryProvider.overrideWithValue(
       transactionsRepository ?? memory?.repository ?? memoryTransactions(),
     ),
-    transactionsReaderProvider.overrideWithValue(
-      transactionsReader ?? memory?.reader ?? memoryLedger().reader,
+    entryReaderProvider.overrideWithValue(
+      entryReader ?? memory?.reader ?? memoryLedger().reader,
     ),
     secureStoreProvider.overrideWithValue(secureStore ?? MemorySecureStore()),
     featureFlagSourceProvider.overrideWithValue(
