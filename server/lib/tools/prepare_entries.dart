@@ -262,8 +262,9 @@ final class _DraftBuilder {
   FxQuote? fx;
   DuplicateHint? duplicate;
 
-  /// The amount and currency the classifier searched for duplicates.
-  ({int? amount, String? currency})? _dupSearched;
+  /// The amount, currency and account the classifier searched for
+  /// duplicates.
+  ({int? amount, String? currency, String? account})? _dupSearched;
   RecurringHint? recurring;
 
   bool get _isTransfer =>
@@ -633,7 +634,11 @@ final class _DraftBuilder {
       return;
     }
     if (answer.unavailable ?? false) return;
-    _dupSearched = (amount: amountMinor, currency: currency);
+    _dupSearched = (
+      amount: amountMinor,
+      currency: currency,
+      account: accountId,
+    );
     final cap = (answer.calibrated ?? true)
         ? 1.0
         : threshold(t, 'conf_on_device_cap');
@@ -743,10 +748,11 @@ final class _DraftBuilder {
     }
   }
 
-  /// A guessed currency that followed the account changed the amount the
-  /// duplicate search used ("groceries 45" read as USD, then 45 IQD on the
-  /// cash wallet): the old answer is about another amount, so it is dropped
-  /// and the duplicate question asked again with the draft's own figures.
+  /// The duplicate search ran before classification. When its account, or
+  /// (a guessed currency following the account) its amount and currency,
+  /// changed since ("groceries 45" read as USD, then 45 IQD on the cash
+  /// wallet), the old answer is about another entry, so it is dropped and
+  /// the duplicate question asked again with the draft's own figures.
   Future<void> _recheckDuplicate(
     XpenseContext context,
     ToolDeps deps,
@@ -754,7 +760,9 @@ final class _DraftBuilder {
   ) async {
     final searched = _dupSearched;
     if (searched == null ||
-        (searched.amount == amountMinor && searched.currency == currency)) {
+        (searched.amount == amountMinor &&
+            searched.currency == currency &&
+            searched.account == accountId)) {
       return;
     }
     duplicate = null;
@@ -770,6 +778,15 @@ final class _DraftBuilder {
           currency: currency,
           date: occurredOn,
         ),
+        // The account settled since narrows the search, as on the first ask.
+        hints: [
+          if (accountId case final id?)
+            ParseHint(
+              kind: 'account',
+              id: id,
+              confidence: confidence['account'] ?? 1,
+            ),
+        ],
       );
     } on Object catch (e) {
       _log.severe('classifier threw', e);

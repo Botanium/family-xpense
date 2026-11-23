@@ -514,6 +514,36 @@ void main() {
     );
   });
 
+  // PR #30 review: the first duplicate search had no account; the
+  // classifier then settled one, so the search runs again within it.
+  test('duplicates are rechecked once the account is resolved', () async {
+    final classifier = FakeEntryClassifier(
+      respond: (call) => call.ask.contains(DecideQuestion.account)
+          ? DecideResponse(
+              account: ChoiceAnswer(choice: 'acc_chk', confidence: 0.95),
+              duplicate: YesNoAnswer(probability: 0.95),
+              duplicateOf: 't_visa_45',
+            )
+          : DecideResponse(duplicate: YesNoAnswer(probability: 0.1)),
+    );
+    final out = await prepare(
+      ProposedEntry(
+        intent: 'expense',
+        amount: '45',
+        currency: 'USD',
+        text: 'groceries 45 dollars',
+      ),
+      'groceries 45 dollars',
+      classifier: classifier,
+    );
+    final d = out.drafts.single;
+    expect(d.accountId, 'acc_chk');
+    expect(d.duplicate, isNull);
+    final recheck = classifier.calls.last;
+    expect(recheck.ask, {DecideQuestion.duplicate});
+    expect(recheck.hints.map((h) => (h.kind, h.id)), [('account', 'acc_chk')]);
+  });
+
   group('written ISO dates (PR #30 review)', () {
     test('an ISO date in the date words or the text is kept', () async {
       final viaWords = await prepare(

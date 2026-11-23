@@ -226,7 +226,10 @@ void main() {
       expect(d.missing, isNull);
       expect(out.ask, isNull);
 
-      final call = classifier.calls.single;
+      // The first call; the account it settled brings a duplicate-only
+      // recheck within that account.
+      final call = classifier.calls.first;
+      expect(classifier.calls.last.ask, {DecideQuestion.duplicate});
       expect(call.text, 'Carrefour 45.20');
       expect(
         call.ask,
