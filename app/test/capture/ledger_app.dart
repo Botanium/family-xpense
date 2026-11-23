@@ -7,6 +7,7 @@ import 'package:xpense_app/app.dart';
 import 'package:xpense_app/bootstrap.dart';
 import 'package:xpense_app/data/accounts_repository.dart';
 import 'package:xpense_app/data/accounts_repository_fake.dart';
+import 'package:xpense_app/data/read/entry_reader.dart';
 import 'package:xpense_app/data/read/memory_entry_reader.dart';
 import 'package:xpense_app/data/transactions_repository.dart';
 import 'package:xpense_app/data/write/ledger_store.dart';
@@ -31,6 +32,7 @@ final class LedgerApp {
   factory({
     bool withRate = true,
     Future<void>? holdWrites,
+    Future<void>? holdReads,
     AppearanceMode appearance = AppearanceMode.light,
   }) {
     final services = TestServices(
@@ -71,6 +73,7 @@ final class LedgerApp {
       LedgerTransactionsRepository(store),
       MemoryEntryReader(store),
       holdWrites,
+      holdReads,
     );
   }
 
@@ -80,7 +83,10 @@ final class LedgerApp {
     this.repository,
     this.reader, [
     this._holdWrites,
+    this._holdReads,
   ]);
+
+  final Future<void>? _holdReads;
 
   final Future<void>? _holdWrites;
 
@@ -112,7 +118,9 @@ final class LedgerApp {
       transactionsRepository: _holdWrites == null
           ? repository
           : _HeldRepository(repository, _holdWrites),
-      entryReader: reader,
+      entryReader: _holdReads == null
+          ? reader
+          : _HeldReader(reader, _holdReads),
       featureFlags: services.flags,
       onDeviceLlm: services.onDeviceLlm,
       speechCapture: services.speech,
@@ -201,4 +209,23 @@ final class _HeldRepository implements TransactionsRepository {
 
   @override
   Stream<LateWriteFailure> get lateFailures => _inner.lateFailures;
+}
+
+/// The entry reader with every first read held until [_hold] completes, so
+/// a test can leave a screen while a read is pending.
+final class _HeldReader implements EntryReader {
+  new(this._inner, this._hold);
+
+  final EntryReader _inner;
+  final Future<void> _hold;
+
+  @override
+  Stream<EntryRecord?> watchEntry(String id) async* {
+    await _hold;
+    yield* _inner.watchEntry(id);
+  }
+
+  @override
+  Stream<List<EntryRevision>> watchRevisions(String id) =>
+      _inner.watchRevisions(id);
 }

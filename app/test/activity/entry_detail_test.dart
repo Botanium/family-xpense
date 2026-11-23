@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:xpense_app/app.dart';
@@ -655,6 +657,26 @@ void main() {
     await _tap(tester, find.bySemanticsLabel('Back'));
     expect(find.text('ENTRY'), findsNothing);
     expect(find.text("That didn't work. Try again."), findsNothing);
+  });
+
+  testWidgets('leaving an edit while its entry loads is quiet', (tester) async {
+    // Codex review, PR #39: the launcher read ref after the fetch even
+    // when its route was gone.
+    final hold = Completer<void>();
+    final app = LedgerApp(holdReads: hold.future);
+    final id = await seedEntry(app);
+    final container = await app.pump(tester);
+    final router = container.read(routerProvider);
+    unawaited(router.push<void>(AppRoutes.editEntry(id, field: 'note')));
+    await tester.pump();
+    await tester.pump();
+    router.pop();
+    await tester.pumpAndSettle();
+
+    hold.complete();
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+    expect(find.text('Edit entry'), findsNothing);
   });
 
   testWidgets('delete asks first, then offers Undo', (tester) async {

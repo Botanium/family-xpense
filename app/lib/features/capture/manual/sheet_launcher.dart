@@ -77,11 +77,15 @@ class _EditEntryLauncherState extends ConsumerState<EditEntryLauncher> {
     WidgetsBinding.instance.addPostFrameCallback((_) => unawaited(_open()));
   }
 
+  // Every await is followed by a mounted check before ref or context: the
+  // route can be popped while a read is pending (Codex review, PR #39).
   Future<void> _open() async {
+    if (!mounted) return;
     final record = await ref
         .read(entryReaderProvider)
         .watchEntry(widget.txnId)
         .first;
+    if (!mounted) return;
     final viewer = ref.read(accountsRepositoryProvider).viewerUid;
     // The form formats a typed arriving amount in its account's currency.
     await ref.read(accountsProvider.future);
