@@ -743,6 +743,7 @@ final class LedgerTransactionsRepository implements TransactionsRepository {
     // before it was recorded is judged by comparing with the conversion.
     if (crossTransfer &&
         toAmount == null &&
+        !extras.toAmountReset &&
         previous != null &&
         previous.amountMinor == amount &&
         previous.accountId == account.id &&
@@ -1020,11 +1021,13 @@ sealed class _Op {
         if (draft is! Map) return null;
         final to = payload['toAmountMinor'];
         final sign = payload['adjustmentSign'];
+        final reset = payload['toAmountReset'];
         return _EditOp(
           draft.cast<String, dynamic>(),
           EntryExtras(
             toAmountMinor: to is int ? to : null,
             adjustmentSign: sign is int ? sign : null,
+            toAmountReset: reset == true,
           ),
         );
       case 'delete':
@@ -1060,6 +1063,7 @@ final class _EditOp extends _Op {
     'draft': draft,
     'toAmountMinor': extras.toAmountMinor,
     'adjustmentSign': extras.adjustmentSign,
+    'toAmountReset': extras.toAmountReset,
   };
 }
 

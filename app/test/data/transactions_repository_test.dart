@@ -1284,6 +1284,20 @@ void main() {
         expect(late, isEmpty);
       });
 
+      test('a queued edit keeps its arriving-amount reset (WP-21)', () async {
+        final id = await saveOne(repo, draft());
+        store.goOnline(online: false);
+        await repo.editEntry(
+          id,
+          draft(amount: 4000),
+          extras: const EntryExtras(toAmountReset: true),
+        );
+        expect(journal.entries.single.payload['toAmountReset'], isTrue);
+        await restartAndReconnect(() {});
+        expect(store.serverTransactions[id]!['amountMinor'], 4000);
+        expect(journal.entries, isEmpty);
+      });
+
       test('a queued delete refused after a restart is re-applied', () async {
         final id = await saveOne(repo, draft());
         store.goOnline(online: false);

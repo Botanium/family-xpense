@@ -507,9 +507,425 @@
   "@activityEntryTitle": {
     "description": "Top bar title of an entry's detail screen."
   },
-  "activityEntryPlaceholder": "The entry's details and history will appear here.",
-  "@activityEntryPlaceholder": {
-    "description": "Placeholder line on the entry detail screen until it is built."
+  "activityEntryMore": "More",
+  "@activityEntryMore": {
+    "description": "Spoken label of the more button on entry detail."
+  },
+  "activityEntryEdit": "Edit",
+  "@activityEntryEdit": {
+    "description": "Action that opens the whole entry in the edit sheet."
+  },
+  "activityEntryNotFound": "This entry isn't here. It was removed or isn't shared with you.",
+  "@activityEntryNotFound": {
+    "description": "Entry detail when the entry cannot be read."
+  },
+  "activityEntryTypeExpense": "Expense",
+  "@activityEntryTypeExpense": {
+    "description": "Entry type in the detail header."
+  },
+  "activityEntryTypeIncome": "Income",
+  "@activityEntryTypeIncome": {
+    "description": "Entry type in the detail header."
+  },
+  "activityEntryTypeTransfer": "Transfer",
+  "@activityEntryTypeTransfer": {
+    "description": "Entry type in the detail header."
+  },
+  "activityEntryTypeLoanGiven": "Loan given",
+  "@activityEntryTypeLoanGiven": {
+    "description": "Entry type in the detail header."
+  },
+  "activityEntryTypeLoanTaken": "Loan taken",
+  "@activityEntryTypeLoanTaken": {
+    "description": "Entry type in the detail header."
+  },
+  "activityEntryTypeRepaymentReceived": "Repayment received",
+  "@activityEntryTypeRepaymentReceived": {
+    "description": "Entry type in the detail header."
+  },
+  "activityEntryTypeRepaymentMade": "Repayment made",
+  "@activityEntryTypeRepaymentMade": {
+    "description": "Entry type in the detail header."
+  },
+  "activityEntryTypeAdjustment": "Adjustment",
+  "@activityEntryTypeAdjustment": {
+    "description": "Entry type in the detail header."
+  },
+  "activityEntryConverted": "≈ {amount} at {rate} · {label}",
+  "@activityEntryConverted": {
+    "description": "Line under the amount: the base-currency amount and the rate used.",
+    "placeholders": {
+      "amount": {
+        "type": "String",
+        "example": "USD 5.87"
+      },
+      "rate": {
+        "type": "String",
+        "example": "1,705"
+      },
+      "label": {
+        "type": "String",
+        "example": "Market"
+      }
+    }
+  },
+  "activityEntryRowCategory": "Category",
+  "@activityEntryRowCategory": {
+    "description": "Row label."
+  },
+  "activityEntryRowAccount": "Account",
+  "@activityEntryRowAccount": {
+    "description": "Row label."
+  },
+  "activityEntryRowFrom": "From",
+  "@activityEntryRowFrom": {
+    "description": "Row label on a transfer."
+  },
+  "activityEntryRowTo": "To",
+  "@activityEntryRowTo": {
+    "description": "Row label on a transfer."
+  },
+  "activityEntryRowArrives": "Arrives",
+  "@activityEntryRowArrives": {
+    "description": "Row label: the amount that arrived on a cross-currency transfer."
+  },
+  "activityEntryRowWho": "Who",
+  "@activityEntryRowWho": {
+    "description": "Row label."
+  },
+  "activityEntryRowWhen": "When",
+  "@activityEntryRowWhen": {
+    "description": "Row label."
+  },
+  "activityEntryRowNote": "Note",
+  "@activityEntryRowNote": {
+    "description": "Row label."
+  },
+  "activityEntryRowPerson": "Person",
+  "@activityEntryRowPerson": {
+    "description": "Row label on a loan event."
+  },
+  "activityEntryNoNote": "Add a note",
+  "@activityEntryNoNote": {
+    "description": "Note row value when there is none."
+  },
+  "activityEntryNone": "None",
+  "@activityEntryNone": {
+    "description": "Row value when the field is empty."
+  },
+  "activityEntryWhoYou": "You",
+  "@activityEntryWhoYou": {
+    "description": "Who value: the viewer."
+  },
+  "activityEntryWhoPartner": "Partner",
+  "@activityEntryWhoPartner": {
+    "description": "Who value for the partner with no display name."
+  },
+  "activityEntryWhoJoint": "Joint",
+  "@activityEntryWhoJoint": {
+    "description": "Who value: both partners."
+  },
+  "activityEntryToday": "Today {time}",
+  "@activityEntryToday": {
+    "description": "When value for today.",
+    "placeholders": {
+      "time": {
+        "type": "String",
+        "example": "13:20"
+      }
+    }
+  },
+  "activityEntryYesterday": "Yesterday {time}",
+  "@activityEntryYesterday": {
+    "description": "When value for yesterday.",
+    "placeholders": {
+      "time": {
+        "type": "String",
+        "example": "09:10"
+      }
+    }
+  },
+  "activityEntryOnDay": "{day} {time}",
+  "@activityEntryOnDay": {
+    "description": "When value for another day.",
+    "placeholders": {
+      "day": {
+        "type": "String",
+        "example": "Nov 20"
+      },
+      "time": {
+        "type": "String",
+        "example": "13:20"
+      }
+    }
+  },
+  "activityEntryRateUsed": "Rate used",
+  "@activityEntryRateUsed": {
+    "description": "Ledger row label: the exchange rate stored with the entry."
+  },
+  "activityEntryRateValue": "{rate} · {label}",
+  "@activityEntryRateValue": {
+    "description": "Ledger row value: the rate and its label.",
+    "placeholders": {
+      "rate": {
+        "type": "String",
+        "example": "1,705"
+      },
+      "label": {
+        "type": "String",
+        "example": "Market"
+      }
+    }
+  },
+  "activityEntryRateMarket": "Market",
+  "@activityEntryRateMarket": {
+    "description": "Label of a rate entered as the market rate."
+  },
+  "activityEntryRateOfficial": "Official",
+  "@activityEntryRateOfficial": {
+    "description": "Label of a rate entered as the official rate."
+  },
+  "activityEntryRateManual": "Typed",
+  "@activityEntryRateManual": {
+    "description": "Label of a rate typed for this entry only."
+  },
+  "activityEntrySource": "Source",
+  "@activityEntrySource": {
+    "description": "Ledger row label: where the entry came from."
+  },
+  "activityEntrySourceValue": "{source} · {mode}",
+  "@activityEntrySourceValue": {
+    "description": "Ledger row value: the source and where it was understood.",
+    "placeholders": {
+      "source": {
+        "type": "String",
+        "example": "Voice"
+      },
+      "mode": {
+        "type": "String",
+        "example": "On-device"
+      }
+    }
+  },
+  "activityEntrySourceManual": "Manual",
+  "@activityEntrySourceManual": {
+    "description": "Source: the Add manually sheet."
+  },
+  "activityEntrySourceChat": "Ask",
+  "@activityEntrySourceChat": {
+    "description": "Source: typed in Ask."
+  },
+  "activityEntrySourceVoice": "Voice",
+  "@activityEntrySourceVoice": {
+    "description": "Source: spoken."
+  },
+  "activityEntrySourceReceipt": "Receipt",
+  "@activityEntrySourceReceipt": {
+    "description": "Source: a receipt photo."
+  },
+  "activityEntrySourceRecurring": "Recurring",
+  "@activityEntrySourceRecurring": {
+    "description": "Source: posted by a recurring entry."
+  },
+  "activityEntrySourceImport": "Import",
+  "@activityEntrySourceImport": {
+    "description": "Source: imported from a file."
+  },
+  "activityEntrySourceShortcut": "Shortcut",
+  "@activityEntrySourceShortcut": {
+    "description": "Source: the iOS shortcut."
+  },
+  "activityEntryModeOnDevice": "On-device",
+  "@activityEntryModeOnDevice": {
+    "description": "Where the entry was understood: on the phone."
+  },
+  "activityEntryModeCloud": "Cloud",
+  "@activityEntryModeCloud": {
+    "description": "Where the entry was understood: on the server."
+  },
+  "activityEntryRevisions": "Revisions",
+  "@activityEntryRevisions": {
+    "description": "Section label above the history."
+  },
+  "activityEntryRestore": "Restore",
+  "@activityEntryRestore": {
+    "description": "Action on a history row that undoes that change."
+  },
+  "activityEntryCreatedManual": "Added manually",
+  "@activityEntryCreatedManual": {
+    "description": "First history row of an entry typed in the form."
+  },
+  "activityEntryCreatedChat": "Added in Ask",
+  "@activityEntryCreatedChat": {
+    "description": "First history row of an entry typed in Ask."
+  },
+  "activityEntryCreatedVoice": "Created by voice",
+  "@activityEntryCreatedVoice": {
+    "description": "First history row of a spoken entry."
+  },
+  "activityEntryCreatedReceipt": "Added from a receipt",
+  "@activityEntryCreatedReceipt": {
+    "description": "First history row of a receipt entry."
+  },
+  "activityEntryCreatedRecurring": "Posted by a recurring entry",
+  "@activityEntryCreatedRecurring": {
+    "description": "First history row of a recurring entry."
+  },
+  "activityEntryCreatedImport": "Imported",
+  "@activityEntryCreatedImport": {
+    "description": "First history row of an imported entry."
+  },
+  "activityEntryCreatedShortcut": "Added with a shortcut",
+  "@activityEntryCreatedShortcut": {
+    "description": "First history row of a shortcut entry."
+  },
+  "activityEntryChangedAmount": "Amount changed",
+  "@activityEntryChangedAmount": {
+    "description": "History row title."
+  },
+  "activityEntryChangedAccount": "Account changed",
+  "@activityEntryChangedAccount": {
+    "description": "History row title."
+  },
+  "activityEntryChangedCategory": "Category changed",
+  "@activityEntryChangedCategory": {
+    "description": "History row title."
+  },
+  "activityEntryChangedWho": "Who changed",
+  "@activityEntryChangedWho": {
+    "description": "History row title."
+  },
+  "activityEntryChangedDate": "Date changed",
+  "@activityEntryChangedDate": {
+    "description": "History row title."
+  },
+  "activityEntryChangedNote": "Note changed",
+  "@activityEntryChangedNote": {
+    "description": "History row title."
+  },
+  "activityEntryChangedPerson": "Person changed",
+  "@activityEntryChangedPerson": {
+    "description": "History row title."
+  },
+  "activityEntryChangedType": "Type changed",
+  "@activityEntryChangedType": {
+    "description": "History row title."
+  },
+  "activityEntryChangedRate": "Rate changed",
+  "@activityEntryChangedRate": {
+    "description": "History row title."
+  },
+  "activityEntryChangedMany": "Edited",
+  "@activityEntryChangedMany": {
+    "description": "History row title when several fields changed at once."
+  },
+  "activityEntryHistoryDeleted": "Deleted",
+  "@activityEntryHistoryDeleted": {
+    "description": "History row title."
+  },
+  "activityEntryHistoryUndone": "Undone after saving",
+  "@activityEntryHistoryUndone": {
+    "description": "History row title."
+  },
+  "activityEntryHistoryRestored": "Restored",
+  "@activityEntryHistoryRestored": {
+    "description": "History row title."
+  },
+  "activityEntryHistorySystem": "Corrected by the app",
+  "@activityEntryHistorySystem": {
+    "description": "History row title for a server job."
+  },
+  "activityEntryHistoryChange": "{before} → {after}",
+  "@activityEntryHistoryChange": {
+    "description": "History row detail: the old and new value.",
+    "placeholders": {
+      "before": {
+        "type": "String",
+        "example": "Joint Visa"
+      },
+      "after": {
+        "type": "String",
+        "example": "Cash (IQD)"
+      }
+    }
+  },
+  "activityEntryHistoryWhen": "{when} · {who}",
+  "@activityEntryHistoryWhen": {
+    "description": "History row meta line.",
+    "placeholders": {
+      "when": {
+        "type": "String",
+        "example": "Today 13:24"
+      },
+      "who": {
+        "type": "String",
+        "example": "Sam"
+      }
+    }
+  },
+  "activityEntryDelete": "Delete entry",
+  "@activityEntryDelete": {
+    "description": "Destructive action at the bottom of entry detail."
+  },
+  "activityEntryDeleteQuestion": "Delete this entry? You can restore it from its history.",
+  "@activityEntryDeleteQuestion": {
+    "description": "Title of the delete confirmation."
+  },
+  "activityEntryCancel": "Cancel",
+  "@activityEntryCancel": {
+    "description": "Cancel action of confirmations."
+  },
+  "activityEntryDeleted": "Entry deleted",
+  "@activityEntryDeleted": {
+    "description": "Toast after deleting."
+  },
+  "activityEntryUndo": "Undo",
+  "@activityEntryUndo": {
+    "description": "Toast action that restores the deleted entry."
+  },
+  "activityEntryDeletedNote": "This entry is deleted.",
+  "@activityEntryDeletedNote": {
+    "description": "Line under the header of a deleted entry."
+  },
+  "activityEntryRestoreEntry": "Restore entry",
+  "@activityEntryRestoreEntry": {
+    "description": "Action that restores a deleted entry."
+  },
+  "activityEntryRestored": "Restored",
+  "@activityEntryRestored": {
+    "description": "Toast after restoring a revision or the entry."
+  },
+  "activityEntrySyncing": "Not synced yet",
+  "@activityEntrySyncing": {
+    "description": "Line shown while a change is only on this phone."
+  },
+  "activityEntryFailNotAllowed": "You can't change this entry.",
+  "@activityEntryFailNotAllowed": {
+    "description": "Error when a write is not allowed."
+  },
+  "activityEntryFailConflict": "Your partner changed this at the same time. Try again.",
+  "@activityEntryFailConflict": {
+    "description": "Error when the partner's edit won."
+  },
+  "activityEntryFailDeleted": "This entry is deleted. Restore it first.",
+  "@activityEntryFailDeleted": {
+    "description": "Error when restoring a field of a deleted entry."
+  },
+  "activityEntryFailUnknown": "That didn't work. Try again.",
+  "@activityEntryFailUnknown": {
+    "description": "Error for any other failure."
+  },
+  "activityEntryFailRateNeeded": "This change needs the day's dollar rate. Edit the entry to enter it.",
+  "@activityEntryFailRateNeeded": {
+    "description": "Error when a restore needs a rate."
+  },
+  "activityEntryFailInvalid": "That version can't be restored as it is. Edit the entry instead.",
+  "@activityEntryFailInvalid": {
+    "description": "Error when the old values no longer pass the checks."
+  },
+  "activityEntryOk": "OK",
+  "@activityEntryOk": {
+    "description": "Toast action that only dismisses it."
   },
 
   "goalsTitle": "Goals",
@@ -2388,5 +2804,302 @@
   "onboardingTryItDone": "Go to Home",
   "@onboardingTryItDone": {
     "description": "Primary button after the first message on the first-capture screen."
+  },
+
+  "captureManualTitle": "Add manually",
+  "@captureManualTitle": {
+    "description": "Title of the Add manually sheet."
+  },
+  "captureManualEditTitle": "Edit entry",
+  "@captureManualEditTitle": {
+    "description": "Title of the same sheet when it edits a saved entry."
+  },
+  "captureManualCancel": "Cancel",
+  "@captureManualCancel": {
+    "description": "Leading header button that closes the sheet without saving."
+  },
+  "captureManualSave": "Save",
+  "@captureManualSave": {
+    "description": "Trailing header button that saves the entry."
+  },
+  "captureManualSaveExpense": "Save expense",
+  "@captureManualSaveExpense": {
+    "description": "Bottom button on the Expense tab."
+  },
+  "captureManualSaveIncome": "Save income",
+  "@captureManualSaveIncome": {
+    "description": "Bottom button on the Income tab."
+  },
+  "captureManualSaveTransfer": "Save transfer",
+  "@captureManualSaveTransfer": {
+    "description": "Bottom button on the Transfer tab."
+  },
+  "captureManualSaveLoan": "Save loan",
+  "@captureManualSaveLoan": {
+    "description": "Bottom button on the Loan tab."
+  },
+  "captureManualSaveChanges": "Save changes",
+  "@captureManualSaveChanges": {
+    "description": "Bottom button when the sheet edits a saved entry."
+  },
+  "captureManualSaving": "Saving…",
+  "@captureManualSaving": {
+    "description": "Bottom button while the entry is being saved."
+  },
+  "captureManualTabExpense": "Expense",
+  "@captureManualTabExpense": {
+    "description": "Type tab: money spent."
+  },
+  "captureManualTabIncome": "Income",
+  "@captureManualTabIncome": {
+    "description": "Type tab: money received."
+  },
+  "captureManualTabTransfer": "Transfer",
+  "@captureManualTabTransfer": {
+    "description": "Type tab: money moved between two accounts."
+  },
+  "captureManualTabLoan": "Loan",
+  "@captureManualTabLoan": {
+    "description": "Type tab: money lent, borrowed or paid back."
+  },
+  "captureManualAmount": "Amount",
+  "@captureManualAmount": {
+    "description": "Spoken label of the amount field."
+  },
+  "captureManualCurrency": "Currency, {code}. Choose the account to change it",
+  "@captureManualCurrency": {
+    "description": "Spoken label of the currency mark next to the amount; the currency follows the account.",
+    "placeholders": {
+      "code": {
+        "type": "String",
+        "example": "IQD"
+      }
+    }
+  },
+  "captureManualCategory": "Category",
+  "@captureManualCategory": {
+    "description": "Caption above the category chips."
+  },
+  "captureManualWho": "Who",
+  "@captureManualWho": {
+    "description": "Caption above the chips that say whose entry it is."
+  },
+  "captureManualWhoYou": "You",
+  "@captureManualWhoYou": {
+    "description": "Who chip: the signed-in member."
+  },
+  "captureManualWhoPartner": "Partner",
+  "@captureManualWhoPartner": {
+    "description": "Who chip for the partner when they have no display name."
+  },
+  "captureManualWhoJoint": "Joint",
+  "@captureManualWhoJoint": {
+    "description": "Who chip: both partners."
+  },
+  "captureManualAccount": "Account",
+  "@captureManualAccount": {
+    "description": "Row label: the account the money leaves or enters."
+  },
+  "captureManualFrom": "From",
+  "@captureManualFrom": {
+    "description": "Row label on the Transfer tab: the account money leaves."
+  },
+  "captureManualTo": "To",
+  "@captureManualTo": {
+    "description": "Row label on the Transfer tab: the account money arrives in."
+  },
+  "captureManualChoose": "Choose",
+  "@captureManualChoose": {
+    "description": "Row value when no account is chosen yet."
+  },
+  "captureManualArrives": "Arrives",
+  "@captureManualArrives": {
+    "description": "Caption of the optional amount that arrives when a transfer crosses currencies."
+  },
+  "captureManualArrivesHint": "At the day's rate",
+  "@captureManualArrivesHint": {
+    "description": "Placeholder of the arriving amount: empty converts at the day's rate."
+  },
+  "captureManualDate": "Date",
+  "@captureManualDate": {
+    "description": "Row label: the day of the entry."
+  },
+  "captureManualToday": "Today",
+  "@captureManualToday": {
+    "description": "Date row value for today."
+  },
+  "captureManualYesterday": "Yesterday",
+  "@captureManualYesterday": {
+    "description": "Date row value for yesterday."
+  },
+  "captureManualDone": "Done",
+  "@captureManualDone": {
+    "description": "Trailing button of the date picker."
+  },
+  "captureManualNote": "Note",
+  "@captureManualNote": {
+    "description": "Caption of the note field."
+  },
+  "captureManualNoteHint": "Add a note",
+  "@captureManualNoteHint": {
+    "description": "Placeholder of the note field."
+  },
+  "captureManualPerson": "Person",
+  "@captureManualPerson": {
+    "description": "Caption of the counterparty field on the Loan tab."
+  },
+  "captureManualPersonHint": "Who it's with",
+  "@captureManualPersonHint": {
+    "description": "Placeholder of the counterparty field."
+  },
+  "captureManualPersonLinked": "This person is part of a loan. Change them from the loan.",
+  "@captureManualPersonLinked": {
+    "description": "Line under the read-only person field when an entry belongs to a saved person or loan."
+  },
+  "captureManualLoanLent": "I lent",
+  "@captureManualLoanLent": {
+    "description": "Loan tab chip: the member lent money."
+  },
+  "captureManualLoanBorrowed": "I borrowed",
+  "@captureManualLoanBorrowed": {
+    "description": "Loan tab chip: the member borrowed money."
+  },
+  "captureManualLoanPaidBack": "Paid back to me",
+  "@captureManualLoanPaidBack": {
+    "description": "Loan tab chip: someone paid the member back."
+  },
+  "captureManualLoanRepaid": "I paid back",
+  "@captureManualLoanRepaid": {
+    "description": "Loan tab chip: the member paid someone back."
+  },
+  "captureManualRate": "Dollar rate, dinars per dollar",
+  "@captureManualRate": {
+    "description": "Caption of the rate field shown when the day has no USD/IQD rate yet."
+  },
+  "captureManualRateHint": "1,705",
+  "@captureManualRateHint": {
+    "description": "Placeholder of the rate field: an example rate."
+  },
+  "captureManualErrorAmountMissing": "Enter an amount.",
+  "@captureManualErrorAmountMissing": {
+    "description": "Error under the amount when it is empty."
+  },
+  "captureManualErrorAmountInvalid": "That isn't an amount in {code}.",
+  "@captureManualErrorAmountInvalid": {
+    "description": "Error under the amount when it does not read, for example decimals on dinars.",
+    "placeholders": {
+      "code": {
+        "type": "String",
+        "example": "IQD"
+      }
+    }
+  },
+  "captureManualErrorAmountRange": "Enter an amount above zero.",
+  "@captureManualErrorAmountRange": {
+    "description": "Error under the amount when it is zero or too large."
+  },
+  "captureManualErrorAccountMissing": "Choose an account.",
+  "@captureManualErrorAccountMissing": {
+    "description": "Error under the account row when none is chosen."
+  },
+  "captureManualErrorToAccountMissing": "Choose where the money goes.",
+  "@captureManualErrorToAccountMissing": {
+    "description": "Error under the To row of a transfer."
+  },
+  "captureManualErrorSameAccount": "Choose a different account.",
+  "@captureManualErrorSameAccount": {
+    "description": "Error under the To row when it is the same as From."
+  },
+  "captureManualErrorUnknown": "This isn't available any more. Choose another.",
+  "@captureManualErrorUnknown": {
+    "description": "Error next to an account, category or person the household no longer has."
+  },
+  "captureManualErrorCategoryMissing": "Choose a category.",
+  "@captureManualErrorCategoryMissing": {
+    "description": "Error under the category chips when none is chosen."
+  },
+  "captureManualErrorWrongKind": "This category doesn't fit this entry.",
+  "@captureManualErrorWrongKind": {
+    "description": "Error when an expense category is on income or the reverse."
+  },
+  "captureManualErrorPersonMissing": "Add who it's with.",
+  "@captureManualErrorPersonMissing": {
+    "description": "Error under the person field on the Loan tab."
+  },
+  "captureManualErrorTooLong": "That's too long.",
+  "@captureManualErrorTooLong": {
+    "description": "Error under a text field that is over its length limit."
+  },
+  "captureManualErrorNoPartner": "Your partner hasn't joined yet.",
+  "@captureManualErrorNoPartner": {
+    "description": "Error under Who when the partner chip is chosen before they joined."
+  },
+  "captureManualErrorCurrencyMismatch": "The currency doesn't match.",
+  "@captureManualErrorCurrencyMismatch": {
+    "description": "Error when the entry's currency differs from the account or the loan."
+  },
+  "captureManualErrorRateNeeded": "There's no dollar rate for this day yet. Enter it to save.",
+  "@captureManualErrorRateNeeded": {
+    "description": "Shown under the rate field when the day has no USD/IQD rate."
+  },
+  "captureManualErrorInvalid": "Check this.",
+  "@captureManualErrorInvalid": {
+    "description": "Generic error next to a field whose value does not read."
+  },
+  "captureManualSaved": "Saved",
+  "@captureManualSaved": {
+    "description": "Toast after a save that reached the server."
+  },
+  "captureManualSavedOffline": "Saved on this phone. It syncs when you're online.",
+  "@captureManualSavedOffline": {
+    "description": "Toast after a save made offline."
+  },
+  "captureManualUndo": "Undo",
+  "@captureManualUndo": {
+    "description": "Toast action that undoes the save."
+  },
+  "captureManualRetry": "Retry",
+  "@captureManualRetry": {
+    "description": "Toast action that tries the save again."
+  },
+  "captureManualOk": "OK",
+  "@captureManualOk": {
+    "description": "Toast action that only dismisses it."
+  },
+  "captureManualFailNotAllowed": "You can't save to this account.",
+  "@captureManualFailNotAllowed": {
+    "description": "Toast when the write is not allowed."
+  },
+  "captureManualFailTooMany": "That touches too many accounts at once.",
+  "@captureManualFailTooMany": {
+    "description": "Toast when one save touches more accounts than allowed."
+  },
+  "captureManualFailNotFound": "This entry isn't here any more.",
+  "@captureManualFailNotFound": {
+    "description": "Toast when the edited entry no longer exists."
+  },
+  "captureManualFailDeleted": "This entry was deleted. Restore it first.",
+  "@captureManualFailDeleted": {
+    "description": "Toast when the edited entry is deleted."
+  },
+  "captureManualFailConflict": "Your partner changed this at the same time. Try again.",
+  "@captureManualFailConflict": {
+    "description": "Toast when the partner's edit won."
+  },
+  "captureManualFailUnknown": "Couldn't save. Try again.",
+  "@captureManualFailUnknown": {
+    "description": "Toast for any other failure."
+  },
+  "captureManualDiscard": "Discard changes",
+  "@captureManualDiscard": {
+    "description": "Destructive action when cancelling a sheet with changes."
+  },
+  "captureManualKeepEditing": "Keep editing",
+  "@captureManualKeepEditing": {
+    "description": "Cancel action of the discard question."
+  },
+  "captureManualNoAccounts": "Add an account first.",
+  "@captureManualNoAccounts": {
+    "description": "Shown in the account picker when there are none."
   }
 }

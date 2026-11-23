@@ -29,9 +29,12 @@ import 'package:xpense_app/data/household_repository_firebase.dart';
 import 'package:xpense_app/data/read/activity_reader.dart';
 import 'package:xpense_app/data/read/activity_reader_firestore.dart';
 import 'package:xpense_app/data/read/activity_reader_memory.dart';
+import 'package:xpense_app/data/read/entry_reader.dart';
+import 'package:xpense_app/data/read/firestore_entry_reader.dart';
 import 'package:xpense_app/data/read/home_reader.dart';
 import 'package:xpense_app/data/read/home_reader_firebase.dart';
 import 'package:xpense_app/data/read/home_reader_memory.dart';
+import 'package:xpense_app/data/read/memory_entry_reader.dart';
 import 'package:xpense_app/data/read/sample_month_fake.dart';
 import 'package:xpense_app/data/rules_repository.dart';
 import 'package:xpense_app/data/rules_repository_firestore.dart';
@@ -409,6 +412,18 @@ Future<TransactionsRepository> connectTransactions(
   return repository;
 }
 
+/// Entry detail's reader (WP-21) over Firestore, following [households].
+/// The fakes build reads the memory write path's store instead
+/// ([memoryEntryReaderFor]).
+EntryReader connectEntryReader(
+  AppEnvironment environment, {
+  required HouseholdRepository households,
+}) => FirestoreEntryReader.connect(
+  auth: FirebaseAuth.instance,
+  firestore: FirebaseFirestore.instance,
+  households: households,
+);
+
 /// A write path in memory over the sample household's accounts
 /// (`FakeAccountsRepository.sample`), for the fakes build and tests. It
 /// carries an Activity reader over the same store (WP-22), so Activity
@@ -421,14 +436,18 @@ NotifyingTransactionsRepository memoryTransactions({
 }) {
   final store = sampleLedgerStore(clock: clock);
   if (sampleMonth != null) seedSampleMonth(store, sampleMonth);
+  // Entry detail's reader hears of each commit through the observed store
+  // (WP-21); Activity's through the repository; Home reads the store.
+  final observed = ObservedLedgerStore(store);
   final repository = NotifyingTransactionsRepository(
-    LedgerTransactionsRepository(store),
+    LedgerTransactionsRepository(observed),
     MemoryActivityReader(
       read: () => store.transactions,
       viewerUid: FakeAccountsRepository.sampleViewer,
     ),
   );
   _memoryStores[repository] = store;
+  _observedStores[repository] = observed;
   return repository;
 }
 
@@ -465,6 +484,21 @@ MemoryLedgerStore sampleLedgerStore({Clock clock = const Clock()}) {
 
 /// The store behind each memory write path, for the readers that follow it.
 final Expando<MemoryLedgerStore> _memoryStores = Expando('memoryStores');
+
+/// The same store as seen through the write path's commits, for entry
+/// detail's reader.
+final Expando<ObservedLedgerStore> _observedStores = Expando('observedStores');
+
+/// Entry detail's reader in memory: over the store of the memory write
+/// path, so a save, edit, delete or restore shows at once; else one that
+/// finds nothing.
+EntryReader memoryEntryReaderFor(TransactionsRepository transactions) =>
+    MemoryEntryReader(
+      _observedStores[transactions] ??
+          ObservedLedgerStore(
+            MemoryLedgerStore(scope: null, householdInfo: null),
+          ),
+    );
 
 /// The store behind [transactions] when it is a memory write path made by
 /// [memoryTransactions], for tests that seed it; null otherwise.
@@ -626,6 +660,9 @@ Future<Bootstrapped> bootstrap({required AppEnvironment environment}) async {
       householdRepository: households,
       accountsRepository: accounts,
       transactionsRepository: transactions,
+      entryReader: environment == AppEnvironment.fakes
+          ? null
+          : connectEntryReader(environment, households: households),
       activityReader: environment == AppEnvironment.fakes
           ? null
           : FirestoreActivityReader.connect(households: households),
@@ -660,6 +697,7 @@ List<Override> appOverrides({
   required HouseholdRepository householdRepository,
   required AccountsRepository accountsRepository,
   TransactionsRepository? transactionsRepository,
+  EntryReader? entryReader,
   ActivityReader? activityReader,
   HomeReader? homeReader,
   SecureStore? secureStore,
@@ -681,6 +719,11 @@ List<Override> appOverrides({
   accountsRepositoryProvider.overrideWithValue(accountsRepository),
   transactionsRepositoryProvider.overrideWithValue(
     transactionsRepository ?? memoryTransactions(),
+  ),
+  entryReaderProvider.overrideWith(
+    (ref) =>
+        entryReader ??
+        memoryEntryReaderFor(ref.watch(transactionsRepositoryProvider)),
   ),
   activityReaderProvider.overrideWith(
     (ref) =>

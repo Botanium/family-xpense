@@ -43,6 +43,15 @@ abstract final class AppRoutes {
   /// Route pattern of an entry's detail screen.
   static const String entryPattern = '/entries/:$idParam';
 
+  /// Route pattern of the sheet that edits an entry (WP-21), opened from
+  /// its detail screen; [fieldParam] names the row that was tapped.
+  static const String entryEditPattern = '/entries/:$idParam/edit';
+
+  /// Add manually (screen 9), a sheet above the shell. Other features open
+  /// it with `context.push(AppRoutes.addEntry, extra: draft)` to prefill it
+  /// with an `EntryDraft` ("Change" on a slip); a link opens it empty.
+  static const String addEntry = '/add';
+
   /// Route pattern of a loan or debt's detail screen.
   static const String loanPattern = '/loans/:$idParam';
 
@@ -59,6 +68,9 @@ abstract final class AppRoutes {
   /// Query parameter holding text to prefill in Ask.
   static const String textParam = 'text';
 
+  /// Query parameter naming the entry field to edit.
+  static const String fieldParam = 'field';
+
   /// Query parameter holding an invite code.
   static const String codeParam = 'code';
 
@@ -71,6 +83,10 @@ abstract final class AppRoutes {
 
   /// The detail screen of the entry [id].
   static String entry(String id) => '/entries/${Uri.encodeComponent(id)}';
+
+  /// The sheet that edits entry [id], opened at [field] when given.
+  static String editEntry(String id, {String? field}) =>
+      _withQuery('${entry(id)}/edit', fieldParam, field);
 
   /// The detail screen of the account [id].
   static String account(String id) => '/accounts/${Uri.encodeComponent(id)}';
