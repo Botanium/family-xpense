@@ -1,6 +1,7 @@
 // The composition root (ARCHITECTURE 3.3): the one place that names
 // concrete implementations. Features see only the throwing providers in
 // `lib/services/`; this file overrides them.
+import 'dart:async';
 import 'dart:collection';
 import 'dart:io';
 
@@ -11,7 +12,6 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/misc.dart';
-
 import 'package:xpense_app/a2ui/testing/fake_xpense_actions.dart';
 import 'package:xpense_app/a2ui/xpense_surface_host.dart';
 import 'package:xpense_app/app.dart';
@@ -28,7 +28,13 @@ import 'package:xpense_app/data/household_repository_fake.dart';
 import 'package:xpense_app/data/household_repository_firebase.dart';
 import 'package:xpense_app/data/rules_repository.dart';
 import 'package:xpense_app/data/rules_repository_firestore.dart';
+import 'package:xpense_app/data/transactions_repository.dart';
+import 'package:xpense_app/data/write/firestore_ledger_store.dart';
+import 'package:xpense_app/data/write/ledger_store.dart';
+import 'package:xpense_app/data/write/ledger_transactions_repository.dart';
+import 'package:xpense_app/data/write/memory_ledger_store.dart';
 import 'package:xpense_app/features/ask/ask_actions.dart';
+import 'package:xpense_app/features/ask/ledger_xpense_actions.dart';
 import 'package:xpense_app/services/agent_client.dart';
 import 'package:xpense_app/services/agent_client_fake.dart';
 import 'package:xpense_app/services/agent_client_remote.dart';
@@ -50,6 +56,7 @@ import 'package:xpense_app/services/settings_store.dart';
 import 'package:xpense_app/services/settings_store_prefs.dart';
 import 'package:xpense_app/services/speech_capture.dart';
 import 'package:xpense_app/services/speech_capture_fake.dart';
+import 'package:xpense_app/services/write_journal_prefs.dart';
 import 'package:xpense_shared/xpense_shared.dart';
 
 /// Which backend a build talks to, from `--dart-define=XPENSE_ENV=…`.
@@ -304,16 +311,23 @@ final XpenseHousehold demoXpenseHousehold = XpenseHousehold(
   latestRate: '1520',
 );
 
-/// The household cache and write path for [environment]: the in-memory
-/// fake until WP-20, over the demo household when [demoHouseholdDefine]
-/// asks for it outside prod.
-XpenseActions connectXpenseActions(AppEnvironment environment) =>
-    FakeXpenseActions(
-      household:
-          demoHouseholdDefine == 'true' && environment != AppEnvironment.prod
-          ? demoXpenseHousehold
-          : sampleHousehold,
-    );
+/// The household cache and write path for the Ask cards. Saves and Undo go
+/// through [transactions] (WP-20); the household cache is still the
+/// in-memory one (the demo household when [demoHouseholdDefine] asks for
+/// it outside prod, else the sample) until the phone reads accounts and
+/// categories from Firestore.
+XpenseActions connectXpenseActions(
+  AppEnvironment environment, {
+  required TransactionsRepository transactions,
+}) => LedgerXpenseActions(
+  inner: FakeXpenseActions(
+    household:
+        demoHouseholdDefine == 'true' && environment != AppEnvironment.prod
+        ? demoXpenseHousehold
+        : sampleHousehold,
+  ),
+  transactions: transactions,
+);
 
 /// The learned rules for the signed-in member (story S3.11): in Firestore
 /// once the member is in a household, in memory in `fakes` and until the
@@ -346,6 +360,71 @@ AccountsRepository connectAccounts(
   AppEnvironment.dev || AppEnvironment.prod || AppEnvironment.emulators =>
     FirebaseAccountsRepository.connect(households: households),
 };
+
+/// The transaction write path (WP-20) for [environment], following
+/// [households]. In `fakes` it writes to memory, over the artboards'
+/// accounts.
+///
+/// Changes an earlier run queued are re-applied whenever their member is
+/// in a household ([LedgerTransactionsRepository.resumePending]).
+Future<TransactionsRepository> connectTransactions(
+  AppEnvironment environment, {
+  required HouseholdRepository households,
+}) async {
+  if (environment == AppEnvironment.fakes) return memoryTransactions();
+  // Firestore is already pointed at the emulator by connectHouseholds.
+  final repository = LedgerTransactionsRepository(
+    FirestoreLedgerStore.connect(
+      auth: FirebaseAuth.instance,
+      firestore: FirebaseFirestore.instance,
+      households: households,
+    ),
+    journal: await PrefsWriteJournal.open(),
+  );
+  // Each time someone is in a household (a sign-in, a switch of member),
+  // their own queued changes are resumed.
+  households.watchMembership().where((m) => m is InHousehold).listen((_) {
+    unawaited(
+      repository.resumePending().catchError((Object e, StackTrace s) {
+        FlutterError.reportError(
+          FlutterErrorDetails(
+            exception: e,
+            stack: s,
+            library: 'bootstrap',
+            context: ErrorDescription('while resuming queued transactions'),
+          ),
+        );
+      }),
+    );
+  });
+  return repository;
+}
+
+/// A write path in memory over the sample household's accounts
+/// (`FakeAccountsRepository.sample`), for the fakes build and tests.
+TransactionsRepository memoryTransactions() {
+  const viewer = FakeAccountsRepository.sampleViewer;
+  final store = MemoryLedgerStore(
+    scope: const LedgerScope(householdId: 'fake-household', uid: viewer),
+    householdInfo: const LedgerHousehold(
+      baseCurrency: Currency.usd,
+      memberIds: [viewer, FakeAccountsRepository.samplePartner],
+    ),
+  );
+  for (final a in FakeAccountsRepository.sampleAccounts) {
+    store.accounts[a.id] = LedgerAccount(
+      id: a.id,
+      currency: a.currency,
+      visibleTo: a.visibleTo,
+      joint: a.scope == AccountScope.joint,
+      ownerUid: a.ownerUid,
+    );
+  }
+  for (final c in defaultCategories) {
+    store.categories[c.slug] = LedgerCategory(id: c.slug, kind: c.kind.name);
+  }
+  return LedgerTransactionsRepository(store);
+}
 
 /// The crash sink the two error handlers write to.
 ///
@@ -451,6 +530,10 @@ Future<Bootstrapped> bootstrap({required AppEnvironment environment}) async {
   final auth = await connectAuth(environment);
   final households = connectHouseholds(environment, auth: auth);
   final accounts = connectAccounts(environment, households: households);
+  final transactions = await connectTransactions(
+    environment,
+    households: households,
+  );
   final flags = await connectFeatureFlags(environment);
   final capture = connectCaptureServices(environment);
   registerFontLicenses();
@@ -468,8 +551,12 @@ Future<Bootstrapped> bootstrap({required AppEnvironment environment}) async {
       authRepository: auth,
       householdRepository: households,
       accountsRepository: accounts,
+      transactionsRepository: transactions,
       featureFlags: flags,
-      xpenseActions: connectXpenseActions(environment),
+      xpenseActions: connectXpenseActions(
+        environment,
+        transactions: transactions,
+      ),
       agentClient: capture?.agent,
       decisionsClient: capture?.decisions,
       rules: (ref) => connectRules(ref, environment: environment),
@@ -491,6 +578,7 @@ List<Override> appOverrides({
   required AuthRepository authRepository,
   required HouseholdRepository householdRepository,
   required AccountsRepository accountsRepository,
+  TransactionsRepository? transactionsRepository,
   SecureStore? secureStore,
   FeatureFlagSource? featureFlags,
   AgentClient? agentClient,
@@ -508,6 +596,9 @@ List<Override> appOverrides({
   authRepositoryProvider.overrideWithValue(authRepository),
   householdRepositoryProvider.overrideWithValue(householdRepository),
   accountsRepositoryProvider.overrideWithValue(accountsRepository),
+  transactionsRepositoryProvider.overrideWithValue(
+    transactionsRepository ?? memoryTransactions(),
+  ),
   secureStoreProvider.overrideWithValue(secureStore ?? MemorySecureStore()),
   featureFlagSourceProvider.overrideWithValue(
     featureFlags ?? FakeFeatureFlags(),
@@ -519,8 +610,8 @@ List<Override> appOverrides({
   onDeviceLlmProvider.overrideWithValue(onDeviceLlm ?? FakeOnDeviceLlm()),
   speechCaptureProvider.overrideWithValue(speechCapture ?? FakeSpeechCapture()),
   ocrEngineProvider.overrideWithValue(ocrEngine ?? FakeOcrEngine()),
-  // Saving goes through the in-memory fake until the transaction write
-  // path (WP-20) lands.
+  // Tests get the in-memory fake; bootstrap passes saves through the
+  // transaction write path (connectXpenseActions).
   xpenseActionsProvider.overrideWithValue(xpenseActions ?? FakeXpenseActions()),
   rulesRepositoryProvider.overrideWith(
     rules ??

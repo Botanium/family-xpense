@@ -186,11 +186,29 @@ void main() {
       _mark('${name}_done');
     }
 
+    // Saves the newest card through the transaction write path (WP-20)
+    // into the emulator.
+    Future<void> save(String name) async {
+      _mark('${name}_save');
+      await tester.ensureVisible(find.text('Save').last);
+      await tester.tap(find.text('Save').last);
+      await pumpUntil(
+        tester,
+        () => find.text('Saved.').evaluate().isNotEmpty,
+        'the "$name" card to save',
+        seconds: 30,
+      );
+      debugPrint('XPENSE_SAVED $name');
+      await pause(tester, 20);
+      _mark('${name}_saved');
+    }
+
     await capture(
       'local',
       'Spent 25 dollars at Trader Joes',
       CapturePath.local,
     );
+    await save('local');
     await capture(
       'decide',
       'Spent 42.80 dollars at Costco',

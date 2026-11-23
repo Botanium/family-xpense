@@ -216,14 +216,23 @@ service cloud.firestore {
           && validTxnFields()
           && request.resource.data.rev == 0
           && request.resource.data.get('deletedAt', null) == null
-          && exists(accountPath(request.resource.data.accountId))
+          // get() of a missing account fails the rule, so no exists() too:
+          // each would count against the 20 document reads a batch may make
+          // (Codex review, PR #35).
           && request.resource.data.currency
                == get(accountPath(request.resource.data.accountId)).data.currency
           && visibleToMatchesAccounts();
         // Moving an entry to another account, or changing who sees it,
         // re-checks the accounts. Server jobs (visibility backfill) bypass rules.
+        // Each write names the version it was built on (`prevRevId` equals
+        // the stored `revId`), so a queued write whose predecessor lost to
+        // the partner's write is refused too, even when its `rev` number
+        // happens to line up (Codex review, PR #35). Documents written
+        // before `revId` existed have neither field.
         allow update: if canUpdateVisible(hid)
           && request.resource.data.rev == resource.data.rev + 1
+          && request.resource.data.get('prevRevId', null)
+               == resource.data.get('revId', null)
           && validTxnFields()
           && (!changed().hasAny(['accountId', 'toAccountId', 'visibleTo', 'currency'])
               || (request.resource.data.currency

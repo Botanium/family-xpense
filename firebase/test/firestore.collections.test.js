@@ -190,6 +190,44 @@ describe('transactions', () => {
     await assertSucceeds(tx(BOB).doc('tJoint').update({ type: 'income', baseAmountMinor: 9000, rev: 4, ...updatedBy(BOB) }));
   });
 
+  it('an edit must name the version it was built on (prevRevId, Codex review PR #35)', async () => {
+    // Legacy entry without revId: the first chained edit names none.
+    await assertFails(tx(ALICE).doc('tJoint').update({ title: 'A', rev: 4, revId: 'r4', prevRevId: 'r3', ...updatedBy(ALICE) }));
+    await assertSucceeds(tx(ALICE).doc('tJoint').update({ title: 'A', rev: 4, revId: 'r4', prevRevId: null, ...updatedBy(ALICE) }));
+    // Bob's write lands first (rev 5 on r4).
+    await assertSucceeds(tx(BOB).doc('tJoint').update({ note: 'B', rev: 5, revId: 'b5', prevRevId: 'r4', ...updatedBy(BOB) }));
+    // Alice's queued edit built on r4 is refused; so is her queued delete
+    // built on that edit, although its rev number lines up.
+    await assertFails(tx(ALICE).doc('tJoint').update({ amountMinor: 200, rev: 5, revId: 'a5', prevRevId: 'r4', ...updatedBy(ALICE) }));
+    await assertFails(tx(ALICE).doc('tJoint').update({ deletedAt: serverTime(), rev: 6, revId: 'a6', prevRevId: 'a5', ...updatedBy(ALICE) }));
+    // Leaving the chain fields as they are names the wrong predecessor.
+    await assertFails(tx(ALICE).doc('tJoint').update({ title: 'C', rev: 6, ...updatedBy(ALICE) }));
+    // Built on Bob's version it is accepted.
+    await assertSucceeds(tx(ALICE).doc('tJoint').update({ amountMinor: 200, rev: 6, revId: 'a6', prevRevId: 'b5', ...updatedBy(ALICE) }));
+  });
+
+  it('a save batch fits the rules read budget up to 15 distinct accounts (Codex review PR #35)', async () => {
+    // The app's batch: one entry per account plus its balance increment.
+    // Each account is one rules read, the household one more, and a batch
+    // may read 20 documents; the app caps a save at 15 accounts and loans.
+    await env.withSecurityRulesDisabled(async (ctx) => {
+      const h = hh(ctx.firestore());
+      for (let i = 0; i < 20; i++) await h.collection('accounts').doc(`r${i}`).set(accountDoc({ order: i }));
+    });
+    const save = (count, prefix) => {
+      const d = db(ALICE);
+      const batch = d.batch();
+      for (let i = 0; i < count; i++) {
+        batch.set(hh(d).collection('transactions').doc(`${prefix}${i}`), txnDoc({ accountId: `r${i}`, revId: `${prefix}${i}`, prevRevId: null, ...createdBy(ALICE) }));
+        batch.update(hh(d).collection('accounts').doc(`r${i}`), { balanceMinor: firebase.firestore.FieldValue.increment(-10000), ...updatedBy(ALICE) });
+      }
+      return batch.commit();
+    };
+    await assertSucceeds(save(15, 'ok'));
+    // 20 accounts and the household are 21 distinct documents.
+    await assertFails(save(20, 'big'));
+  });
+
   it('a partner cannot edit or soft-delete a private transaction', async () => {
     await assertFails(tx(BOB).doc('tPriv').update({ deletedAt: new Date(), rev: 1, ...updatedBy(BOB) }));
   });

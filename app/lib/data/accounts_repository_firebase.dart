@@ -10,7 +10,10 @@ import 'package:flutter/foundation.dart';
 
 import 'package:xpense_app/data/accounts_repository.dart';
 import 'package:xpense_app/data/household_repository.dart';
-import 'package:xpense_app/data/household_repository_firebase.dart' show uuidV7;
+import 'package:xpense_app/data/transactions_repository.dart';
+import 'package:xpense_app/data/write/firestore_ledger_store.dart';
+import 'package:xpense_app/data/write/ledger_store.dart';
+import 'package:xpense_app/data/write/ledger_transactions_repository.dart';
 import 'package:xpense_shared/xpense_shared.dart';
 
 /// [AccountsRepository] over Firestore.
@@ -28,8 +31,10 @@ final class FirebaseAccountsRepository implements AccountsRepository {
     required HouseholdRepository households,
     Clock? clock,
     Random? random,
+    TransactionsRepository? ledger,
     this.entriesLimit = defaultEntriesLimit,
   }) : _households = households,
+       _ledgerOverride = ledger,
        _clock = clock ?? const Clock(),
        _random = random ?? Random.secure() {
     _membershipSubscription = households.watchMembership().listen(
@@ -60,6 +65,25 @@ final class FirebaseAccountsRepository implements AccountsRepository {
   final HouseholdRepository _households;
   final Clock _clock;
   final Random _random;
+  final TransactionsRepository? _ledgerOverride;
+
+  /// The transaction write path (WP-20), which writes opening balances.
+  late final TransactionsRepository _ledger =
+      _ledgerOverride ??
+      LedgerTransactionsRepository(
+        FirestoreLedgerStore(
+          firestore: _firestore,
+          scope: () {
+            final hid = _hid;
+            final uid = _uid;
+            return hid == null || uid == null
+                ? null
+                : LedgerScope(householdId: hid, uid: uid);
+          },
+          clock: _clock,
+          random: _random,
+        ),
+      );
 
   late final StreamSubscription<Membership> _membershipSubscription;
   StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? _accountsSub;
@@ -345,9 +369,12 @@ final class FirebaseAccountsRepository implements AccountsRepository {
       );
       final order = _accounts.fold(-1, (m, a) => max(m, a.order)) + 1;
 
-      // First write: the account (balance 0) and the private-accounts flag.
-      // The opening entry is a second write, because the rules check the
-      // entry against the account as it was before the batch.
+      // First write: the account (balance 0), the private-accounts flag and
+      // a typed rate as today's. The opening entry is a second write,
+      // because the rules check the entry against the account as it was
+      // before the batch.
+      final today = householdDay(_clock.now());
+      final typedRate = draft.openingRate;
       final first = _firestore.batch()
         ..set(accountRef, {
           'name': draft.name,
@@ -365,89 +392,55 @@ final class FirebaseAccountsRepository implements AccountsRepository {
           'visibilityAppliedTo': visibleTo,
           ..._createStamps(uid),
         });
+      if (opening != 0 && typedRate != null) {
+        first.set(_collection(hid, 'fxRates').doc(today), {
+          'usdIqd': typedRate.rateString,
+          'kind': rateKind,
+          'enteredBy': uid,
+          'enteredAt': FieldValue.serverTimestamp(),
+        });
+      }
       _flagPrivate(first, hid, uid, [..._accounts, account]);
       await _commit(first, 'adding an account');
 
       if (opening != 0) {
-        await _commit(
-          _openingBalance(
-            hid: hid,
-            uid: uid,
-            account: account,
-            amountMinor: opening,
-            baseAmountMinor: baseAmountMinor,
-            rate: rate,
-            rateKind: rateKind,
-            saveRate: draft.openingRate != null,
-          ),
-          'writing an opening balance',
+        // The opening balance is an `adjustment` saved through the
+        // transaction write path (WP-20).
+        const draftId = 'opening';
+        final saved = await _ledger.saveEntries(
+          [
+            EntryDraft(
+              id: draftId,
+              intent: CaptureIntent.adjustment.wire,
+              amountMinor: opening.abs(),
+              currency: draft.currency.code,
+              accountId: id,
+              occurredOn: today,
+              fx: typedRate == null
+                  ? null
+                  : FxQuote(
+                      pair: typedRate.pair.code,
+                      pairRate: typedRate.rateString,
+                      source: 'manual',
+                      asOf: today,
+                    ),
+            ),
+          ],
+          source: EntrySource.manual,
+          extras: {draftId: EntryExtras(adjustmentSign: opening < 0 ? -1 : 1)},
         );
+        if (saved case Err(:final failure)) {
+          return Err(switch (failure) {
+            EntryRateNeeded() => const AccountsRateNeeded(),
+            TransactionsNotAllowed() => const AccountsNotAllowed(),
+            _ => AccountsUnknown(failure.code),
+          });
+        }
       }
       return Ok(id);
     } on FirebaseException catch (e, s) {
       return Err(_failure(e, s, 'adding an account'));
     }
-  }
-
-  /// The opening balance as an `adjustment` entry plus the balance
-  /// increment (DATA_MODEL 3). A minimal write helper: WP-20's transaction
-  /// write path replaces it.
-  WriteBatch _openingBalance({
-    required String hid,
-    required String uid,
-    required Account account,
-    required int amountMinor,
-    required int baseAmountMinor,
-    required FxRate? rate,
-    required String rateKind,
-    required bool saveRate,
-  }) {
-    final now = _clock.now();
-    final day = localDay(now);
-    final batch = _firestore.batch();
-    final txnRef = _collection(hid, 'transactions').doc(uuidV7(now, _random));
-    batch
-      ..set(txnRef, {
-        'type': 'adjustment',
-        'adjustmentSign': amountMinor < 0 ? -1 : 1,
-        'amountMinor': amountMinor.abs(),
-        'currency': account.currency.code,
-        'accountId': account.id,
-        'baseAmountMinor': baseAmountMinor,
-        'fx': rate == null
-            ? null
-            : {
-                'pair': rate.pair.code,
-                'pairRate': rate.rateString,
-                'source': saveRate ? 'manual' : rateKind,
-                'asOf': day,
-              },
-        'categoryId': null,
-        'whoUid': account.ownerUid,
-        'whoScope': account.scope == AccountScope.joint ? 'joint' : 'member',
-        'occurredAt': Timestamp.fromDate(now),
-        'occurredOn': day,
-        // No stored English: the app names an untitled adjustment.
-        'title': '',
-        'source': 'manual',
-        'visibleTo': account.visibleTo,
-        'deletedAt': null,
-        'rev': 0,
-        ..._createStamps(uid),
-      })
-      ..update(_collection(hid, 'accounts').doc(account.id), {
-        'balanceMinor': FieldValue.increment(amountMinor),
-        ..._updateStamps(uid),
-      });
-    if (saveRate && rate != null) {
-      batch.set(_collection(hid, 'fxRates').doc(day), {
-        'usdIqd': rate.rateString,
-        'kind': rateKind,
-        'enteredBy': uid,
-        'enteredAt': FieldValue.serverTimestamp(),
-      });
-    }
-    return batch;
   }
 
   @override

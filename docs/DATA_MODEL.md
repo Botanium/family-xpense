@@ -100,6 +100,7 @@ One document per money event. A transfer is one document with both accounts (D-1
 | `accountId` | string | the account money leaves (or enters, for `income`, `loan_taken`, `repayment_received`) |
 | `toAccountId` | string? | transfers only |
 | `toAmountMinor` | int? | transfers between currencies: amount that arrives |
+| `toAmountSource` | `entered` \| `rate`? | whether `toAmountMinor` was typed (kept when the entry moves to another day) or converted with the rate (converted again); absent on entries saved before it was recorded (PR #35) |
 | `baseAmountMinor` | int | in household base currency |
 | `fx` | map? | `{pair, pairRate, source, asOf}`; absent when currency equals base |
 | `categoryId` | string? | required for `expense` and `income` |
@@ -109,6 +110,7 @@ One document per money event. A transfer is one document with both accounts (D-1
 | `title` | string | merchant or short label, max 80 chars |
 | `note` | string? | max 500 chars |
 | `personId` | string? | counterparty for loans and repayments |
+| `personName` | string? | the counterparty's name as said, when there is no `personId` yet (PR #35) |
 | `loanId` | string? | |
 | `goalId` | string? | savings moves |
 | `recurringId` | string? | posted from a recurring template |
@@ -119,6 +121,7 @@ One document per money event. A transfer is one document with both accounts (D-1
 | `visibleTo` | string[] | union of the `visibleTo` of `accountId` and `toAccountId` |
 | `deletedAt` | timestamp? | soft delete; hidden from lists, kept for undo and audit |
 | `rev` | int | increments on every edit |
+| `revId`, `prevRevId` | string? | id of this version (also its revision's id) and of the version the write was built on; the rules accept an update only when `prevRevId` equals the stored `revId`, so a queued write whose predecessor was refused is refused too (PR #35) |
 
 `revisions/{revId}`: append-only. `{rev, before (map of changed fields), changedBy, changedAt, reason: edit | undo | delete | restore | system}`.
 
