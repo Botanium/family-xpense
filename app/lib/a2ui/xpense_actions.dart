@@ -172,6 +172,10 @@ enum SaveFailure {
   /// The member may not write to that account.
   denied,
 
+  /// The household has no dollar rate for the entry's date yet; the slip
+  /// asks for one.
+  rateNeeded,
+
   /// Anything else; the drafts stay on screen.
   unknown,
 }

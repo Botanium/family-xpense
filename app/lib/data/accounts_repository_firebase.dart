@@ -532,6 +532,32 @@ final class FirebaseAccountsRepository implements AccountsRepository {
     }
   }
 
+  @override
+  Future<Result<void, AccountsFailure>> setDailyRate(FxRate rate) async {
+    final hid = _hid;
+    final uid = _uid;
+    if (hid == null || uid == null) return const Err(AccountsNotAllowed());
+    const what = "saving today's rate";
+    try {
+      final household = await _collectionDoc(hid).get();
+      final rateKind = switch (household.data()?['rateKind']) {
+        'official' => 'official',
+        _ => 'market',
+      };
+      final batch = _firestore.batch()
+        ..set(_collection(hid, 'fxRates').doc(householdDay(_clock.now())), {
+          'usdIqd': rate.rateString,
+          'kind': rateKind,
+          'enteredBy': uid,
+          'enteredAt': FieldValue.serverTimestamp(),
+        });
+      await _commit(batch, what);
+      return const Ok(null);
+    } on FirebaseException catch (e, s) {
+      return Err(_failure(e, s, what));
+    }
+  }
+
   /// Keeps `members/{uid}.hasPrivateAccounts` in step with [accounts], the
   /// member's accounts after the write.
   void _flagPrivate(

@@ -163,7 +163,9 @@ class _EntrySlipViewState extends State<EntrySlipView> {
   Widget _amount(BuildContext context) {
     final draft = _draft;
     final base = widget.household.baseCurrency;
-    final fx = draft.fx?.baseAmountMinor;
+    // A quote the draft carries, else a preview at the latest rate, shown
+    // only: the save prices the entry with the rate for its date.
+    final fx = draft.fx?.baseAmountMinor ?? _previewBaseAmount(draft, base);
     return CatalogMoneyText(
       amountMinor: draft.amountMinor ?? 0,
       currency: draft.currency,
@@ -175,19 +177,69 @@ class _EntrySlipViewState extends State<EntrySlipView> {
     );
   }
 
+  int? _previewBaseAmount(EntryDraft draft, String base) {
+    final minor = draft.amountMinor;
+    final currency = Currency.tryParse(draft.currency ?? '');
+    final baseCurrency = Currency.tryParse(base);
+    final latest = widget.household.latestRate;
+    if (minor == null ||
+        currency == null ||
+        baseCurrency == null ||
+        latest == null ||
+        currency == baseCurrency) {
+      return null;
+    }
+    final rate = FxRate.parse(FxPair.usdIqd.code, latest).valueOrNull;
+    if (rate == null) return null;
+    return toBaseAmount(
+      Money(minor, currency),
+      baseCurrency,
+      rate: rate,
+    ).valueOrNull?.minorUnits;
+  }
+
   bool get _needsRate =>
       widget.onAnswer != null &&
       _draft.currency != null &&
       _draft.currency != widget.household.baseCurrency &&
-      !widget.household.rateEnteredToday &&
-      widget.household.latestRate != null;
+      !widget.household.rateEnteredToday;
 
   Widget _rate(BuildContext context) {
     final l10n = context.l10n;
-    final latest = widget.household.latestRate!;
+    final latest = widget.household.latestRate;
     Future<void> save(String rate) async {
       await widget.onRate(rate);
       if (mounted) widget.onRateSaved();
+    }
+
+    void enter(String initial) => unawaited(
+      showGlassSheet<void>(
+        context: context,
+        builder: (sheet) => RateChangeSheet(
+          title: l10n.a2uiRateTitle,
+          initial: initial,
+          unit: l10n.a2uiRateUnit,
+          saveLabel: l10n.a2uiRateSave,
+          backspaceLabel: l10n.a2uiRateBackspace,
+          onSave: (rate) {
+            Navigator.of(sheet).pop();
+            unawaited(save(rate));
+          },
+        ),
+      ),
+    );
+
+    // The household's first rate: nothing to reuse, so the keypad opens
+    // empty.
+    if (latest == null) {
+      return Row(
+        children: [
+          Expanded(
+            child: Text(l10n.a2uiRateQuestion, style: XpType.of(context).body),
+          ),
+          XpButton.text(label: l10n.a2uiRateEnter, onPressed: () => enter('')),
+        ],
+      );
     }
 
     return RatePrompt(
@@ -198,22 +250,7 @@ class _EntrySlipViewState extends State<EntrySlipView> {
       placement: RatePromptPlacement.inline,
       semanticLabel: l10n.a2uiRateSpoken(latest),
       onSame: () => unawaited(save(latest)),
-      onChange: () => unawaited(
-        showGlassSheet<void>(
-          context: context,
-          builder: (sheet) => RateChangeSheet(
-            title: l10n.a2uiRateTitle,
-            initial: latest,
-            unit: l10n.a2uiRateUnit,
-            saveLabel: l10n.a2uiRateSave,
-            backspaceLabel: l10n.a2uiRateBackspace,
-            onSave: (rate) {
-              Navigator.of(sheet).pop();
-              unawaited(save(rate));
-            },
-          ),
-        ),
-      ),
+      onChange: () => enter(latest),
     );
   }
 

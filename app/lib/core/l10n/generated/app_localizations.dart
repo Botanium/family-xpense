@@ -2153,11 +2153,77 @@ abstract class AppLocalizations {
   /// **'Ask'**
   String get askTitle;
 
-  /// Placeholder line on Ask until capture is built.
+  /// Empty Ask thread: one line that says what to type.
   ///
   /// In en, this message translates to:
-  /// **'Tell Xpense what you spent, earned or lent. Talking, typing and scanning arrive in a later version.'**
-  String get askPlaceholder;
+  /// **'Tell Xpense what you spent, earned or lent, or ask about your money.'**
+  String get askEmpty;
+
+  /// Mode chip while the typed message would be classified by the cloud Decisions service: the words go to the cloud, nothing else.
+  ///
+  /// In en, this message translates to:
+  /// **'Smart: classification in cloud'**
+  String get askModeDecide;
+
+  /// Busy line in the Ask thread while the cloud reads a message.
+  ///
+  /// In en, this message translates to:
+  /// **'Working on it…'**
+  String get askThinking;
+
+  /// Text button next to the busy line that cancels the running request.
+  ///
+  /// In en, this message translates to:
+  /// **'Stop'**
+  String get askStop;
+
+  /// Text button on an Ask notice that sends the same message again.
+  ///
+  /// In en, this message translates to:
+  /// **'Retry'**
+  String get askRetry;
+
+  /// Text button on an Ask notice that builds the entry on the phone and asks for the missing fields.
+  ///
+  /// In en, this message translates to:
+  /// **'Finish manually'**
+  String get askFinishManually;
+
+  /// Ask notice when a message could not reach the server.
+  ///
+  /// In en, this message translates to:
+  /// **'No connection. This message needs the cloud.'**
+  String get askNoticeOffline;
+
+  /// Ask notice when the household reached its daily limit of cloud requests.
+  ///
+  /// In en, this message translates to:
+  /// **'Today\'s cloud limit for your household is used up. It resets tomorrow.'**
+  String get askNoticeLimit;
+
+  /// Ask notice when a message needs the cloud but the household is in On-device mode.
+  ///
+  /// In en, this message translates to:
+  /// **'On-device mode keeps this on your phone. Change the privacy mode in Settings to use the cloud.'**
+  String get askNoticePrivacy;
+
+  /// Ask notice for any other failure.
+  ///
+  /// In en, this message translates to:
+  /// **'Something went wrong with this message.'**
+  String get askNoticeError;
+
+  /// Offline banner under the Ask top bar.
+  ///
+  /// In en, this message translates to:
+  /// **'Offline. Entries are made on this phone.'**
+  String get askOffline;
+
+  /// Spoken label of the keyboard send action in the Ask dock.
+  ///
+  /// In en, this message translates to:
+  /// **'Send'**
+  String get askSend;
 
   /// Privacy mode name on the Ask mode chip: nothing leaves the phone for AI processing.
   ///
@@ -2416,6 +2482,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Couldn\'t save. Your entries are still here.'**
   String get a2uiSaveFailed;
+
+  /// Shown under the Save button when the household has no dollar rate yet for an entry in another currency.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter today\'s dollar rate to save this.'**
+  String get a2uiSaveRateNeeded;
+
+  /// Text button on a slip that opens the rate keypad when the household has never entered a dollar rate.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter rate'**
+  String get a2uiRateEnter;
 
   /// Text button that undoes a save, shown for ten seconds.
   ///

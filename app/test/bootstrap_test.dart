@@ -96,7 +96,17 @@ void main() {
       final flags = await connectFeatureFlags(AppEnvironment.fakes);
       expect(flags.current, FeatureFlags.defaults);
       expect(flags.current.appleSignInEnabled, isFalse);
-      expect(FeatureFlags.remoteDefaults, {'apple_sign_in_enabled': false});
+      expect(FeatureFlags.remoteDefaults, {
+        'apple_sign_in_enabled': false,
+        // The capture pipeline's defaults (AI_PIPELINE 2 and 9).
+        'router_no_model_uses_decide': true,
+        'conf_high': 0.85,
+        'conf_low': 0.55,
+        'conf_intent_min': 0.90,
+        'conf_on_device_cap': 0.80,
+        'dup_warn': 0.80,
+        'recurring_offer': 0.75,
+      });
     });
   });
 
