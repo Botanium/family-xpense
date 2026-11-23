@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:cupertino_ui/cupertino_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -294,5 +296,139 @@ void main() {
     await _tap(tester, find.text('Cancel'));
     expect(find.text('Add manually'), findsNothing);
     expect(find.text('Discard changes'), findsNothing);
+  });
+
+  group('dismissing (Codex review, PR #39)', () {
+    // The dimmed screen above the sheet: the status bar area, which the
+    // sheet keeps clear (a 47 pt inset, as on artboard frames).
+    const barrier = Offset(200, 20);
+
+    setUp(() {
+      final view =
+          TestWidgetsFlutterBinding.instance.platformDispatcher.views.first
+            ..padding = const FakeViewPadding(top: 47 * 3);
+      addTearDown(view.resetPadding);
+    });
+
+    testWidgets('a tap beside a changed sheet asks before discarding', (
+      tester,
+    ) async {
+      final app = LedgerApp();
+      await _openSheet(tester, app);
+      await tester.enterText(_amountInput(), '5');
+      await tester.pump();
+      await tester.tapAt(barrier);
+      await tester.pumpAndSettle();
+      expect(find.text('Discard changes'), findsOneWidget);
+      await _tap(tester, find.text('Keep editing'));
+      expect(find.text('Add manually'), findsOneWidget);
+
+      await tester.tapAt(barrier);
+      await tester.pumpAndSettle();
+      await _tap(tester, find.text('Discard changes'));
+      expect(find.text('Add manually'), findsNothing);
+    });
+
+    testWidgets('a tap beside an untouched sheet closes it', (tester) async {
+      final app = LedgerApp();
+      await _openSheet(tester, app);
+      await tester.tapAt(barrier);
+      await tester.pumpAndSettle();
+      expect(find.text('Add manually'), findsNothing);
+      expect(find.text('Discard changes'), findsNothing);
+    });
+
+    testWidgets('dragging a changed sheet down does not close it', (
+      tester,
+    ) async {
+      final app = LedgerApp();
+      await _openSheet(tester, app);
+      await tester.enterText(_amountInput(), '5');
+      await tester.pump();
+      await tester.drag(find.text('Add manually'), const Offset(0, 600));
+      await tester.pumpAndSettle();
+      expect(find.text('Add manually'), findsOneWidget);
+      expect(app.saved, isEmpty);
+    });
+
+    testWidgets('nothing closes the sheet while a save is in flight', (
+      tester,
+    ) async {
+      final hold = Completer<void>();
+      final app = LedgerApp(holdWrites: hold.future);
+      await _openSheet(tester, app);
+      await tester.enterText(_amountInput(), '5');
+      await tester.pump();
+      await _tap(tester, find.text('Food'));
+      await tester.tap(find.text('Save'));
+      await tester.pump();
+      expect(find.text('Saving…'), findsOneWidget);
+
+      await tester.tapAt(barrier);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Cancel'));
+      await tester.pumpAndSettle();
+      expect(find.text('Add manually'), findsOneWidget);
+      expect(find.text('Discard changes'), findsNothing);
+
+      hold.complete();
+      await tester.pumpAndSettle();
+      expect(find.text('Add manually'), findsNothing);
+      expect(app.saved, hasLength(1));
+      await _toastGone(tester);
+    });
+  });
+
+  group('defaults shown are the values saved (Codex review, PR #39)', () {
+    bool chipSelected(WidgetTester tester, String label) =>
+        tester.widget<XpChip>(find.widgetWithText(XpChip, label)).selected;
+
+    testWidgets("Sam's account shows Sam under Who and saves Sam's", (
+      tester,
+    ) async {
+      final app = LedgerApp();
+      await _openSheet(tester, app);
+      await tester.enterText(_amountInput(), '12');
+      await _tap(tester, find.text('Food'));
+      // The default account is the viewer's own: You.
+      expect(chipSelected(tester, 'You'), isTrue);
+      await _pickAccount(tester, 'Account', "Sam's checking ••5530");
+      expect(chipSelected(tester, 'Sam'), isTrue);
+      expect(chipSelected(tester, 'You'), isFalse);
+      await _tap(tester, find.text('Save expense'));
+
+      final [txn] = app.saved;
+      expect(txn['accountId'], 'acc-sam-checking');
+      expect(txn['whoUid'], partner);
+      expect(txn['whoScope'], 'member');
+      await _toastGone(tester);
+    });
+
+    testWidgets('a joint account shows Joint and saves it joint', (
+      tester,
+    ) async {
+      final app = LedgerApp();
+      await _openSheet(tester, app);
+      await tester.enterText(_amountInput(), '12');
+      await _tap(tester, find.text('Food'));
+      await _pickAccount(tester, 'Account', 'Joint Visa ••4021');
+      expect(chipSelected(tester, 'Joint'), isTrue);
+      await _tap(tester, find.text('Save expense'));
+      expect(app.saved.single['whoScope'], 'joint');
+      await _toastGone(tester);
+    });
+
+    testWidgets('a category left from another tab is not saved', (
+      tester,
+    ) async {
+      final app = LedgerApp();
+      await _openSheet(tester, app);
+      await tester.enterText(_amountInput(), '12');
+      await _tap(tester, find.text('Food'));
+      await _tap(tester, find.text('Income'));
+      await _tap(tester, find.text('Save income'));
+      expect(find.text('Choose a category.'), findsOneWidget);
+      expect(app.saved, isEmpty);
+    });
   });
 }

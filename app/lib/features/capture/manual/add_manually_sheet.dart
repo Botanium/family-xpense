@@ -47,9 +47,8 @@ Future<ManualSheetOutcome?> showAddManuallySheet(
   final l10n = context.l10n;
   final form = GlobalKey<AddManuallyFormState>();
   final editing = editTxnId != null;
-  return showGlassSheet<ManualSheetOutcome>(
+  return _showFormSheet(
     context: root.context,
-    detent: SheetDetent.large,
     header: SheetHeader(
       cancelLabel: l10n.captureManualCancel,
       onCancel: () => form.currentState?.cancel(),
@@ -62,6 +61,53 @@ Future<ManualSheetOutcome?> showAddManuallySheet(
       initial: draft,
       editTxnId: editTxnId,
       focus: focus,
+    ),
+  );
+}
+
+/// [showGlassSheet] at the large detent, without drag-to-dismiss.
+///
+/// The bottom sheet's drag closes its route with `Navigator.pop`, which a
+/// [PopScope] cannot stop, so a half-filled form could be lost to a swipe.
+/// Cancel and a tap on the dimmed screen both go through
+/// [AddManuallyFormState.cancel] instead (Codex review, PR #39). Same look
+/// as `showGlassSheet`; that helper has no `enableDrag` yet (design system
+/// follow-up).
+Future<ManualSheetOutcome?> _showFormSheet({
+  required BuildContext context,
+  required SheetHeader header,
+  required WidgetBuilder builder,
+}) {
+  final colors = XpColors.of(context);
+  final motion = XpMotion.of(context);
+  return showModalBottomSheet<ManualSheetOutcome>(
+    context: context,
+    isScrollControlled: true,
+    useSafeArea: true,
+    enableDrag: false,
+    backgroundColor: colors.canvas.withValues(alpha: 0),
+    elevation: 0,
+    barrierColor: colors.ink.withValues(alpha: XpOpacity.barrier),
+    sheetAnimationStyle: AnimationStyle(
+      duration: motion.slow,
+      reverseDuration: motion.base,
+      curve: XpMotion.slowCurve,
+    ),
+    builder: (context) => Padding(
+      padding: EdgeInsetsDirectional.only(
+        start: XpSpace.sheetMargin,
+        end: XpSpace.sheetMargin,
+        bottom: XpSpace.sheetMargin + MediaQuery.viewInsetsOf(context).bottom,
+      ),
+      child: ConstrainedBox(
+        constraints: BoxConstraints(
+          maxHeight: MediaQuery.sizeOf(context).height,
+        ),
+        child: GlassSheet(
+          header: header,
+          child: Builder(builder: builder),
+        ),
+      ),
     ),
   );
 }
@@ -172,13 +218,30 @@ class AddManuallyFormState extends ConsumerState<AddManuallyForm> {
     _ => Currency.usd,
   };
 
-  /// The values with the default account filled in.
+  /// The values with the defaults filled in, so what the sheet shows is
+  /// what it saves: the account (one in the base currency first) and, for
+  /// expense and income, whose it is ([defaultWho], the write path's
+  /// rule).
   ManualEntryValues _resolved(List<Account> accounts) {
-    if (_values.accountId != null || accounts.isEmpty) return _values;
-    final base = _base();
-    final first =
-        accounts.where((a) => a.currency == base).firstOrNull ?? accounts.first;
-    return _values.copyWith(accountId: first.id);
+    var values = _values;
+    if (values.accountId == null && accounts.isNotEmpty) {
+      final base = _base();
+      final first =
+          accounts.where((a) => a.currency == base).firstOrNull ??
+          accounts.first;
+      values = values.copyWith(accountId: first.id);
+    }
+    final account = accounts.where((a) => a.id == values.accountId).firstOrNull;
+    if (values.who == null && values.categoryKind != null && account != null) {
+      values = values.copyWith(
+        who: defaultWho(
+          joint: account.scope == AccountScope.joint,
+          ownerUid: account.ownerUid,
+          viewerUid: ref.read(accountsRepositoryProvider).viewerUid,
+        ),
+      );
+    }
+    return values;
   }
 
   /// Closes without saving; asks first when something was changed.
@@ -445,8 +508,7 @@ class AddManuallyFormState extends ConsumerState<AddManuallyForm> {
         account != null &&
         toAccount.currency != account.currency;
     final categoryKind = values.categoryKind;
-    final effectiveWho =
-        values.who ?? (account?.scope == AccountScope.joint ? 'joint' : 'me');
+    final effectiveWho = values.who;
 
     String? error(ManualField field, {String? code}) =>
         switch (_errors[field]) {
@@ -462,226 +524,241 @@ class AddManuallyFormState extends ConsumerState<AddManuallyForm> {
       _ => l10n.captureManualAccount,
     };
 
-    return SingleChildScrollView(
-      padding: const EdgeInsetsDirectional.fromSTEB(
-        XpSpace.s8,
-        XpSpace.s12,
-        XpSpace.s8,
-        XpSpace.s8,
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          if (values.otherIntent == null) ...[
-            XpFilterBar(
-              labels: [
-                for (final k in ManualKind.values) l10n.manualKindTab(k),
-              ],
-              selectedIndex: values.kind.index,
-              onSelected: _saving
-                  ? (_) {}
-                  : (i) => _edit(
-                      _values.copyWith(kind: ManualKind.values[i]),
-                      clears: ManualField.values,
-                    ),
-            ),
-            const SizedBox(height: XpSpace.s24),
-          ],
-          anchor(
-            ManualField.amount,
-            AmountField(
-              label: l10n.captureManualAmount,
-              currency: currency.code,
-              exponent: currency.exponent,
-              controller: _amount,
-              currencyLabel: l10n.captureManualCurrency(currency.code),
-              onCurrencyPressed: _saving
-                  ? null
-                  : () => unawaited(_pickAccount(destination: false)),
-              onChanged: (text) => _edit(
-                _values.copyWith(amountText: text),
-                clears: const [ManualField.amount],
+    // A tap on the dimmed screen or a back gesture goes through [cancel],
+    // like the Cancel button: it asks first when something changed, and
+    // nothing closes the sheet while a save is in flight.
+    return PopScope<ManualSheetOutcome>(
+      canPop: !dirty && !_saving,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) cancel();
+      },
+      child: SingleChildScrollView(
+        padding: const EdgeInsetsDirectional.fromSTEB(
+          XpSpace.s8,
+          XpSpace.s12,
+          XpSpace.s8,
+          XpSpace.s8,
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            if (values.otherIntent == null) ...[
+              XpFilterBar(
+                labels: [
+                  for (final k in ManualKind.values) l10n.manualKindTab(k),
+                ],
+                selectedIndex: values.kind.index,
+                onSelected: _saving
+                    ? (_) {}
+                    : (i) => _edit(
+                        _values.copyWith(kind: ManualKind.values[i]),
+                        clears: ManualField.values,
+                      ),
               ),
-            ),
-          ),
-          _FieldError(error(ManualField.amount)),
-          if (_values.rateAsked) ...[
-            const SizedBox(height: XpSpace.s16),
+              const SizedBox(height: XpSpace.s24),
+            ],
             anchor(
-              ManualField.rate,
-              XpTextField(
-                label: l10n.captureManualRate,
-                hint: l10n.captureManualRateHint,
-                controller: _rate,
-                enabled: !_saving,
-                keyboardType: const TextInputType.numberWithOptions(
-                  decimal: true,
-                ),
-                error: error(ManualField.rate),
+              ManualField.amount,
+              AmountField(
+                label: l10n.captureManualAmount,
+                currency: currency.code,
+                exponent: currency.exponent,
+                controller: _amount,
+                currencyLabel: l10n.captureManualCurrency(currency.code),
+                onCurrencyPressed: _saving
+                    ? null
+                    : () => unawaited(_pickAccount(destination: false)),
                 onChanged: (text) => _edit(
-                  _values.copyWith(rateText: text),
-                  clears: const [ManualField.rate],
+                  _values.copyWith(amountText: text),
+                  clears: const [ManualField.amount],
                 ),
               ),
             ),
-          ],
-          if (kind == ManualKind.loan) ...[
-            const SizedBox(height: XpSpace.s20),
-            ChoiceChips<LoanDirection>(
-              options: [
-                for (final d in LoanDirection.values)
-                  ChoiceOption(value: d, label: l10n.loanDirectionChip(d)),
-              ],
-              selected: values.loanDirection,
-              onSelected: _saving
-                  ? null
-                  : (d) => _edit(_values.copyWith(loanDirection: d)),
-            ),
-            const SizedBox(height: XpSpace.s16),
-            anchor(
-              ManualField.person,
-              XpTextField(
-                label: l10n.captureManualPerson,
-                hint: l10n.captureManualPersonHint,
-                controller: _person,
-                enabled: !_saving,
-                textInputAction: TextInputAction.next,
-                error: error(ManualField.person),
-                onChanged: (text) => _edit(
-                  _values.copyWith(personName: text),
-                  clears: const [ManualField.person],
-                ),
-              ),
-            ),
-          ],
-          if (categoryKind != null) ...[
-            const SizedBox(height: XpSpace.s20),
-            anchor(ManualField.category, _Caption(l10n.captureManualCategory)),
-            const SizedBox(height: XpSpace.s8),
-            CategoryChips(
-              kind: categoryKind,
-              selected: values.categoryId,
-              onSelected: _saving
-                  ? null
-                  : (id) => _edit(
-                      _values.copyWith(categoryId: id),
-                      clears: const [ManualField.category],
-                    ),
-            ),
-            _FieldError(error(ManualField.category)),
-            const SizedBox(height: XpSpace.s16),
-            anchor(ManualField.who, _Caption(l10n.captureManualWho)),
-            const SizedBox(height: XpSpace.s8),
-            ChoiceChips<String>(
-              options: [
-                ChoiceOption(value: 'me', label: l10n.captureManualWhoYou),
-                if (partner != null)
-                  ChoiceOption(
-                    value: 'partner',
-                    label: partner.displayName.isEmpty
-                        ? l10n.captureManualWhoPartner
-                        : partner.displayName,
+            _FieldError(error(ManualField.amount)),
+            if (_values.rateAsked) ...[
+              const SizedBox(height: XpSpace.s16),
+              anchor(
+                ManualField.rate,
+                XpTextField(
+                  label: l10n.captureManualRate,
+                  hint: l10n.captureManualRateHint,
+                  controller: _rate,
+                  enabled: !_saving,
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
                   ),
-                ChoiceOption(value: 'joint', label: l10n.captureManualWhoJoint),
-              ],
-              selected: effectiveWho,
-              onSelected: _saving
-                  ? null
-                  : (who) => _edit(
-                      _values.copyWith(who: who),
-                      clears: const [ManualField.who],
+                  error: error(ManualField.rate),
+                  onChanged: (text) => _edit(
+                    _values.copyWith(rateText: text),
+                    clears: const [ManualField.rate],
+                  ),
+                ),
+              ),
+            ],
+            if (kind == ManualKind.loan) ...[
+              const SizedBox(height: XpSpace.s20),
+              ChoiceChips<LoanDirection>(
+                options: [
+                  for (final d in LoanDirection.values)
+                    ChoiceOption(value: d, label: l10n.loanDirectionChip(d)),
+                ],
+                selected: values.loanDirection,
+                onSelected: _saving
+                    ? null
+                    : (d) => _edit(_values.copyWith(loanDirection: d)),
+              ),
+              const SizedBox(height: XpSpace.s16),
+              anchor(
+                ManualField.person,
+                XpTextField(
+                  label: l10n.captureManualPerson,
+                  hint: l10n.captureManualPersonHint,
+                  controller: _person,
+                  enabled: !_saving,
+                  textInputAction: TextInputAction.next,
+                  error: error(ManualField.person),
+                  onChanged: (text) => _edit(
+                    _values.copyWith(personName: text),
+                    clears: const [ManualField.person],
+                  ),
+                ),
+              ),
+            ],
+            if (categoryKind != null) ...[
+              const SizedBox(height: XpSpace.s20),
+              anchor(
+                ManualField.category,
+                _Caption(l10n.captureManualCategory),
+              ),
+              const SizedBox(height: XpSpace.s8),
+              CategoryChips(
+                kind: categoryKind,
+                selected: values.categoryId,
+                onSelected: _saving
+                    ? null
+                    : (id) => _edit(
+                        _values.copyWith(categoryId: id),
+                        clears: const [ManualField.category],
+                      ),
+              ),
+              _FieldError(error(ManualField.category)),
+              const SizedBox(height: XpSpace.s16),
+              anchor(ManualField.who, _Caption(l10n.captureManualWho)),
+              const SizedBox(height: XpSpace.s8),
+              ChoiceChips<String>(
+                options: [
+                  ChoiceOption(value: 'me', label: l10n.captureManualWhoYou),
+                  if (partner != null)
+                    ChoiceOption(
+                      value: 'partner',
+                      label: partner.displayName.isEmpty
+                          ? l10n.captureManualWhoPartner
+                          : partner.displayName,
                     ),
-            ),
-            _FieldError(error(ManualField.who)),
-          ],
-          const SizedBox(height: XpSpace.s12),
-          anchor(
-            ManualField.account,
-            XpDisclosure(
-              title: accountLabel,
-              value: account?.name ?? l10n.captureManualChoose,
-              showDivider: false,
-              onTap: _saving
-                  ? null
-                  : () => unawaited(_pickAccount(destination: false)),
-            ),
-          ),
-          _FieldError(error(ManualField.account)),
-          if (transfer) ...[
+                  ChoiceOption(
+                    value: 'joint',
+                    label: l10n.captureManualWhoJoint,
+                  ),
+                ],
+                selected: effectiveWho,
+                onSelected: _saving
+                    ? null
+                    : (who) => _edit(
+                        _values.copyWith(who: who),
+                        clears: const [ManualField.who],
+                      ),
+              ),
+              _FieldError(error(ManualField.who)),
+            ],
+            const SizedBox(height: XpSpace.s12),
             anchor(
-              ManualField.toAccount,
+              ManualField.account,
               XpDisclosure(
-                title: l10n.captureManualTo,
-                value: toAccount?.name ?? l10n.captureManualChoose,
+                title: accountLabel,
+                value: account?.name ?? l10n.captureManualChoose,
                 showDivider: false,
                 onTap: _saving
                     ? null
-                    : () => unawaited(_pickAccount(destination: true)),
+                    : () => unawaited(_pickAccount(destination: false)),
               ),
             ),
-            _FieldError(error(ManualField.toAccount)),
-            if (crossCurrency) ...[
-              const SizedBox(height: XpSpace.s8),
-              _Caption(l10n.captureManualArrives),
+            _FieldError(error(ManualField.account)),
+            if (transfer) ...[
               anchor(
-                ManualField.toAmount,
-                AmountField(
-                  label: l10n.captureManualArrives,
-                  currency: toAccount.currency.code,
-                  exponent: toAccount.currency.exponent,
-                  controller: _toAmount,
-                  onChanged: (text) => _edit(
-                    _values.copyWith(toAmountText: text),
-                    clears: const [ManualField.toAmount],
+                ManualField.toAccount,
+                XpDisclosure(
+                  title: l10n.captureManualTo,
+                  value: toAccount?.name ?? l10n.captureManualChoose,
+                  showDivider: false,
+                  onTap: _saving
+                      ? null
+                      : () => unawaited(_pickAccount(destination: true)),
+                ),
+              ),
+              _FieldError(error(ManualField.toAccount)),
+              if (crossCurrency) ...[
+                const SizedBox(height: XpSpace.s8),
+                _Caption(l10n.captureManualArrives),
+                anchor(
+                  ManualField.toAmount,
+                  AmountField(
+                    label: l10n.captureManualArrives,
+                    currency: toAccount.currency.code,
+                    exponent: toAccount.currency.exponent,
+                    controller: _toAmount,
+                    onChanged: (text) => _edit(
+                      _values.copyWith(toAmountText: text),
+                      clears: const [ManualField.toAmount],
+                    ),
                   ),
                 ),
+                Padding(
+                  padding: const EdgeInsetsDirectional.only(top: XpSpace.s4),
+                  child: Text(
+                    l10n.captureManualArrivesHint,
+                    style: type.meta.copyWith(color: colors.inkSecondary),
+                  ),
+                ),
+                _FieldError(
+                  error(ManualField.toAmount, code: toAccount.currency.code),
+                ),
+              ],
+            ],
+            anchor(
+              ManualField.date,
+              XpDisclosure(
+                title: l10n.captureManualDate,
+                value: _dayLabel(values.occurredOn),
+                showDivider: false,
+                onTap: _saving ? null : () => unawaited(_pickDate()),
               ),
-              Padding(
-                padding: const EdgeInsetsDirectional.only(top: XpSpace.s4),
-                child: Text(
-                  l10n.captureManualArrivesHint,
-                  style: type.meta.copyWith(color: colors.inkSecondary),
+            ),
+            _FieldError(error(ManualField.date)),
+            const SizedBox(height: XpSpace.s8),
+            anchor(
+              ManualField.note,
+              XpTextField(
+                label: l10n.captureManualNote,
+                hint: l10n.captureManualNoteHint,
+                controller: _note,
+                enabled: !_saving,
+                error: error(ManualField.note),
+                textInputAction: TextInputAction.done,
+                onChanged: (text) => _edit(
+                  _values.copyWith(note: text),
+                  clears: const [ManualField.note],
                 ),
               ),
-              _FieldError(
-                error(ManualField.toAmount, code: toAccount.currency.code),
-              ),
-            ],
+            ),
+            const SizedBox(height: XpSpace.s24),
+            XpButton.primary(
+              label: _saving
+                  ? l10n.captureManualSaving
+                  : l10n.manualSaveLabel(values.kind, editing: _editing),
+              onPressed: _saving ? null : () => unawaited(save()),
+            ),
           ],
-          anchor(
-            ManualField.date,
-            XpDisclosure(
-              title: l10n.captureManualDate,
-              value: _dayLabel(values.occurredOn),
-              showDivider: false,
-              onTap: _saving ? null : () => unawaited(_pickDate()),
-            ),
-          ),
-          _FieldError(error(ManualField.date)),
-          const SizedBox(height: XpSpace.s8),
-          anchor(
-            ManualField.note,
-            XpTextField(
-              label: l10n.captureManualNote,
-              hint: l10n.captureManualNoteHint,
-              controller: _note,
-              enabled: !_saving,
-              error: error(ManualField.note),
-              textInputAction: TextInputAction.done,
-              onChanged: (text) => _edit(
-                _values.copyWith(note: text),
-                clears: const [ManualField.note],
-              ),
-            ),
-          ),
-          const SizedBox(height: XpSpace.s24),
-          XpButton.primary(
-            label: _saving
-                ? l10n.captureManualSaving
-                : l10n.manualSaveLabel(values.kind, editing: _editing),
-            onPressed: _saving ? null : () => unawaited(save()),
-          ),
-        ],
+        ),
       ),
     );
   }

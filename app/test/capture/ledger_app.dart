@@ -8,6 +8,7 @@ import 'package:xpense_app/bootstrap.dart';
 import 'package:xpense_app/data/accounts_repository.dart';
 import 'package:xpense_app/data/accounts_repository_fake.dart';
 import 'package:xpense_app/data/read/memory_entry_reader.dart';
+import 'package:xpense_app/data/transactions_repository.dart';
 import 'package:xpense_app/data/write/ledger_store.dart';
 import 'package:xpense_app/data/write/ledger_transactions_repository.dart';
 import 'package:xpense_app/data/write/memory_ledger_store.dart';
@@ -29,6 +30,7 @@ final class LedgerApp {
   /// needs a typed rate.
   factory({
     bool withRate = true,
+    Future<void>? holdWrites,
     AppearanceMode appearance = AppearanceMode.light,
   }) {
     final services = TestServices(
@@ -68,10 +70,19 @@ final class LedgerApp {
       memory,
       LedgerTransactionsRepository(store),
       MemoryEntryReader(store),
+      holdWrites,
     );
   }
 
-  new _(this.services, this.memory, this.repository, this.reader);
+  new _(
+    this.services,
+    this.memory,
+    this.repository,
+    this.reader, [
+    this._holdWrites,
+  ]);
+
+  final Future<void>? _holdWrites;
 
   /// The other fakes.
   final TestServices services;
@@ -98,7 +109,9 @@ final class LedgerApp {
       authRepository: services.auth,
       householdRepository: services.households,
       accountsRepository: services.accounts,
-      transactionsRepository: repository,
+      transactionsRepository: _holdWrites == null
+          ? repository
+          : _HeldRepository(repository, _holdWrites),
       entryReader: reader,
       featureFlags: services.flags,
       onDeviceLlm: services.onDeviceLlm,
@@ -142,4 +155,50 @@ void unawaitedPush(
   // The pushed route's future completes when it pops; tests do not wait
   // for that.
   container.read(routerProvider).push<void>(location, extra: extra).ignore();
+}
+
+/// The write path with every save held until [_hold] completes, so a test
+/// can act while a save is in flight.
+final class _HeldRepository implements TransactionsRepository {
+  new(this._inner, this._hold);
+
+  final TransactionsRepository _inner;
+  final Future<void> _hold;
+
+  @override
+  Future<Result<SavedEntries, TransactionsFailure>> saveEntries(
+    List<EntryDraft> drafts, {
+    EntrySource? source,
+    Map<String, EntryExtras> extras = const {},
+  }) async {
+    await _hold;
+    return await _inner.saveEntries(drafts, source: source, extras: extras);
+  }
+
+  @override
+  Future<Result<WriteAck, TransactionsFailure>> editEntry(
+    String txnId,
+    EntryDraft draft, {
+    EntryExtras extras = const EntryExtras(),
+  }) async {
+    await _hold;
+    return await _inner.editEntry(txnId, draft, extras: extras);
+  }
+
+  @override
+  Future<Result<WriteAck, TransactionsFailure>> deleteEntry(
+    String txnId, {
+    DeleteReason reason = DeleteReason.delete,
+  }) => _inner.deleteEntry(txnId, reason: reason);
+
+  @override
+  Future<Result<WriteAck, TransactionsFailure>> undoSave(SavedEntries saved) =>
+      _inner.undoSave(saved);
+
+  @override
+  Future<Result<WriteAck, TransactionsFailure>> restoreEntry(String txnId) =>
+      _inner.restoreEntry(txnId);
+
+  @override
+  Stream<LateWriteFailure> get lateFailures => _inner.lateFailures;
 }

@@ -235,6 +235,59 @@ void main() {
       expect(values.kind, ManualKind.income);
     });
 
+    test('a savings move into a goal keeps its intent and goal', () {
+      // Codex review, PR #39: prefilling turned it into a plain transfer
+      // that then asked for a destination account.
+      final initial = EntryDraft(
+        id: 'slip-2',
+        intent: 'savings_move',
+        amountMinor: 20000,
+        currency: 'USD',
+        accountId: 'usd',
+        goalId: 'goal-trip',
+      );
+      final values = ManualEntryValues.fromDraft(initial, today: _day);
+      expect(values.kind, ManualKind.transfer);
+      final check = _check(values, initial: initial);
+      expect(check.errors, isEmpty);
+      expect(check.draft!.intent, 'savings_move');
+      expect(check.draft!.goalId, 'goal-trip');
+      expect(check.draft!.toAccountId, isNull);
+
+      // Another tab ends it: back on Transfer it is a plain transfer.
+      final moved = values
+          .copyWith(kind: ManualKind.expense)
+          .copyWith(kind: ManualKind.transfer);
+      expect(moved.intent, 'transfer');
+      expect(_check(moved, initial: initial).errors, {
+        ManualField.toAccount: ManualIssue.missing,
+      });
+    });
+
+    test('a category of the other kind counts as none chosen', () {
+      // What the chips show (nothing) is what is checked.
+      final check = _check(
+        const ManualEntryValues(
+          kind: ManualKind.income,
+          occurredOn: _day,
+          amountText: '5',
+          accountId: 'usd',
+          categoryId: 'groceries',
+        ),
+      );
+      expect(check.errors, {ManualField.category: ManualIssue.missing});
+    });
+
+    test('the default Who follows the account, as the write path does', () {
+      expect(defaultWho(joint: true, ownerUid: null, viewerUid: 'u1'), 'joint');
+      expect(defaultWho(joint: false, ownerUid: 'u1', viewerUid: 'u1'), 'me');
+      expect(defaultWho(joint: false, ownerUid: null, viewerUid: 'u1'), 'me');
+      expect(
+        defaultWho(joint: false, ownerUid: 'u2', viewerUid: 'u1'),
+        'partner',
+      );
+    });
+
     test('an adjustment keeps its intent and hides the tabs', () {
       final values = ManualEntryValues.fromDraft(
         EntryDraft(

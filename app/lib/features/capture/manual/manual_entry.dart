@@ -156,6 +156,7 @@ final class ManualEntryValues {
     this.rateText = '',
     this.rateAsked = false,
     this.otherIntent,
+    this.savingsMove = false,
   });
 
   /// The values of a prefilled [draft]: "Change" on a slip, or an edit
@@ -167,6 +168,7 @@ final class ManualEntryValues {
     return ManualEntryValues(
       kind: kind ?? ManualKind.expense,
       otherIntent: kind == null ? draft.intent : null,
+      savingsMove: draft.intent == CaptureIntent.savingsMove.wire,
       loanDirection:
           LoanDirection.fromIntent(draft.intent) ?? LoanDirection.lent,
       amountText: switch ((draft.amountMinor, currency)) {
@@ -193,6 +195,11 @@ final class ManualEntryValues {
   /// An intent the tabs do not offer (an adjustment being edited); it is
   /// kept as it is and the type bar is hidden.
   final String? otherIntent;
+
+  /// Whether the Transfer tab holds a savings move (into a goal's
+  /// account), as a prefilled draft said. It stays one until the member
+  /// picks another tab.
+  final bool savingsMove;
 
   /// The Loan tab's direction.
   final LoanDirection loanDirection;
@@ -240,7 +247,10 @@ final class ManualEntryValues {
       switch (kind) {
         ManualKind.expense => CaptureIntent.expense.wire,
         ManualKind.income => CaptureIntent.income.wire,
-        ManualKind.transfer => CaptureIntent.transfer.wire,
+        ManualKind.transfer =>
+          savingsMove
+              ? CaptureIntent.savingsMove.wire
+              : CaptureIntent.transfer.wire,
         ManualKind.loan => loanDirection.intent,
       };
 
@@ -272,6 +282,8 @@ final class ManualEntryValues {
   }) => ManualEntryValues(
     kind: kind ?? this.kind,
     otherIntent: otherIntent,
+    // Another tab ends a savings move: coming back is a plain transfer.
+    savingsMove: savingsMove && (kind == null || kind == this.kind),
     loanDirection: loanDirection ?? this.loanDirection,
     amountText: amountText ?? this.amountText,
     accountId: accountId ?? this.accountId,
@@ -292,6 +304,7 @@ final class ManualEntryValues {
       other is ManualEntryValues &&
       other.kind == kind &&
       other.otherIntent == otherIntent &&
+      other.savingsMove == savingsMove &&
       other.loanDirection == loanDirection &&
       other.amountText == amountText &&
       other.accountId == accountId &&
@@ -310,6 +323,7 @@ final class ManualEntryValues {
   int get hashCode => Object.hash(
     kind,
     otherIntent,
+    savingsMove,
     loanDirection,
     amountText,
     accountId,
@@ -429,7 +443,16 @@ ManualEntryCheck checkManualEntry(
     }
   }
 
-  if (values.categoryKind != null && values.categoryId == null) {
+  // A category of the other kind (left from another tab) shows as none
+  // chosen, so it counts as none.
+  final categoryKind = values.categoryKind;
+  final categoryDef = defaultCategories
+      .where((c) => c.slug == values.categoryId)
+      .firstOrNull;
+  final categoryFits =
+      values.categoryId != null &&
+      (categoryDef == null || categoryDef.kind == categoryKind);
+  if (categoryKind != null && !categoryFits) {
     errors[ManualField.category] = ManualIssue.missing;
   }
 
@@ -587,4 +610,17 @@ String manualDay(DateTime time) {
   final t = time.isUtc ? time.toLocal() : time;
   String two(int v) => v.toString().padLeft(2, '0');
   return '${t.year.toString().padLeft(4, '0')}-${two(t.month)}-${two(t.day)}';
+}
+
+/// Whose an entry is when the member has not said: the same rule as the
+/// write path's (`who` absent), so the chip shown is what is saved. A
+/// joint account's entries are joint; a personal account's belong to its
+/// owner, from [viewerUid]'s side (`me` or `partner`).
+String defaultWho({
+  required bool joint,
+  required String? ownerUid,
+  required String? viewerUid,
+}) {
+  if (joint) return 'joint';
+  return ownerUid == null || ownerUid == viewerUid ? 'me' : 'partner';
 }
