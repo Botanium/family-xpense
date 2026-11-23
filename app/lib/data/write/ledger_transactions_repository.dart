@@ -532,6 +532,13 @@ final class LedgerTransactionsRepository implements TransactionsRepository {
     }
     final type = intent?.ledgerType;
     if (type == null) return invalid('intent', EntryIssue.malformed);
+    // The shared checker lists a transfer to its own account as an
+    // unanswered destination; the write path says exactly what is wrong.
+    if (type == LedgerType.transfer &&
+        draft.toAccountId != null &&
+        draft.toAccountId == draft.accountId) {
+      return invalid('toAccountId', EntryIssue.sameAccount);
+    }
     // The currency and the day can be derived; everything else missing
     // (or still unanswered) stops the save.
     final missing = check.missing
