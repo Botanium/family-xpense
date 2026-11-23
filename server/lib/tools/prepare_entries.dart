@@ -234,6 +234,9 @@ final class _DraftBuilder {
   bool toAccountScored = false;
   FxQuote? fx;
   DuplicateHint? duplicate;
+
+  /// The amount and currency the classifier searched for duplicates.
+  ({int? amount, String? currency})? _dupSearched;
   RecurringHint? recurring;
 
   bool get _isTransfer =>
@@ -530,6 +533,7 @@ final class _DraftBuilder {
       toAccountId = modelToAccount!.id;
       guessed.add('toAccountId');
     }
+    await _recheckDuplicate(context, deps, thresholds);
     await _convert(context, deps);
   }
 
@@ -575,6 +579,7 @@ final class _DraftBuilder {
       return;
     }
     if (answer.unavailable ?? false) return;
+    _dupSearched = (amount: amountMinor, currency: currency);
     final cap = (answer.calibrated ?? true)
         ? 1.0
         : threshold(t, 'conf_on_device_cap');
@@ -664,14 +669,54 @@ final class _DraftBuilder {
         when p >= threshold(t, 'recurring_offer')) {
       recurring = RecurringHint(probability: p, unit: 'month', interval: 1);
     }
-    // The hint names the entry the classifier judged (`duplicate_of`),
-    // never a guess of ours.
+    _applyDuplicate(answer, t);
+  }
+
+  /// The hint names the entry the classifier judged (`duplicate_of`),
+  /// never a guess of ours.
+  void _applyDuplicate(DecideResponse answer, Thresholds t) {
     if (answer.duplicate?.probability case final p?
         when p >= threshold(t, 'dup_warn')) {
       if (answer.duplicateOf case final txnId? when txnId.isNotEmpty) {
         duplicate = DuplicateHint(txnId: txnId, probability: p);
       }
     }
+  }
+
+  /// A guessed currency that followed the account changed the amount the
+  /// duplicate search used ("groceries 45" read as USD, then 45 IQD on the
+  /// cash wallet): the old answer is about another amount, so it is dropped
+  /// and the duplicate question asked again with the draft's own figures.
+  Future<void> _recheckDuplicate(
+    XpenseContext context,
+    ToolDeps deps,
+    Thresholds t,
+  ) async {
+    final searched = _dupSearched;
+    if (searched == null ||
+        (searched.amount == amountMinor && searched.currency == currency)) {
+      return;
+    }
+    duplicate = null;
+    if (amountMinor == null || currency == null) return;
+    final DecideResponse answer;
+    try {
+      answer = await deps.classifier.classify(
+        context: context,
+        text: text,
+        ask: const {DecideQuestion.duplicate},
+        parsed: DecideParsed(
+          amountMinor: amountMinor,
+          currency: currency,
+          date: occurredOn,
+        ),
+      );
+    } on Object catch (e) {
+      _log.severe('classifier threw', e);
+      return;
+    }
+    if (answer.unavailable ?? false) return;
+    _applyDuplicate(answer, t);
   }
 
   static double? _probability(ChoiceAnswer a, String key) {

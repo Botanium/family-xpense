@@ -256,6 +256,33 @@ void main() {
     expect(turns, ['hh_demo:failed:2']);
   });
 
+  // PR #30 review: the agentEnabled switch stops turns before any model
+  // call.
+  test(
+    'a turn is refused without a model call when the agent is off',
+    () async {
+      final lite = Script(entries: salaryGroceries, render: scriptedCapture);
+      final (:rt, ai: _, :turns) = await _runtime(
+        lite: lite,
+        config: {
+          'switches': {'agentEnabled': false},
+        },
+      );
+      await expectLater(
+        rt.runTurn('Salary came in 3200', context: demoContext),
+        throwsA(
+          isA<Exception>().having(
+            (e) => '$e',
+            'error',
+            'AgentError(UNAVAILABLE): $agentPausedCode',
+          ),
+        ),
+      );
+      expect(lite.requests, isEmpty);
+      expect(turns, isEmpty);
+    },
+  );
+
   test('a later turn resumes the session by snapshot id', () async {
     final lite = Script(entries: salaryGroceries, render: scriptedCapture);
     final (:rt, ai: _, turns: _) = await _runtime(lite: lite);

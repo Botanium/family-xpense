@@ -27,6 +27,8 @@ void main() {
   late HttpServer http;
   late FakeDocumentStore docs;
   late Script script;
+  // `config/runtime` switches, set per test.
+  var switches = <String, Object?>{};
 
   setUp(() async {
     ai = Genkit(isDevEnv: false, plugins: [A2uiPlugin()], promptDir: 'prompts');
@@ -45,8 +47,9 @@ void main() {
       catalogJson: catalogJson,
       reader: demoReader('2026-11-22'),
       classifier: FakeEntryClassifier(),
-      config: () async => RuntimeConfig.fromDocument(const {
-        'models': {'agent': 'lite', 'escalation': 'lite'},
+      config: () async => RuntimeConfig.fromDocument({
+        'models': const {'agent': 'lite', 'escalation': 'lite'},
+        'switches': switches,
       }),
       sessions: const MemorySessions(),
       modelName: (id) => 'test/$id',
@@ -67,6 +70,7 @@ void main() {
   });
 
   tearDown(() async {
+    switches = {};
     await http.close(force: true);
     await ai.shutdown();
   });
@@ -107,6 +111,28 @@ void main() {
           (e) => '$e',
           'error',
           contains('missing_id_token'),
+        ),
+      ),
+    );
+    expect(script.requests, isEmpty);
+  });
+
+  // PR #30 review: the agentEnabled switch stops turns before any model
+  // call, refused with a stable code like the context provider's.
+  test('agentEnabled off: the turn is refused, no model call', () async {
+    switches = {'agentEnabled': false};
+    final client = remoteAgent<void>(
+      url: url(),
+      headers: () => headersFor(demoUid),
+    );
+    addTearDown(client.close);
+    await expectLater(
+      client.chat().send(text: 'Salary came in 3200'),
+      throwsA(
+        isA<AgentError<dynamic>>().having(
+          (e) => '$e',
+          'error',
+          contains('agent_paused'),
         ),
       ),
     );

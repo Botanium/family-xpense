@@ -272,6 +272,38 @@ void main() {
     });
   });
 
+  // PR #30 review: the duplicate search ran on the guessed USD 45; once
+  // the currency follows the cash wallet, it is asked again for 45 IQD.
+  test('duplicates are rechecked after a guessed currency follows the '
+      'account', () async {
+    final classifier = FakeEntryClassifier(
+      respond: (call) => call.ask.contains(DecideQuestion.account)
+          ? DecideResponse(
+              account: ChoiceAnswer(choice: 'acc_cash_iqd', confidence: 0.95),
+              duplicate: YesNoAnswer(probability: 0.95),
+              duplicateOf: 't_usd_45',
+            )
+          : DecideResponse(
+              duplicate: YesNoAnswer(probability: 0.95),
+              duplicateOf: 't_iqd_45',
+            ),
+    );
+    final out = await prepare(
+      ProposedEntry(intent: 'expense', amount: '45', text: 'groceries 45'),
+      'groceries 45',
+      classifier: classifier,
+    );
+    final d = out.drafts.single;
+    expect((d.amountMinor, d.currency), (45, 'IQD'));
+    expect(d.duplicate?.txnId, 't_iqd_45');
+    final recheck = classifier.calls.last;
+    expect(recheck.ask, {DecideQuestion.duplicate});
+    expect(
+      (recheck.parsed?.amountMinor, recheck.parsed?.currency),
+      (45, 'IQD'),
+    );
+  });
+
   group('written ISO dates (PR #30 review)', () {
     test('an ISO date in the date words or the text is kept', () async {
       final viaWords = await prepare(

@@ -198,6 +198,20 @@ void main() {
     });
   });
 
+  // PR #30 review: a month the calendar does not have is not a crash.
+  test('getBudgets reads this month for an impossible month', () async {
+    for (final month in ['2026-13', '2026-00', '2026-1', 'November']) {
+      final r = await getBudgets(BudgetsQuery(month: month), dara, demoDeps());
+      expect(r.month, '2026-11', reason: month);
+    }
+    final october = await getBudgets(
+      BudgetsQuery(month: '2026-10'),
+      dara,
+      demoDeps(),
+    );
+    expect(october.month, '2026-10');
+  });
+
   group('budget scope (PR #30 review)', () {
     test('a household budget counts every visible expense', () async {
       final r = await getBudgets(BudgetsQuery(), dara, demoDeps());

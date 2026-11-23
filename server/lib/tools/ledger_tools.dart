@@ -333,9 +333,9 @@ Future<BudgetsResult> getBudgets(
 ) async {
   final snap = await _snapshot(c, deps);
   final thisMonth = localToday(deps.clock, c.tz).iso.substring(0, 7);
-  final month = RegExp(r'^\d{4}-\d{2}$').hasMatch(q.month ?? '')
-      ? q.month!
-      : thisMonth;
+  // A month the calendar does not have ("2026-13") gets this month, like a
+  // missing one; the result's `month` says which month was read.
+  final month = parseIsoDay('${q.month}-01') != null ? q.month! : thisMonth;
   final first = '$month-01';
   final next = parseIsoDay(first)!;
   final last = isoDay(

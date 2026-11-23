@@ -1,6 +1,7 @@
 /// `householdContext`: the first middleware of the agent (AI_PIPELINE 8).
 ///
-/// Two jobs:
+/// A turn is refused with [agentPausedCode] while `config/runtime`'s
+/// `agentEnabled` switch is off. Otherwise, two jobs:
 /// 1. **Model choice** (`generate` hook, outermost): the `.prompt` file names
 ///    no model. Each turn runs on `config/runtime`'s `models.agent`
 ///    (default `gemini-3.5-flash-lite`). When that run ends `failed` (in
@@ -28,6 +29,12 @@ final _log = Logger('xpense.runtime.householdContext');
 
 /// The middleware's registry name.
 const householdContextName = 'householdContext';
+
+/// The error message of a turn refused because `config/runtime`'s
+/// `agentEnabled` switch is off: a stable code, in the shape of the
+/// context provider's refusals (`over_limit`), sent as 503 so the phone
+/// treats it as temporary.
+const agentPausedCode = 'agent_paused';
 
 /// Turns a model id from `config/runtime` into a registered model name.
 typedef ModelNamer = String Function(String modelId);
@@ -120,6 +127,11 @@ final class HouseholdContextMiddleware extends GenerateMiddleware {
     if (envelope.currentTurn > 0) return await next(envelope, ctx);
     final context = XpenseContext.of(ctx.context);
     final cfg = await config();
+    // The kill switch: refused before any model call, so nothing is billed.
+    if (!cfg.isOn('agentEnabled')) {
+      _log.info('agent turn refused: agentEnabled is off');
+      throw GenkitException(agentPausedCode, status: StatusCode.unavailable);
+    }
     final primary = cfg.model('agent');
     // Evidence for an audio or image turn (tools/turn_evidence.dart): the
     // tool loop runs in a zone holding it, so outputGuard can record what
