@@ -1,22 +1,19 @@
 import 'package:go_router/go_router.dart';
 
-import 'package:xpense_app/core/l10n/l10n.dart';
 import 'package:xpense_app/core/routing/routing.dart';
+import 'package:xpense_app/features/activity/activity_screen.dart';
 import 'package:xpense_app/features/activity/detail/entry_detail_screen.dart';
 
 /// Routes of the Activity feature: the second tab and an entry's detail.
 ///
-/// WP-22 replaces the tab placeholder (screen 16). The entry detail
-/// (screen 17, WP-21) opens from `xpense://txn/{id}`.
+/// WP-22 built the tab (screen 16); WP-21 the entry detail (screen 17),
+/// which `xpense://txn/{id}` opens.
 FeatureRoutes activityRoutes() => FeatureRoutes(
   branch: StatefulShellBranch(
     routes: [
       GoRoute(
         path: AppRoutes.activity,
-        builder: (context, state) => PlaceholderScreen(
-          title: context.l10n.activityTitle,
-          message: context.l10n.activityPlaceholder,
-        ),
+        builder: (context, state) => const ActivityScreen(),
       ),
     ],
   ),

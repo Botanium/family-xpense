@@ -24,6 +24,9 @@ import 'package:xpense_app/data/auth_repository_firebase.dart';
 import 'package:xpense_app/data/household_repository.dart';
 import 'package:xpense_app/data/household_repository_fake.dart';
 import 'package:xpense_app/data/household_repository_firebase.dart';
+import 'package:xpense_app/data/read/activity_reader.dart';
+import 'package:xpense_app/data/read/activity_reader_firestore.dart';
+import 'package:xpense_app/data/read/activity_reader_memory.dart';
 import 'package:xpense_app/data/read/entry_reader.dart';
 import 'package:xpense_app/data/read/firestore_entry_reader.dart';
 import 'package:xpense_app/data/read/memory_entry_reader.dart';
@@ -302,15 +305,27 @@ EntryReader connectEntryReader(
 };
 
 /// A write path in memory over the sample household's accounts
-/// (`FakeAccountsRepository.sample`), for the fakes build and tests.
-TransactionsRepository memoryTransactions() => memoryLedger().repository;
+/// (`FakeAccountsRepository.sample`), for the fakes build and tests. It
+/// carries an Activity reader over the same store (WP-22), so Activity
+/// shows every save, delete and undo at once.
+NotifyingTransactionsRepository memoryTransactions() =>
+    memoryLedger().repository;
 
-/// The in-memory write path and a reader over the same store, so what is
-/// saved shows on the entry detail screen.
-({TransactionsRepository repository, EntryReader reader}) memoryLedger() {
-  final store = ObservedLedgerStore(_sampleLedgerStore());
+/// The in-memory write path with both readers over its store: Activity's
+/// (carried by the repository, WP-22) and entry detail's (WP-21), so what
+/// is saved shows on both at once.
+({NotifyingTransactionsRepository repository, EntryReader reader})
+memoryLedger() {
+  final memory = _sampleLedgerStore();
+  final store = ObservedLedgerStore(memory);
   return (
-    repository: LedgerTransactionsRepository(store),
+    repository: NotifyingTransactionsRepository(
+      LedgerTransactionsRepository(store),
+      MemoryActivityReader(
+        read: () => memory.transactions,
+        viewerUid: FakeAccountsRepository.sampleViewer,
+      ),
+    ),
     reader: MemoryEntryReader(store),
   );
 }
@@ -338,6 +353,15 @@ MemoryLedgerStore _sampleLedgerStore() {
   }
   return store;
 }
+
+/// The Activity reader in memory: the one the memory write path carries,
+/// else an empty one.
+ActivityReader memoryActivityReaderFor(TransactionsRepository transactions) =>
+    transactions is NotifyingTransactionsRepository
+    ? transactions.reader
+    : MemoryActivityReader.empty(
+        viewerUid: FakeAccountsRepository.sampleViewer,
+      );
 
 /// The crash sink the two error handlers write to.
 ///
@@ -467,6 +491,9 @@ Future<Bootstrapped> bootstrap({required AppEnvironment environment}) async {
       accountsRepository: accounts,
       transactionsRepository: transactions,
       entryReader: entryReader,
+      activityReader: environment == AppEnvironment.fakes
+          ? null
+          : FirestoreActivityReader.connect(households: households),
       featureFlags: flags,
     ),
   );
@@ -488,6 +515,7 @@ List<Override> appOverrides({
   required AccountsRepository accountsRepository,
   TransactionsRepository? transactionsRepository,
   EntryReader? entryReader,
+  ActivityReader? activityReader,
   SecureStore? secureStore,
   FeatureFlagSource? featureFlags,
   AgentClient? agentClient,
@@ -513,6 +541,11 @@ List<Override> appOverrides({
     ),
     entryReaderProvider.overrideWithValue(
       entryReader ?? memory?.reader ?? memoryLedger().reader,
+    ),
+    activityReaderProvider.overrideWith(
+      (ref) =>
+          activityReader ??
+          memoryActivityReaderFor(ref.watch(transactionsRepositoryProvider)),
     ),
     secureStoreProvider.overrideWithValue(secureStore ?? MemorySecureStore()),
     featureFlagSourceProvider.overrideWithValue(
