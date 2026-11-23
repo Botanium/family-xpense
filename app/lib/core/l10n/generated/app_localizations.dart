@@ -1776,6 +1776,18 @@ abstract class AppLocalizations {
   /// **'Couldn\'t save. Your entries are still here.'**
   String get a2uiSaveFailed;
 
+  /// Shown under the Save button when the household has no dollar rate yet for an entry in another currency.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter today\'s dollar rate to save this.'**
+  String get a2uiSaveRateNeeded;
+
+  /// Text button on a slip that opens the rate keypad when the household has never entered a dollar rate.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter rate'**
+  String get a2uiRateEnter;
+
   /// Text button that undoes a save, shown for ten seconds.
   ///
   /// In en, this message translates to:

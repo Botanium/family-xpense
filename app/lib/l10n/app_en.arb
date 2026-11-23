@@ -1343,6 +1343,14 @@
   "@a2uiSaveFailed": {
     "description": "Shown under the Save button when saving failed."
   },
+  "a2uiSaveRateNeeded": "Enter today's dollar rate to save this.",
+  "@a2uiSaveRateNeeded": {
+    "description": "Shown under the Save button when the household has no dollar rate yet for an entry in another currency."
+  },
+  "a2uiRateEnter": "Enter rate",
+  "@a2uiRateEnter": {
+    "description": "Text button on a slip that opens the rate keypad when the household has never entered a dollar rate."
+  },
   "a2uiUndo": "Undo",
   "@a2uiUndo": {
     "description": "Text button that undoes a save, shown for ten seconds."

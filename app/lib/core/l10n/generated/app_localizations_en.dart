@@ -962,6 +962,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get a2uiSaveFailed => 'Couldn\'t save. Your entries are still here.';
 
   @override
+  String get a2uiSaveRateNeeded => 'Enter today\'s dollar rate to save this.';
+
+  @override
+  String get a2uiRateEnter => 'Enter rate';
+
+  @override
   String get a2uiUndo => 'Undo';
 
   @override

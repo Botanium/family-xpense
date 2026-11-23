@@ -202,15 +202,44 @@ class _EntrySlipViewState extends State<EntrySlipView> {
       widget.onAnswer != null &&
       _draft.currency != null &&
       _draft.currency != widget.household.baseCurrency &&
-      !widget.household.rateEnteredToday &&
-      widget.household.latestRate != null;
+      !widget.household.rateEnteredToday;
 
   Widget _rate(BuildContext context) {
     final l10n = context.l10n;
-    final latest = widget.household.latestRate!;
+    final latest = widget.household.latestRate;
     Future<void> save(String rate) async {
       await widget.onRate(rate);
       if (mounted) widget.onRateSaved();
+    }
+
+    void enter(String initial) => unawaited(
+      showGlassSheet<void>(
+        context: context,
+        builder: (sheet) => RateChangeSheet(
+          title: l10n.a2uiRateTitle,
+          initial: initial,
+          unit: l10n.a2uiRateUnit,
+          saveLabel: l10n.a2uiRateSave,
+          backspaceLabel: l10n.a2uiRateBackspace,
+          onSave: (rate) {
+            Navigator.of(sheet).pop();
+            unawaited(save(rate));
+          },
+        ),
+      ),
+    );
+
+    // The household's first rate: nothing to reuse, so the keypad opens
+    // empty.
+    if (latest == null) {
+      return Row(
+        children: [
+          Expanded(
+            child: Text(l10n.a2uiRateQuestion, style: XpType.of(context).body),
+          ),
+          XpButton.text(label: l10n.a2uiRateEnter, onPressed: () => enter('')),
+        ],
+      );
     }
 
     return RatePrompt(
@@ -221,22 +250,7 @@ class _EntrySlipViewState extends State<EntrySlipView> {
       placement: RatePromptPlacement.inline,
       semanticLabel: l10n.a2uiRateSpoken(latest),
       onSame: () => unawaited(save(latest)),
-      onChange: () => unawaited(
-        showGlassSheet<void>(
-          context: context,
-          builder: (sheet) => RateChangeSheet(
-            title: l10n.a2uiRateTitle,
-            initial: latest,
-            unit: l10n.a2uiRateUnit,
-            saveLabel: l10n.a2uiRateSave,
-            backspaceLabel: l10n.a2uiRateBackspace,
-            onSave: (rate) {
-              Navigator.of(sheet).pop();
-              unawaited(save(rate));
-            },
-          ),
-        ),
-      ),
+      onChange: () => enter(latest),
     );
   }
 

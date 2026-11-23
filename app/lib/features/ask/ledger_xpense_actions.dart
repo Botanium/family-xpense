@@ -84,7 +84,22 @@ final class LedgerXpenseActions implements XpenseActions {
             for (final d in drafts)
               if (d.fx != null && d.currency != base) withoutFx(d) else d,
           ];
-    final result = await transactions.saveEntries(priced);
+    var result = await transactions.saveEntries(priced);
+    // The household's first rate covers today on: an entry dated earlier
+    // has no rate to use yet. The rate the member just entered is the only
+    // one there is, so it goes on those entries as their quote.
+    final answered = _answeredToday;
+    if (answered != null &&
+        result is Err<SavedEntries, TransactionsFailure> &&
+        result.failure is EntryRateNeeded) {
+      result = await transactions.saveEntries([
+        for (final d in priced)
+          if (d.fx == null && d.currency != base)
+            withFx(d, answered, base)
+          else
+            d,
+      ]);
+    }
     switch (result) {
       case Ok(:final value):
         _saved[value.groupId] = value;
@@ -159,9 +174,8 @@ final class LedgerXpenseActions implements XpenseActions {
 @visibleForTesting
 SaveFailure saveFailureOf(TransactionsFailure failure) => switch (failure) {
   TransactionsNotAllowed() => SaveFailure.denied,
-  EntryInvalid() ||
-  EntryRateNeeded() ||
-  TooManyEntries() => SaveFailure.invalid,
+  EntryRateNeeded() => SaveFailure.rateNeeded,
+  EntryInvalid() || TooManyEntries() => SaveFailure.invalid,
   TransactionNotFound() ||
   TransactionDeleted() ||
   TransactionNotDeleted() ||
@@ -173,3 +187,28 @@ SaveFailure saveFailureOf(TransactionsFailure failure) => switch (failure) {
 @visibleForTesting
 EntryDraft withoutFx(EntryDraft draft) =>
     EntryDraft.fromJson({...draft.toJson()}..remove('fx'));
+
+/// [draft] quoted at [pairRate] (USD/IQD) into [base]; unchanged when the
+/// amount cannot be converted.
+@visibleForTesting
+EntryDraft withFx(EntryDraft draft, String pairRate, String base) {
+  final minor = draft.amountMinor;
+  final from = Currency.tryParse(draft.currency ?? '');
+  final to = Currency.tryParse(base);
+  final rate = FxRate.parse(FxPair.usdIqd.code, pairRate).valueOrNull;
+  if (minor == null || from == null || to == null || rate == null) {
+    return draft;
+  }
+  final converted = toBaseAmount(Money(minor, from), to, rate: rate);
+  if (converted case Ok(:final value)) {
+    return EntryDraft.fromJson({
+      ...draft.toJson(),
+      'fx': FxQuote(
+        pair: FxPair.usdIqd.code,
+        pairRate: rate.rateString,
+        baseAmountMinor: value.minorUnits,
+      ).toJson(),
+    });
+  }
+  return draft;
+}

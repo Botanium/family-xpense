@@ -229,7 +229,11 @@ class _EntryListViewState extends State<EntryListView>
                 : null,
           ),
           if (failure != null)
-            _Problem(l10n.a2uiSaveFailed)
+            _Problem(
+              failure == SaveFailure.rateNeeded
+                  ? l10n.a2uiSaveRateNeeded
+                  : l10n.a2uiSaveFailed,
+            )
           else if (!canSave && !saving && onlyIntentLeft)
             Padding(
               padding: const EdgeInsetsDirectional.only(top: XpSpace.s6),
