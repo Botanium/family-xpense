@@ -136,6 +136,9 @@ final class FirestoreLedgerStore implements LedgerStore {
         _ => null,
       };
 
+  /// How long [rateOn] waits for the server before it uses the cache.
+  static const Duration rateServerTimeout = Duration(seconds: 2);
+
   /// How far back [rateOn] looks for an earlier day's rate.
   static const Duration rateWindow = Duration(days: 120);
 
@@ -153,17 +156,14 @@ final class FirestoreLedgerStore implements LedgerStore {
         .where(FieldPath.documentId, isGreaterThanOrEqualTo: fromDay)
         .where(FieldPath.documentId, isLessThanOrEqualTo: day)
         .orderBy(FieldPath.documentId);
-    QuerySnapshot<Map<String, dynamic>> snapshot;
-    try {
-      snapshot = await query.get(const GetOptions(source: Source.cache));
-      if (snapshot.docs.isEmpty) snapshot = await query.get();
-    } on FirebaseException {
-      try {
-        snapshot = await query.get();
-      } on FirebaseException {
-        return null;
-      }
-    }
+    // A cached day may be older than one the partner entered since: ask the
+    // server first, briefly, and use the cache offline (Codex review, PR #35).
+    final snapshot = await serverThenCache(
+      () => query.get(const GetOptions(source: Source.server)),
+      () => query.get(const GetOptions(source: Source.cache)),
+      timeout: rateServerTimeout,
+    );
+    if (snapshot == null) return null;
     for (final doc in snapshot.docs.reversed) {
       final value = doc.data()['usdIqd'];
       if (value is! String) continue;
@@ -376,4 +376,28 @@ final class FirestoreLedgerStore implements LedgerStore {
           context: ErrorDescription('while writing transactions'),
         ),
       );
+}
+
+/// [server]'s answer, or [cache]'s when the server fails or takes longer
+/// than [timeout] (offline, the server read fails at once); null when both
+/// fail. Used for reads whose freshest answer matters, such as the day's
+/// rate, without blocking a save offline.
+@visibleForTesting
+Future<T?> serverThenCache<T>(
+  Future<T> Function() server,
+  Future<T> Function() cache, {
+  required Duration timeout,
+}) async {
+  try {
+    return await server().timeout(timeout);
+  } on FirebaseException {
+    // Offline or refused: the cache below.
+  } on TimeoutException {
+    // Slow connection: the cache below.
+  }
+  try {
+    return await cache();
+  } on FirebaseException {
+    return null;
+  }
 }

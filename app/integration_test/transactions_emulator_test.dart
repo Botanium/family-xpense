@@ -13,6 +13,8 @@
 // Other ports: --dart-define=XPENSE_AUTH_EMULATOR=127.0.0.1:9299
 // --dart-define=XPENSE_FIRESTORE_EMULATOR=127.0.0.1:8380.
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -23,6 +25,15 @@ import 'package:xpense_app/data/auth_repository.dart';
 import 'package:xpense_app/data/household_repository.dart';
 import 'package:xpense_app/data/transactions_repository.dart';
 import 'package:xpense_shared/xpense_shared.dart';
+
+const String _auth = String.fromEnvironment(
+  'XPENSE_AUTH_EMULATOR',
+  defaultValue: defaultAuthEmulator,
+);
+const String _firestore = String.fromEnvironment(
+  'XPENSE_FIRESTORE_EMULATOR',
+  defaultValue: defaultFirestoreEmulator,
+);
 
 Future<void> until(bool Function() done, String what) async {
   for (var i = 0; i < 150 && !done(); i++) {
@@ -50,9 +61,11 @@ void main() {
     // A new member and household, online.
     final auth = container.read(authRepositoryProvider);
     await auth.signOut();
+    final email = 'wp20-${DateTime.now().millisecondsSinceEpoch}@example.com';
+    const password = 'secret12';
     final signedUp = await auth.createAccountWithEmail(
-      email: 'wp20-${DateTime.now().millisecondsSinceEpoch}@example.com',
-      password: 'secret12',
+      email: email,
+      password: password,
     );
     final uid = signedUp.valueOrNull!.uid;
     final households = container.read(householdRepositoryProvider);
@@ -232,6 +245,64 @@ void main() {
     expect(await balance(joint, Source.server), 10000);
     expect(await balance(cash, Source.server), 50000);
     await expectReconciled();
+
+    // ----------------------------------- a newer rate this phone has not seen
+    // Another phone of the household (here: a second Firebase app signed in
+    // as the same member) enters tomorrow's rate. This phone's cache still
+    // only holds today's 1,705; an entry dated tomorrow must use the
+    // server's newer 1,600 (Codex review, PR #35).
+    final other = await Firebase.initializeApp(
+      name: 'wp20-other-phone',
+      demoProjectId: emulatorProjectId,
+    );
+    final otherAuth = FirebaseAuth.instanceFor(app: other);
+    final authHost = _auth.split(':');
+    await otherAuth.useAuthEmulator(authHost[0], int.parse(authHost[1]));
+    final otherDb = FirebaseFirestore.instanceFor(app: other);
+    final dbHost = _firestore.split(':');
+    otherDb
+      ..useFirestoreEmulator(dbHost[0], int.parse(dbHost[1]))
+      ..settings = const Settings(persistenceEnabled: false);
+    await otherAuth.signInWithEmailAndPassword(
+      email: email,
+      password: password,
+    );
+    final tomorrow = DateTime.now().add(const Duration(days: 1));
+    String two(int v) => v.toString().padLeft(2, '0');
+    final tomorrowDay =
+        '${tomorrow.year}-${two(tomorrow.month)}-${two(tomorrow.day)}';
+    await otherDb
+        .collection('households')
+        .doc(hid)
+        .collection('fxRates')
+        .doc(tomorrowDay)
+        .set({
+          'usdIqd': '1600',
+          'kind': 'market',
+          'enteredBy': uid,
+          'enteredAt': FieldValue.serverTimestamp(),
+        });
+    final priced = (await repo.saveEntries([
+      EntryDraft(
+        id: 'tomorrow',
+        intent: 'expense',
+        amountMinor: 16000,
+        accountId: cash,
+        categoryId: 'dining',
+        occurredOn: tomorrowDay,
+      ),
+    ])).valueOrNull!;
+    final pricedDoc =
+        (await txns
+                .doc(priced.txnIds.single)
+                .get(const GetOptions(source: Source.server)))
+            .data()!;
+    expect((pricedDoc['fx']! as Map)['pairRate'], '1600');
+    expect((pricedDoc['fx']! as Map)['asOf'], tomorrowDay);
+    expect(pricedDoc['baseAmountMinor'], 1000);
+    await expectReconciled();
+    await otherAuth.signOut();
+    await other.delete();
     debugPrint('XPENSE_WP20_EMULATOR=ok');
   });
 }
