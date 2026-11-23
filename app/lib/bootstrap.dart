@@ -323,12 +323,16 @@ RulesRepository connectRules(Ref ref, {required AppEnvironment environment}) {
 }
 
 /// The accounts repository for [environment], following [households]. In
-/// `fakes` it holds the artboards' household (WP-13).
+/// `fakes` it holds the artboards' household (WP-13), kept in step with
+/// [transactions]' in-memory store: one household, as in Firestore.
 AccountsRepository connectAccounts(
   AppEnvironment environment, {
   required HouseholdRepository households,
+  TransactionsRepository? transactions,
 }) => switch (environment) {
-  AppEnvironment.fakes => FakeAccountsRepository.sample(),
+  AppEnvironment.fakes => FakeAccountsRepository.sample(
+    ledger: transactions == null ? null : memoryStoreOf(transactions),
+  ),
   // Firestore is already pointed at the emulator by connectHouseholds.
   AppEnvironment.dev || AppEnvironment.prod || AppEnvironment.emulators =>
     FirebaseAccountsRepository.connect(households: households),
@@ -558,10 +562,14 @@ Future<Bootstrapped> bootstrap({required AppEnvironment environment}) async {
 
   final auth = await connectAuth(environment);
   final households = connectHouseholds(environment, auth: auth);
-  final accounts = connectAccounts(environment, households: households);
   final transactions = await connectTransactions(
     environment,
     households: households,
+  );
+  final accounts = connectAccounts(
+    environment,
+    households: households,
+    transactions: transactions,
   );
   final flags = await connectFeatureFlags(environment);
   final capture = connectCaptureServices(environment);

@@ -4,6 +4,9 @@ import 'dart:async';
 
 import 'package:clock/clock.dart';
 import 'package:xpense_app/data/accounts_repository.dart';
+import 'package:xpense_app/data/write/ledger_store.dart';
+import 'package:xpense_app/data/write/ledger_transactions_repository.dart';
+import 'package:xpense_app/data/write/memory_ledger_store.dart';
 import 'package:xpense_shared/xpense_shared.dart';
 
 /// An [AccountsRepository] that keeps one household's accounts in memory.
@@ -12,6 +15,11 @@ import 'package:xpense_shared/xpense_shared.dart';
 /// see. Sharing bumps the account's visibility rev; the history rewrite
 /// then finishes after [sharingDelay] (or at once with [Duration.zero]),
 /// or when a test calls [finishSharing] while [sharingDelay] is null.
+///
+/// With a [ledger] (the `fakes` build), the in-memory write path's store
+/// follows this one: the accounts, the members and every rate entered here
+/// are written to it, so what the app shows is what a save checks against,
+/// as one Firestore household would be.
 final class FakeAccountsRepository implements AccountsRepository {
   /// Creates the fake for [viewerUid] in a household of [_members].
   new({
@@ -23,17 +31,25 @@ final class FakeAccountsRepository implements AccountsRepository {
     this.baseCurrency = Currency.usd,
     this._rate,
     this.sharingDelay = Duration.zero,
+    this.ledger,
     Clock? clock,
   }) : _clock = clock ?? const Clock() {
     for (final a in accounts) {
       _all[a.id] = a;
     }
+    _syncLedger();
   }
 
   /// The `fakes` environment: the artboards' household ("You" and Sam,
   /// USD, 1,705 dinars per dollar).
-  factory sample({String viewerUid = sampleViewer}) => FakeAccountsRepository(
+  factory sample({
+    String viewerUid = sampleViewer,
+    MemoryLedgerStore? ledger,
+    Clock? clock,
+  }) => FakeAccountsRepository(
     viewerUid: viewerUid,
+    ledger: ledger,
+    clock: clock,
     members: const [
       HouseholdMember(uid: sampleViewer, displayName: 'You'),
       HouseholdMember(uid: samplePartner, displayName: 'Sam'),
@@ -165,6 +181,9 @@ final class FakeAccountsRepository implements AccountsRepository {
   /// [finishSharing].
   Duration? sharingDelay;
 
+  /// The write path's store this one keeps in step, in the `fakes` build.
+  final MemoryLedgerStore? ledger;
+
   final Clock _clock;
   final Map<String, Account> _all = {};
   List<HouseholdMember> _members;
@@ -185,10 +204,43 @@ final class FakeAccountsRepository implements AccountsRepository {
   /// Every account, including ones the viewer cannot see.
   List<Account> get allAccounts => _sorted(_all.values);
 
-  /// Replaces the rate, as a member answering the rate prompt would.
+  /// Replaces the rate, as a member answering the rate prompt would: it
+  /// is today's rate in the [ledger] too.
   void setRate(FxRate? rate) {
+    _putRate(rate);
+    _changed();
+  }
+
+  void _putRate(FxRate? rate) {
     _rate = rate;
+    if (ledger case final store? when rate != null) {
+      final day = householdDay(_clock.now());
+      store.rates[day] = DayRate(day: day, rate: rate, kind: 'market');
+    }
+  }
+
+  void _changed() {
+    _syncLedger();
     _changes.add(null);
+  }
+
+  // The accounts and members as the write path checks them.
+  void _syncLedger() {
+    final store = ledger;
+    if (store == null) return;
+    for (final a in _all.values) {
+      store.accounts[a.id] = LedgerAccount(
+        id: a.id,
+        currency: a.currency,
+        visibleTo: a.visibleTo,
+        joint: a.scope == AccountScope.joint,
+        ownerUid: a.ownerUid,
+      );
+    }
+    store.householdInfo = LedgerHousehold(
+      baseCurrency: baseCurrency,
+      memberIds: [for (final m in _members) m.uid],
+    );
   }
 
   /// The rates saved through [setDailyRate], in order.
@@ -204,13 +256,13 @@ final class FakeAccountsRepository implements AccountsRepository {
   /// Replaces the members, as a partner joining would.
   void setMembers(List<HouseholdMember> members) {
     _members = members;
-    _changes.add(null);
+    _changed();
   }
 
   /// Puts [account] in the store, as the partner's phone would.
   void put(Account account) {
     _all[account.id] = account;
-    _changes.add(null);
+    _changed();
   }
 
   /// Finishes the history rewrite of account [id], as the server does.
@@ -218,13 +270,13 @@ final class FakeAccountsRepository implements AccountsRepository {
     final a = _all[id];
     if (a == null) return;
     _all[id] = _copy(a, appliedVisibleTo: a.visibleTo);
-    _changes.add(null);
+    _changed();
   }
 
   /// Sets the entries shown for account [id].
   void setEntries(String id, List<AccountEntry> entries) {
     _entries[id] = entries;
-    _changes.add(null);
+    _changed();
   }
 
   List<Account> _visible() => [
@@ -292,7 +344,7 @@ final class FakeAccountsRepository implements AccountsRepository {
       rate: draft.openingRate ?? _rate,
     );
     if (needed == null) return const Err(AccountsRateNeeded());
-    if (opening != 0 && draft.openingRate != null) _rate = draft.openingRate;
+    if (opening != 0 && draft.openingRate != null) _putRate(draft.openingRate);
     created.add(draft);
     final id = 'acc-new-${_nextId++}';
     final ownerUid = draft.scope == AccountScope.personal ? viewerUid : null;
@@ -327,7 +379,7 @@ final class FakeAccountsRepository implements AccountsRepository {
         ),
       ];
     }
-    _changes.add(null);
+    _changed();
     return Ok(id);
   }
 
@@ -344,7 +396,7 @@ final class FakeAccountsRepository implements AccountsRepository {
       return const Err(AccountNotFound());
     }
     _all[id] = _copy(a, name: name, kind: kind);
-    _changes.add(null);
+    _changed();
     return const Ok(null);
   }
 
@@ -360,7 +412,7 @@ final class FakeAccountsRepository implements AccountsRepository {
       return const Err(AccountNotFound());
     }
     _all[id] = _copy(a, archived: archived);
-    _changes.add(null);
+    _changed();
     return const Ok(null);
   }
 
@@ -387,7 +439,7 @@ final class FakeAccountsRepository implements AccountsRepository {
       ),
       appliedVisibleTo: a.appliedVisibleTo ?? a.visibleTo,
     );
-    _changes.add(null);
+    _changed();
     final delay = sharingDelay;
     if (delay == Duration.zero) {
       finishSharing(id);
@@ -395,12 +447,12 @@ final class FakeAccountsRepository implements AccountsRepository {
       // The `fakes` build plays the server's progress line.
       final total = _entries[id]?.length ?? 42;
       _all[id] = _copy(_all[id]!, sharingDone: 0, sharingTotal: total);
-      _changes.add(null);
+      _changed();
       Timer(delay ~/ 2, () {
         final now = _all[id];
         if (now == null || !now.sharingInProgress) return;
         _all[id] = _copy(now, sharingDone: total ~/ 2, sharingTotal: total);
-        _changes.add(null);
+        _changed();
       });
       Timer(delay, () => finishSharing(id));
     }

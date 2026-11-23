@@ -84,21 +84,26 @@ final class LedgerXpenseActions implements XpenseActions {
             for (final d in drafts)
               if (d.fx != null && d.currency != base) withoutFx(d) else d,
           ];
-    var result = await transactions.saveEntries(priced);
-    // The household's first rate covers today on: an entry dated earlier
-    // has no rate to use yet. The rate the member just entered is the only
-    // one there is, so it goes on those entries as their quote.
+    var batch = priced;
+    var result = await transactions.saveEntries(batch);
+    // The household's first rate covers today on: an entry dated before it
+    // has no rate to use. The rate the member just entered is the only one
+    // there is, so it goes on that entry, and only on it: the others keep
+    // the rate for their own date. One at a time, as the write path names
+    // the first draft it cannot price.
     final answered = _answeredToday;
-    if (answered != null &&
-        result is Err<SavedEntries, TransactionsFailure> &&
-        result.failure is EntryRateNeeded) {
-      result = await transactions.saveEntries([
-        for (final d in priced)
-          if (d.fx == null && d.currency != base)
-            withFx(d, answered, base)
-          else
-            d,
-      ]);
+    final quoted = <String>{};
+    while (answered != null) {
+      final draftId = switch (result) {
+        Err(failure: EntryRateNeeded(:final draftId)) => draftId,
+        _ => null,
+      };
+      if (draftId == null || !quoted.add(draftId)) break;
+      batch = [
+        for (final d in batch)
+          if (d.id == draftId) withFx(d, answered, base) else d,
+      ];
+      result = await transactions.saveEntries(batch);
     }
     switch (result) {
       case Ok(:final value):

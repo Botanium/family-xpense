@@ -69,6 +69,42 @@ void main() {
     expect((outcome as SaveFailed).reason, SaveFailure.invalid);
   });
 
+  test(
+    'only an entry with no rate for its date takes the answered rate',
+    () async {
+      store.rates
+        ..clear()
+        ..['2026-11-20'] = DayRate(
+          day: '2026-11-20',
+          rate: FxRate.forPair(FxPair.usdIqd, '1705').valueOrNull!,
+          kind: 'market',
+        );
+      await actions.setDailyRate('1800');
+      EntryDraft dinars(String id, String day) => EntryDraft(
+        id: id,
+        intent: 'expense',
+        amountMinor: 18000,
+        currency: 'IQD',
+        accountId: 'acc-cash',
+        categoryId: 'groceries',
+        who: 'me',
+        occurredOn: day,
+        title: 'Bread',
+        origin: 'agent',
+      );
+      final outcome = await actions.saveDrafts('s1', [
+        dinars('d19', '2026-11-19'),
+        dinars('d21', '2026-11-21'),
+      ]) as DraftsSaved;
+      final rates = {
+        for (final id in outcome.txnIds)
+          store.transactions[id]!['occurredOn']:
+              (store.transactions[id]!['fx']! as Map)['pairRate'],
+      };
+      expect(rates, {'2026-11-19': '1800', '2026-11-21': '1705'});
+    },
+  );
+
   test('failures map to what the card can say', () {
     expect(saveFailureOf(const TransactionsNotAllowed()), SaveFailure.denied);
     expect(saveFailureOf(const TooManyEntries()), SaveFailure.invalid);
