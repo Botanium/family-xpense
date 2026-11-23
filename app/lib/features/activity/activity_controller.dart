@@ -4,8 +4,8 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:xpense_app/data/accounts_repository.dart';
-import 'package:xpense_app/data/activity_feed.dart';
 import 'package:xpense_app/data/household_repository.dart';
+import 'package:xpense_app/data/read/activity_reader.dart';
 import 'package:xpense_app/features/activity/activity_model.dart';
 import 'package:xpense_shared/xpense_shared.dart';
 
@@ -149,7 +149,7 @@ final StreamProvider<ActivityWindow> activityWindowProvider =
       if (query == null) {
         return Stream.value(const ActivityWindow(entries: [], hasMore: false));
       }
-      return ref.watch(activityFeedProvider).watch(query);
+      return ref.watch(activityReaderProvider).watch(query);
     }, name: 'activityWindowProvider');
 
 /// The name of category [id] (the household's seeded categories, which use
@@ -213,7 +213,7 @@ final Provider<AsyncValue<ActivityList>> activityListProvider =
     }, name: 'activityListProvider');
 
 /// The failure behind an error state, typed.
-ActivityFeedFailure activityFailureOf(Object error) => switch (error) {
-  final ActivityFeedFailure f => f,
+ActivityReadFailure activityFailureOf(Object error) => switch (error) {
+  final ActivityReadFailure f => f,
   _ => ActivityReadFailed(error.runtimeType.toString()),
 };

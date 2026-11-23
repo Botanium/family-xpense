@@ -3,8 +3,8 @@
 // member can see.
 //
 // This file is the interface features import. The Firestore adapter is
-// `activity_feed_firestore.dart` and the in-memory one
-// `activity_feed_memory.dart`; only the composition root and tests name
+// `activity_reader_firestore.dart` and the in-memory one
+// `activity_reader_memory.dart`; only the composition root and tests name
 // them. Writes never go through here: they go through
 // `TransactionsRepository` (D-10).
 //
@@ -129,7 +129,7 @@ final class ActivityWindow {
 /// Why the window could not be read. Carries a stable [code]; the screen
 /// localises from it.
 @immutable
-sealed class ActivityFeedFailure implements Exception, Failure {
+sealed class ActivityReadFailure implements Exception, Failure {
   const new();
 
   @override
@@ -143,7 +143,7 @@ sealed class ActivityFeedFailure implements Exception, Failure {
 }
 
 /// The rules refused the read.
-final class ActivityNotAllowed extends ActivityFeedFailure {
+final class ActivityNotAllowed extends ActivityReadFailure {
   /// Creates the failure.
   const new();
 
@@ -152,7 +152,7 @@ final class ActivityNotAllowed extends ActivityFeedFailure {
 }
 
 /// Anything else. The original error is reported where it was caught.
-final class ActivityReadFailed extends ActivityFeedFailure {
+final class ActivityReadFailed extends ActivityReadFailure {
   /// Creates the failure with a machine-readable [detail].
   const new(this.detail);
 
@@ -176,18 +176,18 @@ final class ActivityReadFailed extends ActivityFeedFailure {
 const Duration cacheOnlyMeansOffline = Duration(seconds: 2);
 
 /// Reads the Activity window.
-abstract interface class ActivityFeed {
+abstract interface class ActivityReader {
   /// The newest entries matching [query], live. Emits again on every change
   /// (a save, an edit, a delete, an undo, the partner's writes). Errors are
-  /// [ActivityFeedFailure]s. Emits an empty window while not in a
+  /// [ActivityReadFailure]s. Emits an empty window while not in a
   /// household.
   Stream<ActivityWindow> watch(ActivityQuery query);
 }
 
-/// The [ActivityFeed] for this run. Throws until the composition root sets
+/// The [ActivityReader] for this run. Throws until the composition root sets
 /// it.
-final activityFeedProvider = Provider<ActivityFeed>(
+final activityReaderProvider = Provider<ActivityReader>(
   (ref) =>
-      throw UnimplementedError('activityFeedProvider is set in bootstrap()'),
-  name: 'activityFeedProvider',
+      throw UnimplementedError('activityReaderProvider is set in bootstrap()'),
+  name: 'activityReaderProvider',
 );

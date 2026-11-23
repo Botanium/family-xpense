@@ -3,7 +3,7 @@
 // loaded window, and when a search reads like a question for Ask. No
 // widgets here, so all of it is unit-tested.
 import 'package:flutter/foundation.dart';
-import 'package:xpense_app/data/activity_feed.dart';
+import 'package:xpense_app/data/read/activity_reader.dart';
 import 'package:xpense_app/data/transactions_repository.dart';
 import 'package:xpense_shared/xpense_shared.dart';
 

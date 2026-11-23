@@ -8,7 +8,7 @@ import 'package:xpense_app/app.dart';
 import 'package:xpense_app/bootstrap.dart';
 import 'package:xpense_app/core/routing/routing.dart';
 import 'package:xpense_app/data/accounts_repository_fake.dart';
-import 'package:xpense_app/data/activity_feed.dart';
+import 'package:xpense_app/data/read/activity_reader.dart';
 import 'package:xpense_app/data/transactions_repository.dart';
 import 'package:xpense_app/features/activity/activity_row.dart';
 import 'package:xpense_shared/xpense_shared.dart';
@@ -152,33 +152,35 @@ Future<ProviderContainer> pumpActivity(
 
 /// The overrides of [services] with [feed] as the Activity feed (and the
 /// memory write path, not wired to it).
-List<Override> overridesWithFeed(TestServices services, ActivityFeed feed) =>
-    appOverrides(
-      clock: services.clock.clock,
-      settings: services.settingsStore,
-      biometricLock: services.biometricLock,
-      glass: services.glass,
-      authRepository: services.auth,
-      householdRepository: services.households,
-      accountsRepository: services.accounts,
-      activityFeed: feed,
-      featureFlags: services.flags,
-      onDeviceLlm: services.onDeviceLlm,
-      speechCapture: services.speech,
-    );
+List<Override> overridesWithReader(
+  TestServices services,
+  ActivityReader feed,
+) => appOverrides(
+  clock: services.clock.clock,
+  settings: services.settingsStore,
+  biometricLock: services.biometricLock,
+  glass: services.glass,
+  authRepository: services.auth,
+  householdRepository: services.households,
+  accountsRepository: services.accounts,
+  activityReader: feed,
+  featureFlags: services.flags,
+  onDeviceLlm: services.onDeviceLlm,
+  speechCapture: services.speech,
+);
 
 /// Pumps the app on the sample household with [feed] as the Activity feed,
 /// on Activity, without settling (a feed may never answer).
-Future<ProviderContainer> pumpWithFeed(
+Future<ProviderContainer> pumpWithReader(
   WidgetTester tester,
-  ActivityFeed feed,
+  ActivityReader feed,
 ) async {
   usePhone(tester);
   final services = TestServices(
     accounts: FakeAccountsRepository.sample()..sharingDelay = null,
   );
   final container = ProviderContainer.test(
-    overrides: overridesWithFeed(services, feed),
+    overrides: overridesWithReader(services, feed),
     retry: (_, _) => null,
   );
   await tester.pumpWidget(

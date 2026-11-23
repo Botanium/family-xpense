@@ -11,8 +11,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:xpense_app/core/routing/routing.dart';
 import 'package:xpense_app/core/ui/ui.dart';
 import 'package:xpense_app/data/accounts_repository_fake.dart';
-import 'package:xpense_app/data/activity_feed.dart';
-import 'package:xpense_app/data/activity_feed_memory.dart';
+import 'package:xpense_app/data/read/activity_reader.dart';
+import 'package:xpense_app/data/read/activity_reader_memory.dart';
 import 'package:xpense_app/features/activity/activity_controller.dart';
 import 'package:xpense_app/features/activity/activity_model.dart';
 import 'package:xpense_app/features/activity/activity_row.dart';
@@ -357,17 +357,17 @@ void main() {
     });
 
     testWidgets('loading shows the skeleton', (tester) async {
-      await pumpWithFeed(tester, _NeverFeed());
+      await pumpWithReader(tester, _NeverReader());
       expect(find.byType(Skeleton), findsOneWidget);
     });
 
     testWidgets('error: a line and Try again, which reads again', (
       tester,
     ) async {
-      final feed = MemoryActivityFeed.empty(
+      final feed = MemoryActivityReader.empty(
         viewerUid: FakeAccountsRepository.sampleViewer,
       )..failure = const ActivityReadFailed('unavailable');
-      await pumpWithFeed(tester, feed);
+      await pumpWithReader(tester, feed);
       await tester.pumpAndSettle();
       expect(find.text("Couldn't load your entries."), findsOneWidget);
 
@@ -378,10 +378,11 @@ void main() {
     });
 
     testWidgets('the rules refusing the read says so', (tester) async {
-      await pumpWithFeed(
+      await pumpWithReader(
         tester,
-        MemoryActivityFeed.empty(viewerUid: FakeAccountsRepository.sampleViewer)
-          ..failure = const ActivityNotAllowed(),
+        MemoryActivityReader.empty(
+          viewerUid: FakeAccountsRepository.sampleViewer,
+        )..failure = const ActivityNotAllowed(),
       );
       await tester.pumpAndSettle();
       expect(
@@ -393,10 +394,10 @@ void main() {
     testWidgets('offline: the strip shows once the cache is all there is', (
       tester,
     ) async {
-      final feed = MemoryActivityFeed.empty(
+      final feed = MemoryActivityReader.empty(
         viewerUid: FakeAccountsRepository.sampleViewer,
       )..fromCache = true;
-      await pumpWithFeed(tester, feed);
+      await pumpWithReader(tester, feed);
       // Not at once: a normal start is served from the cache first.
       expect(find.byType(OfflineBanner), findsNothing);
       await tester.pump(ActivityScreen.offlineGrace);
@@ -414,7 +415,7 @@ void main() {
       tester,
     ) async {
       final container = await pumpActivity(tester);
-      (container.read(activityFeedProvider) as MemoryActivityFeed)
+      (container.read(activityReaderProvider) as MemoryActivityReader)
         ..syncing = {idOf(tester, 'Costco')}
         ..changed();
       await tester.pumpAndSettle();
@@ -445,7 +446,8 @@ void main() {
       tester,
     ) async {
       final container = await pumpActivity(tester, drafts: many(1000));
-      final feed = container.read(activityFeedProvider) as MemoryActivityFeed;
+      final feed =
+          container.read(activityReaderProvider) as MemoryActivityReader;
       expect(feed.opened.last.limit, 50);
       // Only what is on screen (and the cache extent) is built.
       expect(
@@ -485,7 +487,7 @@ String _dayBefore(String day, int days) {
   return '${d.year}-${two(d.month)}-${two(d.day)}';
 }
 
-final class _NeverFeed implements ActivityFeed {
+final class _NeverReader implements ActivityReader {
   // A read that never answers.
   final StreamController<ActivityWindow> _never = StreamController();
 

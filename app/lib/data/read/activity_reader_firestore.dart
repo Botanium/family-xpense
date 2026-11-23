@@ -1,4 +1,4 @@
-// The Firestore adapter behind `ActivityFeed` (DATA_MODEL 2.5, 6, 7). Only
+// The Firestore adapter behind `ActivityReader` (DATA_MODEL 2.5, 6, 7). Only
 // the composition root names this file.
 import 'dart:async';
 
@@ -6,19 +6,19 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 
-import 'package:xpense_app/data/activity_feed.dart';
 import 'package:xpense_app/data/household_repository.dart';
 import 'package:xpense_app/data/mappers/transaction_mapper.dart';
+import 'package:xpense_app/data/read/activity_reader.dart';
 import 'package:xpense_app/data/transactions_repository.dart';
 
-/// [ActivityFeed] over `households/{hid}/transactions`.
+/// [ActivityReader] over `households/{hid}/transactions`.
 ///
 /// Each [watch] follows the household membership and keeps one snapshot
 /// listener with metadata changes, so the window is served from the cache
 /// at once (offline too), marks entries whose write is still on the phone,
 /// and updates on every write. A longer window is a new listener with a
 /// larger limit; the cache serves the part already read.
-final class FirestoreActivityFeed implements ActivityFeed {
+final class FirestoreActivityReader implements ActivityReader {
   /// Creates the adapter. [_firestore] must already point at the emulator
   /// when one is used (the household adapter does that).
   new({
@@ -29,7 +29,7 @@ final class FirestoreActivityFeed implements ActivityFeed {
 
   /// The adapter on [FirebaseFirestore.instance] and [FirebaseAuth.instance].
   factory connect({required HouseholdRepository households}) =>
-      FirestoreActivityFeed(
+      FirestoreActivityReader(
         firestore: FirebaseFirestore.instance,
         households: households,
         uid: () => FirebaseAuth.instance.currentUser?.uid,
@@ -124,7 +124,7 @@ final class FirestoreActivityFeed implements ActivityFeed {
     FlutterErrorDetails(
       exception: e,
       stack: s,
-      library: 'activity_feed_firestore',
+      library: 'activity_reader_firestore',
       context: ErrorDescription('while reading Activity'),
     ),
   );
@@ -203,7 +203,7 @@ final class FirestoreActivityFeed implements ActivityFeed {
 
   /// The typed failure for a read error.
   @visibleForTesting
-  static ActivityFeedFailure failureOf(Object error) => switch (error) {
+  static ActivityReadFailure failureOf(Object error) => switch (error) {
     FirebaseException(code: 'permission-denied') => const ActivityNotAllowed(),
     FirebaseException(:final code) => ActivityReadFailed(code),
     _ => ActivityReadFailed(error.runtimeType.toString()),

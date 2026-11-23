@@ -2,9 +2,9 @@
 // their net, search, the question test, and the feed adapters' helpers.
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:xpense_app/data/activity_feed.dart';
-import 'package:xpense_app/data/activity_feed_firestore.dart';
-import 'package:xpense_app/data/activity_feed_memory.dart';
+import 'package:xpense_app/data/read/activity_reader.dart';
+import 'package:xpense_app/data/read/activity_reader_firestore.dart';
+import 'package:xpense_app/data/read/activity_reader_memory.dart';
 import 'package:xpense_app/data/transactions_repository.dart';
 import 'package:xpense_app/features/activity/activity_model.dart';
 import 'package:xpense_shared/xpense_shared.dart';
@@ -192,7 +192,7 @@ void main() {
     });
   });
 
-  group('memory feed', () {
+  group('memory reader', () {
     test(
       'only live entries the viewer can see, newest first, limited',
       () async {
@@ -204,7 +204,7 @@ void main() {
           'hidden': stored(txn('hidden', visibleTo: const ['sam'])),
           'income': stored(txn('income', type: LedgerType.income)),
         };
-        final feed = MemoryActivityFeed(read: () => fields, viewerUid: 'me');
+        final feed = MemoryActivityReader(read: () => fields, viewerUid: 'me');
         final window = await feed.watch(const ActivityQuery(limit: 3)).first;
         expect(window.entries.map((t) => t.id), ['new', 'income', 'mid']);
         expect(window.hasMore, isTrue);
@@ -219,7 +219,7 @@ void main() {
 
     test('emits again on change', () async {
       final fields = <String, Map<String, Object?>>{};
-      final feed = MemoryActivityFeed(read: () => fields, viewerUid: 'me');
+      final feed = MemoryActivityReader(read: () => fields, viewerUid: 'me');
       final windows = feed.watch(const ActivityQuery(limit: 10));
       final seen = <int>[];
       final sub = windows.listen((w) => seen.add(w.entries.length));
@@ -232,10 +232,10 @@ void main() {
     });
   });
 
-  group('Firestore feed helpers', () {
+  group('Firestore reader helpers', () {
     test('timestamps become UTC DateTimes, nested too', () {
       final at = DateTime.utc(2026, 11, 22, 9);
-      final plain = FirestoreActivityFeed.plainFields({
+      final plain = FirestoreActivityReader.plainFields({
         'occurredAt': Timestamp.fromDate(at),
         'deletedAt': null,
         'ai': {
@@ -251,7 +251,7 @@ void main() {
 
     test('read errors become typed failures', () {
       expect(
-        FirestoreActivityFeed.failureOf(
+        FirestoreActivityReader.failureOf(
           FirebaseException(
             plugin: 'cloud_firestore',
             code: 'permission-denied',
@@ -260,24 +260,24 @@ void main() {
         const ActivityNotAllowed(),
       );
       expect(
-        FirestoreActivityFeed.failureOf(
+        FirestoreActivityReader.failureOf(
           FirebaseException(plugin: 'cloud_firestore', code: 'unavailable'),
         ),
         const ActivityReadFailed('unavailable'),
       );
       expect(
-        FirestoreActivityFeed.failureOf(StateError('x')),
+        FirestoreActivityReader.failureOf(StateError('x')),
         const ActivityReadFailed('StateError'),
       );
     });
 
     test('only filtered queries can fall back to filtering on the phone', () {
       expect(
-        FirestoreActivityFeed.hasFilter(const ActivityQuery(limit: 1)),
+        FirestoreActivityReader.hasFilter(const ActivityQuery(limit: 1)),
         isFalse,
       );
       expect(
-        FirestoreActivityFeed.hasFilter(
+        FirestoreActivityReader.hasFilter(
           const ActivityQuery(limit: 1, whoUid: 'me'),
         ),
         isTrue,

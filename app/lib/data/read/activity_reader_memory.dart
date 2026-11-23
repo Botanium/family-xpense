@@ -1,26 +1,26 @@
-// The in-memory `ActivityFeed`, for the fakes build and tests. It reads the
+// The in-memory `ActivityReader`, for the fakes build and tests. It reads the
 // same stored fields the memory write path keeps
 // (`write/memory_ledger_store.dart`), so a delete and its undo show at once.
 import 'dart:async';
 
-import 'package:xpense_app/data/activity_feed.dart';
 import 'package:xpense_app/data/mappers/transaction_mapper.dart';
+import 'package:xpense_app/data/read/activity_reader.dart';
 import 'package:xpense_app/data/transactions_repository.dart';
 import 'package:xpense_shared/xpense_shared.dart';
 
-/// [ActivityFeed] over stored transaction fields held in memory.
+/// [ActivityReader] over stored transaction fields held in memory.
 ///
 /// `read` returns every stored transaction by id, as the phone sees it.
 /// Call [changed] after a write (or wrap the write path in
 /// [NotifyingTransactionsRepository]) to emit again.
-final class MemoryActivityFeed implements ActivityFeed {
-  /// Creates the feed for viewer [viewerUid]; null reads as "not in a
+final class MemoryActivityReader implements ActivityReader {
+  /// Creates the reader for viewer [viewerUid]; null reads as "not in a
   /// household".
   new({required this._read, required this.viewerUid});
 
-  /// A feed with nothing in it.
+  /// A reader with nothing in it.
   factory empty({String? viewerUid}) =>
-      MemoryActivityFeed(read: () => const {}, viewerUid: viewerUid);
+      MemoryActivityReader(read: () => const {}, viewerUid: viewerUid);
 
   final Map<String, Map<String, Object?>> Function() _read;
 
@@ -28,7 +28,7 @@ final class MemoryActivityFeed implements ActivityFeed {
   String? viewerUid;
 
   /// When set, every [watch] fails with it (for error-state tests).
-  ActivityFeedFailure? failure;
+  ActivityReadFailure? failure;
 
   /// When set, windows report they came from the cache (offline).
   bool fromCache = false;
@@ -98,18 +98,20 @@ final class MemoryActivityFeed implements ActivityFeed {
   Future<void> dispose() => _changes.close();
 }
 
-/// A [TransactionsRepository] that tells a [MemoryActivityFeed] after every
+/// A [TransactionsRepository] that tells a [MemoryActivityReader] after every
 /// write, so the window follows the memory write path.
 final class NotifyingTransactionsRepository implements TransactionsRepository {
-  /// Wraps [_inner]; [_feed] hears of every write.
-  new(this._inner, this._feed);
+  /// Wraps [_inner]; [reader] hears of every write.
+  new(this._inner, this.reader);
 
   final TransactionsRepository _inner;
-  final MemoryActivityFeed _feed;
+
+  /// The reader that follows this write path.
+  final MemoryActivityReader reader;
 
   Future<T> _then<T>(Future<T> write) async {
     final result = await write;
-    _feed.changed();
+    reader.changed();
     return result;
   }
 
