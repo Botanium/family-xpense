@@ -170,15 +170,45 @@ enum AppleAppCheck {
   appAttest,
 }
 
+/// `--dart-define=XPENSE_APP_CHECK_DEBUG_TOKEN=<token>` makes a `dev`
+/// build use the App Check debug provider with that token, also in a
+/// release build on a phone. A free Personal Team cannot sign App Attest
+/// (D-39), so this is how a phone build reaches the server; the token is
+/// registered on "Family Xpense Dev" first (docs/PHONE_TESTING.md). Ignored
+/// in `prod`, which never uses debug tokens (ENVIRONMENTS 8).
+const String appCheckDebugTokenDefine = String.fromEnvironment(
+  'XPENSE_APP_CHECK_DEBUG_TOKEN',
+);
+
 /// App Attest only in a release build on a device; the debug provider on
 /// the simulator and in debug and profile builds. App Attest needs the
 /// paid Apple Developer Program, which the team does not have yet
 /// (DECISIONS D-39), and never works on the simulator.
+///
+/// A `dev` build given a registered [debugToken] uses the debug provider
+/// everywhere, so a phone signed by a free team still gets App Check
+/// tokens. [environment] `prod` ignores [debugToken].
 AppleAppCheck appleAppCheckFor({
   required bool releaseBuild,
   required bool simulator,
-}) =>
-    releaseBuild && !simulator ? AppleAppCheck.appAttest : AppleAppCheck.debug;
+  required AppEnvironment environment,
+  required String debugToken,
+}) {
+  if (environment == AppEnvironment.dev && debugToken.isNotEmpty) {
+    return AppleAppCheck.debug;
+  }
+  return releaseBuild && !simulator
+      ? AppleAppCheck.appAttest
+      : AppleAppCheck.debug;
+}
+
+/// The debug token [AppleDebugProvider] is given: the
+/// [appCheckDebugTokenDefine] in `dev`, otherwise none (the SDK then makes
+/// and logs its own, as on the simulator).
+String? appCheckDebugTokenFor(AppEnvironment environment, String debugToken) =>
+    environment == AppEnvironment.dev && debugToken.isNotEmpty
+    ? debugToken
+    : null;
 
 /// Whether this process runs in the iOS Simulator, which sets
 /// `SIMULATOR_UDID` in every app's environment.
@@ -479,8 +509,15 @@ Future<Bootstrapped> bootstrap({required AppEnvironment environment}) async {
       providerApple: switch (appleAppCheckFor(
         releaseBuild: kReleaseMode,
         simulator: runningOnSimulator,
+        environment: environment,
+        debugToken: appCheckDebugTokenDefine,
       )) {
-        AppleAppCheck.debug => const AppleDebugProvider(),
+        AppleAppCheck.debug => AppleDebugProvider(
+          debugToken: appCheckDebugTokenFor(
+            environment,
+            appCheckDebugTokenDefine,
+          ),
+        ),
         AppleAppCheck.appAttest =>
           const AppleAppAttestWithDeviceCheckFallbackProvider(),
       },

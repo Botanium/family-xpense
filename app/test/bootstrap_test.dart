@@ -24,10 +24,17 @@ import 'support/test_app.dart';
 void main() {
   group('App Check provider (D-39)', () {
     test('App Attest only in a release build on a device', () {
-      expect(
-        appleAppCheckFor(releaseBuild: true, simulator: false),
-        AppleAppCheck.appAttest,
-      );
+      for (final environment in [AppEnvironment.dev, AppEnvironment.prod]) {
+        expect(
+          appleAppCheckFor(
+            releaseBuild: true,
+            simulator: false,
+            environment: environment,
+            debugToken: '',
+          ),
+          AppleAppCheck.appAttest,
+        );
+      }
     });
 
     test('the debug provider on the simulator and outside release', () {
@@ -37,11 +44,46 @@ void main() {
         (false, false),
       ]) {
         expect(
-          appleAppCheckFor(releaseBuild: release, simulator: simulator),
+          appleAppCheckFor(
+            releaseBuild: release,
+            simulator: simulator,
+            environment: AppEnvironment.dev,
+            debugToken: '',
+          ),
           AppleAppCheck.debug,
           reason: 'release: $release, simulator: $simulator',
         );
       }
+    });
+
+    test('a dev phone build with a debug token uses the debug provider', () {
+      expect(
+        appleAppCheckFor(
+          releaseBuild: true,
+          simulator: false,
+          environment: AppEnvironment.dev,
+          debugToken: 'registered-token',
+        ),
+        AppleAppCheck.debug,
+      );
+      expect(
+        appCheckDebugTokenFor(AppEnvironment.dev, 'registered-token'),
+        'registered-token',
+      );
+    });
+
+    test('prod ignores a debug token', () {
+      expect(
+        appleAppCheckFor(
+          releaseBuild: true,
+          simulator: false,
+          environment: AppEnvironment.prod,
+          debugToken: 'registered-token',
+        ),
+        AppleAppCheck.appAttest,
+      );
+      expect(appCheckDebugTokenFor(AppEnvironment.prod, 'token'), isNull);
+      expect(appCheckDebugTokenFor(AppEnvironment.dev, ''), isNull);
     });
 
     test('a test run is not the simulator', () {
