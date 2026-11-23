@@ -402,6 +402,18 @@ abstract class AppLocalizations {
   /// **'Nothing here yet.'**
   String get activityEmptyFiltered;
 
+  /// Empty state of an Activity filter when the entries read so far have none, but older entries exist (with a Load older action).
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing here in the entries loaded so far.'**
+  String get activityEmptyLoaded;
+
+  /// Error line in Activity when a delete or undo made offline was refused once it reached the server.
+  ///
+  /// In en, this message translates to:
+  /// **'A change you made offline didn\'t go through. The entry is back as it was.'**
+  String get activityLateFailure;
+
   /// Shown when an Activity search matches nothing in the entries loaded so far.
   ///
   /// In en, this message translates to:

@@ -180,6 +180,14 @@ class AppLocalizationsEn extends AppLocalizations {
   String get activityEmptyFiltered => 'Nothing here yet.';
 
   @override
+  String get activityEmptyLoaded =>
+      'Nothing here in the entries loaded so far.';
+
+  @override
+  String get activityLateFailure =>
+      'A change you made offline didn\'t go through. The entry is back as it was.';
+
+  @override
   String get activitySearchEmpty => 'No matches in the loaded entries.';
 
   @override

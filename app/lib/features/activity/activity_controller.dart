@@ -181,15 +181,21 @@ final class ActivityList {
   final int matches;
 }
 
-/// The flat list for the current window and search. Derived, so scrolling
-/// never recomputes it.
-final Provider<AsyncValue<ActivityList>> activityListProvider =
-    Provider.autoDispose<AsyncValue<ActivityList>>((ref) {
-      final window = ref.watch(activityWindowProvider);
+/// The flat list for the latest window and the search, or null before the
+/// first window. Derived, so scrolling never recomputes it.
+///
+/// Built from the window's value whatever its state, so a reload or a read
+/// error keeps the last list (`whenData` would drop it on an error, Codex
+/// review PR #38); the screen reads loading and errors from
+/// [activityWindowProvider].
+final Provider<ActivityList?> activityListProvider =
+    Provider.autoDispose<ActivityList?>((ref) {
+      final w = ref.watch(activityWindowProvider.select((a) => a.value));
       final search = ref.watch(
         activityControllerProvider.select((s) => s.search.trim()),
       );
-      return window.whenData((w) {
+      if (w == null) return null;
+      {
         final entries = search.isEmpty
             ? w.entries
             : [
@@ -209,7 +215,7 @@ final Provider<AsyncValue<ActivityList>> activityListProvider =
           searching: search.isNotEmpty,
           matches: entries.length,
         );
-      });
+      }
     }, name: 'activityListProvider');
 
 /// The failure behind an error state, typed.

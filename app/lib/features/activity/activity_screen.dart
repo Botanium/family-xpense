@@ -55,15 +55,24 @@ class _ActivityScreenState extends ConsumerState<ActivityScreen> {
   Timer? _offlineTimer;
   bool _offline = false;
   String? _notice;
+  // Entries this screen deleted or restored: a queued write the server
+  // refuses later is reported for them (Codex review, PR #38).
+  final Set<String> _written = {};
+  late final StreamSubscription<LateWriteFailure> _lateFailures;
 
   @override
   void initState() {
     super.initState();
     ref.listenManual(activityWindowProvider, _onWindow, fireImmediately: true);
+    _lateFailures = ref
+        .read(transactionsRepositoryProvider)
+        .lateFailures
+        .listen(_onLateFailure);
   }
 
   @override
   void dispose() {
+    unawaited(_lateFailures.cancel());
     _offlineTimer?.cancel();
     _search.dispose();
     _group.dispose();
@@ -88,6 +97,18 @@ class _ActivityScreenState extends ConsumerState<ActivityScreen> {
       _offlineTimer = null;
       if (mounted) setState(() => _offline = true);
     });
+  }
+
+  // A delete or an undo queued offline was refused when it reached the
+  // server; Firestore has already put the entry back as it was.
+  void _onLateFailure(LateWriteFailure late) {
+    if (!mounted || !late.txnIds.any(_written.contains)) return;
+    final l10n = context.l10n;
+    setState(
+      () => _notice = late.failure is TransactionConflict
+          ? l10n.activityChangedElsewhere
+          : l10n.activityLateFailure,
+    );
   }
 
   void _loadMore() {
@@ -126,6 +147,7 @@ class _ActivityScreenState extends ConsumerState<ActivityScreen> {
     _dismissToast?.call();
     _dismissToast = null;
     setState(() => _notice = null);
+    _written.add(txn.id);
     final result = await repository.deleteEntry(txn.id);
     if (!mounted) return;
     switch (result) {
@@ -156,6 +178,7 @@ class _ActivityScreenState extends ConsumerState<ActivityScreen> {
 
   Future<void> _restore(TransactionsRepository repository, String id) async {
     _dismissToast = null;
+    _written.add(id);
     final result = await repository.restoreEntry(id);
     if (!mounted) return;
     final l10n = context.l10n;
@@ -181,6 +204,7 @@ class _ActivityScreenState extends ConsumerState<ActivityScreen> {
     final view = ref.watch(activityControllerProvider);
     final people = ref.watch(activityPeopleProvider);
     final list = ref.watch(activityListProvider);
+    final window = ref.watch(activityWindowProvider);
 
     final filters = [
       ActivityFilter.all,
@@ -256,7 +280,7 @@ class _ActivityScreenState extends ConsumerState<ActivityScreen> {
                   ),
                 ),
               ),
-            Expanded(child: _body(context, list, view)),
+            Expanded(child: _body(context, window, list, view)),
           ],
         ),
       ),
@@ -265,29 +289,47 @@ class _ActivityScreenState extends ConsumerState<ActivityScreen> {
 
   Widget _body(
     BuildContext context,
-    AsyncValue<ActivityList> list,
+    AsyncValue<ActivityWindow> window,
+    ActivityList? list,
     ActivityViewState view,
   ) {
     final l10n = context.l10n;
-    if (list.hasValue) return _list(context, list.requireValue, view);
-    if (list.hasError) {
-      final failure = activityFailureOf(list.error!);
+    if (window.hasError) {
+      final failure = activityFailureOf(window.error!);
+      final message = switch (failure) {
+        ActivityNotAllowed() => l10n.activityLoadNotAllowed,
+        ActivityReadFailed() => l10n.activityLoadError,
+      };
+      // A read that fails after data arrived keeps the old list on screen
+      // (Riverpod retains it): say so above it, with Try again (Codex
+      // review, PR #38).
+      if (list != null) {
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            _ErrorStrip(
+              message: message,
+              retryLabel: l10n.activityRetry,
+              onRetry: () => ref.invalidate(activityWindowProvider),
+            ),
+            Expanded(child: _list(context, list, view)),
+          ],
+        );
+      }
       return Center(
         child: Padding(
           padding: const EdgeInsetsDirectional.symmetric(
             horizontal: XpSpace.screenMargin,
           ),
           child: EmptyState(
-            message: switch (failure) {
-              ActivityNotAllowed() => l10n.activityLoadNotAllowed,
-              ActivityReadFailed() => l10n.activityLoadError,
-            },
+            message: message,
             actionLabel: l10n.activityRetry,
             onAction: () => ref.invalidate(activityWindowProvider),
           ),
         ),
       );
     }
+    if (list != null) return _list(context, list, view);
     return Padding(
       padding: const EdgeInsetsDirectional.symmetric(
         horizontal: XpSpace.screenMargin,
@@ -317,6 +359,15 @@ class _ActivityScreenState extends ConsumerState<ActivityScreen> {
               message: l10n.activitySearchEmpty,
               actionLabel: window.hasMore ? l10n.activitySearchOlder : null,
               onAction: window.hasMore ? _loadMore : null,
+            )
+          // Nothing here among the entries read so far, but older ones
+          // exist (a filter applied on the phone): offer to read further
+          // (Codex review, PR #38).
+          : window.hasMore
+          ? EmptyState(
+              message: l10n.activityEmptyLoaded,
+              actionLabel: l10n.activityLoadOlder,
+              onAction: _loadMore,
             )
           : view.filter == ActivityFilter.all
           ? EmptyState(
@@ -471,6 +522,47 @@ class _Footer extends StatelessWidget {
         child: loading
             ? XpSpinner(semanticLabel: context.l10n.activityLoading)
             : XpButton.text(label: label, onPressed: onMore),
+      ),
+    );
+  }
+}
+
+/// A read error above a list that is still showing its last data.
+class _ErrorStrip extends StatelessWidget {
+  const new({
+    required this.message,
+    required this.retryLabel,
+    required this.onRetry,
+  });
+
+  final String message;
+  final String retryLabel;
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    final type = XpType.of(context);
+    final colors = XpColors.of(context);
+    return Padding(
+      padding: const EdgeInsetsDirectional.only(
+        start: XpSpace.screenMargin,
+        end: XpSpace.screenMargin,
+        top: XpSpace.s8,
+      ),
+      child: Semantics(
+        liveRegion: true,
+        container: true,
+        child: Row(
+          children: [
+            Expanded(
+              child: Text(
+                message,
+                style: type.meta.copyWith(color: colors.danger),
+              ),
+            ),
+            XpButton.text(label: retryLabel, onPressed: onRetry),
+          ],
+        ),
       ),
     );
   }

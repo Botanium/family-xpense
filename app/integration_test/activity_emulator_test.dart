@@ -27,6 +27,7 @@ import 'package:xpense_app/data/accounts_repository.dart';
 import 'package:xpense_app/data/auth_repository.dart';
 import 'package:xpense_app/data/household_repository.dart';
 import 'package:xpense_app/data/transactions_repository.dart';
+import 'package:xpense_app/features/activity/activity_dates.dart';
 import 'package:xpense_app/features/activity/activity_row.dart';
 import 'package:xpense_shared/xpense_shared.dart';
 
@@ -111,8 +112,8 @@ void main() {
     // Entries over three days, saved through the write path.
     final now = DateTime.now();
     final today = day(now);
-    final yesterday = day(now.subtract(const Duration(days: 1)));
-    final earlier = day(now.subtract(const Duration(days: 2)));
+    final yesterday = dayBefore(now, 1);
+    final earlier = dayBefore(now, 2);
     EntryDraft draft(
       String id,
       String intent,

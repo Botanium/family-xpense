@@ -154,8 +154,9 @@ Future<ProviderContainer> pumpActivity(
 /// memory write path, not wired to it).
 List<Override> overridesWithReader(
   TestServices services,
-  ActivityReader feed,
-) => appOverrides(
+  ActivityReader feed, {
+  TransactionsRepository? transactions,
+}) => appOverrides(
   clock: services.clock.clock,
   settings: services.settingsStore,
   biometricLock: services.biometricLock,
@@ -163,6 +164,7 @@ List<Override> overridesWithReader(
   authRepository: services.auth,
   householdRepository: services.households,
   accountsRepository: services.accounts,
+  transactionsRepository: transactions,
   activityReader: feed,
   featureFlags: services.flags,
   onDeviceLlm: services.onDeviceLlm,
@@ -173,20 +175,23 @@ List<Override> overridesWithReader(
 /// on Activity, without settling (a feed may never answer).
 Future<ProviderContainer> pumpWithReader(
   WidgetTester tester,
-  ActivityReader feed,
-) async {
+  ActivityReader feed, {
+  TransactionsRepository? transactions,
+  List<EntryDraft> drafts = const [],
+}) async {
   usePhone(tester);
   final services = TestServices(
     accounts: FakeAccountsRepository.sample()..sharingDelay = null,
   );
   final container = ProviderContainer.test(
-    overrides: overridesWithReader(services, feed),
+    overrides: overridesWithReader(services, feed, transactions: transactions),
     retry: (_, _) => null,
   );
   await tester.pumpWidget(
     UncontrolledProviderScope(container: container, child: const XpenseApp()),
   );
   await tester.pumpAndSettle();
+  if (drafts.isNotEmpty) await tester.runAsync(() => seed(container, drafts));
   container.read(routerProvider).go(AppRoutes.activity);
   await tester.pump();
   await tester.pump(const Duration(seconds: 1));

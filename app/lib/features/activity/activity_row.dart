@@ -7,6 +7,7 @@ import 'package:xpense_app/core/theme/theme.dart';
 import 'package:xpense_app/core/ui/ui.dart';
 import 'package:xpense_app/data/transactions_repository.dart';
 import 'package:xpense_app/features/activity/activity_controller.dart';
+import 'package:xpense_app/features/activity/activity_dates.dart';
 import 'package:xpense_app/features/activity/activity_model.dart';
 import 'package:xpense_app/features/activity/swipe_actions.dart';
 import 'package:xpense_shared/xpense_shared.dart';
@@ -102,16 +103,14 @@ class ActivityDayHeaderView extends StatelessWidget {
   static String label(BuildContext context, String day, DateTime today) {
     final l10n = context.l10n;
     final date = DateTime.tryParse(day);
-    if (date == null) return day;
-    final t = DateTime(today.year, today.month, today.day);
-    final d = DateTime(date.year, date.month, date.day);
-    final diff = t.difference(d).inDays;
+    final diff = daysBefore(day, today);
+    if (date == null || diff == null) return day;
     if (diff == 0) return l10n.activityToday;
     if (diff == 1) return l10n.activityYesterday;
     final locale = Localizations.localeOf(context).toLanguageTag();
-    return d.year == t.year
-        ? DateFormat.MMMd(locale).format(d)
-        : DateFormat.yMMMd(locale).format(d);
+    return date.year == today.year
+        ? DateFormat.MMMd(locale).format(date)
+        : DateFormat.yMMMd(locale).format(date);
   }
 
   @override

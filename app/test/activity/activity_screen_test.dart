@@ -8,12 +8,15 @@ import 'package:cupertino_ui/cupertino_ui.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/semantics.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:xpense_app/bootstrap.dart';
 import 'package:xpense_app/core/routing/routing.dart';
 import 'package:xpense_app/core/ui/ui.dart';
 import 'package:xpense_app/data/accounts_repository_fake.dart';
 import 'package:xpense_app/data/read/activity_reader.dart';
 import 'package:xpense_app/data/read/activity_reader_memory.dart';
+import 'package:xpense_app/data/transactions_repository.dart';
 import 'package:xpense_app/features/activity/activity_controller.dart';
+import 'package:xpense_app/features/activity/activity_dates.dart';
 import 'package:xpense_app/features/activity/activity_model.dart';
 import 'package:xpense_app/features/activity/activity_row.dart';
 import 'package:xpense_app/features/activity/activity_screen.dart';
@@ -479,13 +482,94 @@ void main() {
       );
     });
   });
+  group('Codex review, PR #38', () {
+    testWidgets('an empty phone-filtered window still offers older entries', (
+      tester,
+    ) async {
+      final reader = _ScriptedReader();
+      final container = await pumpWithReader(tester, reader);
+      container
+          .read(activityControllerProvider.notifier)
+          .select(ActivityFilter.loans);
+      await tester.pumpAndSettle();
+      expect(find.text('Nothing here in the entries loaded so far.'), findsOne);
+
+      await tester.tap(find.text('Load older entries'));
+      await tester.pumpAndSettle();
+      expect(reader.opened.last.limit, 100);
+      expect(find.text('Old loan'), findsOneWidget);
+    });
+
+    testWidgets('a queued delete the server refuses later says so', (
+      tester,
+    ) async {
+      final inner = memoryTransactions();
+      final repository = _LateFailing(inner);
+      await pumpWithReader(
+        tester,
+        inner.reader,
+        transactions: repository,
+        drafts: artboardEntries(),
+      );
+      await tester.pumpAndSettle();
+      final id = idOf(tester, 'Costco');
+      await swipe(tester, 'Costco', -340);
+      expect(find.text('Costco deleted'), findsOneWidget);
+
+      // Someone else's refused write is not this screen's to report.
+      repository.late.add(
+        const LateWriteFailure(
+          txnIds: ['elsewhere'],
+          failure: TransactionsNotAllowed(),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.textContaining("didn't go through"), findsNothing);
+
+      repository.late.add(
+        LateWriteFailure(txnIds: [id], failure: const TransactionsNotAllowed()),
+      );
+      await tester.pumpAndSettle();
+      expect(
+        find.text(
+          "A change you made offline didn't go through. "
+          'The entry is back as it was.',
+        ),
+        findsOneWidget,
+      );
+      await tester.pump(const Duration(seconds: 11));
+    });
+
+    testWidgets('a read error after data shows above the kept list', (
+      tester,
+    ) async {
+      final inner = memoryTransactions();
+      await pumpWithReader(
+        tester,
+        inner.reader,
+        transactions: inner,
+        drafts: artboardEntries(),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('Costco'), findsOneWidget);
+
+      inner.reader
+        ..failure = const ActivityReadFailed('unavailable')
+        ..changed();
+      await tester.pumpAndSettle();
+      expect(find.text("Couldn't load your entries."), findsOneWidget);
+      expect(find.text('Costco'), findsOneWidget);
+
+      inner.reader.failure = null;
+      await tester.tap(find.text('Try again'));
+      await tester.pumpAndSettle();
+      expect(find.text("Couldn't load your entries."), findsNothing);
+      expect(find.text('Costco'), findsOneWidget);
+    });
+  });
 }
 
-String _dayBefore(String day, int days) {
-  final d = DateTime.parse(day).subtract(Duration(days: days));
-  String two(int v) => v.toString().padLeft(2, '0');
-  return '${d.year}-${two(d.month)}-${two(d.day)}';
-}
+String _dayBefore(String day, int days) => dayBefore(DateTime.parse(day), days);
 
 final class _NeverReader implements ActivityReader {
   // A read that never answers.
@@ -493,4 +577,83 @@ final class _NeverReader implements ActivityReader {
 
   @override
   Stream<ActivityWindow> watch(ActivityQuery query) => _never.stream;
+}
+
+/// Answers the first page with nothing (all filtered out on the phone) but
+/// more behind it, and the second with one old loan.
+final class _ScriptedReader implements ActivityReader {
+  final List<ActivityQuery> opened = [];
+
+  @override
+  Stream<ActivityWindow> watch(ActivityQuery query) {
+    opened.add(query);
+    return Stream.value(
+      query.limit <= 50
+          ? const ActivityWindow(
+              entries: [],
+              hasMore: true,
+              filteredOnPhone: true,
+            )
+          : ActivityWindow(
+              entries: [
+                LedgerTransaction(
+                  id: 'old-loan',
+                  type: LedgerType.loanGiven,
+                  amountMinor: 5000,
+                  currency: Currency.usd,
+                  accountId: 'acc-checking',
+                  baseAmountMinor: 5000,
+                  whoScope: WhoScope.member,
+                  whoUid: FakeAccountsRepository.sampleViewer,
+                  occurredAt: DateTime.utc(2026, 9, 1, 12),
+                  occurredOn: '2026-09-01',
+                  visibleTo: const [FakeAccountsRepository.sampleViewer],
+                  title: 'Old loan',
+                ),
+              ],
+              hasMore: false,
+              filteredOnPhone: true,
+            ),
+    );
+  }
+}
+
+/// The memory write path, with late failures the test raises by hand.
+final class _LateFailing implements TransactionsRepository {
+  new(this._inner);
+
+  final TransactionsRepository _inner;
+  final StreamController<LateWriteFailure> late =
+      StreamController<LateWriteFailure>.broadcast();
+
+  @override
+  Stream<LateWriteFailure> get lateFailures => late.stream;
+
+  @override
+  Future<Result<SavedEntries, TransactionsFailure>> saveEntries(
+    List<EntryDraft> drafts, {
+    EntrySource? source,
+    Map<String, EntryExtras> extras = const {},
+  }) => _inner.saveEntries(drafts, source: source, extras: extras);
+
+  @override
+  Future<Result<WriteAck, TransactionsFailure>> editEntry(
+    String txnId,
+    EntryDraft draft, {
+    EntryExtras extras = const EntryExtras(),
+  }) => _inner.editEntry(txnId, draft, extras: extras);
+
+  @override
+  Future<Result<WriteAck, TransactionsFailure>> deleteEntry(
+    String txnId, {
+    DeleteReason reason = DeleteReason.delete,
+  }) => _inner.deleteEntry(txnId, reason: reason);
+
+  @override
+  Future<Result<WriteAck, TransactionsFailure>> undoSave(SavedEntries saved) =>
+      _inner.undoSave(saved);
+
+  @override
+  Future<Result<WriteAck, TransactionsFailure>> restoreEntry(String txnId) =>
+      _inner.restoreEntry(txnId);
 }
