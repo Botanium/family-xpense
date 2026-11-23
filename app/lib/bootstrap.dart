@@ -293,8 +293,10 @@ final XpenseHousehold demoXpenseHousehold = XpenseHousehold(
     HouseholdAccount(id: 'acc_cash_iqd', name: 'Cash wallet', currency: 'IQD'),
   ],
   categories: [
+    // All of them, as the server's demo household has: a category with no
+    // parent, such as `other_expense`, can be a leaf.
     for (final c in defaultCategories)
-      if (!c.isGroup) HouseholdCategory(id: c.slug, name: c.nameIn('en')),
+      HouseholdCategory(id: c.slug, name: c.nameIn('en')),
   ],
   people: const [HouseholdItem(id: 'p_alex', name: 'Alex')],
   loans: const [HouseholdItem(id: 'loan_alex', name: 'Alex')],

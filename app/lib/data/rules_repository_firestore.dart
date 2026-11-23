@@ -73,6 +73,7 @@ final class FirestoreRulesRepository implements RulesRepository {
         .snapshots()
         .listen(
           (snapshot) {
+            _ids = {for (final doc in snapshot.docs) doc.id};
             _rules = [
               for (final doc in snapshot.docs)
                 ?ruleFromDoc(doc.id, doc.data(), uid: uid),
@@ -96,6 +97,7 @@ final class FirestoreRulesRepository implements RulesRepository {
   final StreamController<List<ParserRule>> _changes =
       StreamController<List<ParserRule>>.broadcast();
   List<ParserRule> _rules = const [];
+  Set<String> _ids = const {};
 
   @override
   List<ParserRule> get current => _rules;
@@ -109,36 +111,41 @@ final class FirestoreRulesRepository implements RulesRepository {
     if (lesson.isEmpty || pattern.isEmpty) return;
     final ref = _collection.doc('${ruleIdFor(lesson.kind, pattern)}_$uid');
     final sets = storedSets(lesson, uid: uid);
-    await ref.firestore.runTransaction((tx) async {
-      final existing = await tx.get(ref);
-      if (existing.exists) {
-        tx.update(ref, {
-          for (final MapEntry(:key, :value) in sets.entries) 'sets.$key': value,
-          if (lesson.who == 'joint') 'sets.whoUid': FieldValue.delete(),
-          'hits': FieldValue.increment(1),
-          'lastUsedAt': FieldValue.serverTimestamp(),
-          'fromTxnId': ?lesson.fromTxnId,
-          'updatedBy': uid,
-          'updatedAt': FieldValue.serverTimestamp(),
-        });
-      } else {
-        tx.set(ref, {
-          'kind': lesson.kind.wire,
-          'pattern': pattern,
-          'sets': sets,
-          'ownerUid': uid,
-          'scope': 'personal',
-          'visibleTo': [uid],
-          'hits': 1,
-          'lastUsedAt': FieldValue.serverTimestamp(),
-          'fromTxnId': ?lesson.fromTxnId,
-          'createdBy': uid,
-          'createdAt': FieldValue.serverTimestamp(),
-          'updatedBy': uid,
-          'updatedAt': FieldValue.serverTimestamp(),
-        });
-      }
+    Future<void> update() => ref.update({
+      for (final MapEntry(:key, :value) in sets.entries) 'sets.$key': value,
+      if (lesson.who == 'joint') 'sets.whoUid': FieldValue.delete(),
+      'hits': FieldValue.increment(1),
+      'lastUsedAt': FieldValue.serverTimestamp(),
+      'fromTxnId': ?lesson.fromTxnId,
+      'updatedBy': uid,
+      'updatedAt': FieldValue.serverTimestamp(),
     });
+    Future<void> create() => ref.set({
+      'kind': lesson.kind.wire,
+      'pattern': pattern,
+      'sets': sets,
+      'ownerUid': uid,
+      'scope': 'personal',
+      'visibleTo': [uid],
+      'hits': 1,
+      'lastUsedAt': FieldValue.serverTimestamp(),
+      'fromTxnId': ?lesson.fromTxnId,
+      'createdBy': uid,
+      'createdAt': FieldValue.serverTimestamp(),
+      'updatedBy': uid,
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+    // No read first: the rules refuse a read of a rule that does not exist
+    // yet (`canReadVisible` looks at its `visibleTo`), so a transaction
+    // cannot ask. The listened set says which it is; if it is behind (the
+    // rule was made on another phone, or deleted), the other write runs.
+    final known = _ids.contains(ref.id);
+    try {
+      await (known ? update() : create());
+    } on FirebaseException catch (e) {
+      if (e.code != 'permission-denied' && e.code != 'not-found') rethrow;
+      await (known ? create() : update());
+    }
   }
 
   /// Stops listening and closes [watch].

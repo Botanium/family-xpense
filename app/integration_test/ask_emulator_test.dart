@@ -17,10 +17,12 @@
 //
 // The test signs in as the seeded member `u_dara`, creating that Auth
 // emulator account first if it is missing (emulator admin API, never a real
-// project). It prints `XPENSE_MARK <name>` before each step, so a script
-// watching the output can take simulator screenshots, and `XPENSE_ROUTE`
-// and `XPENSE_TRACE` lines for the PR. Add --dart-define=XPENSE_DEMO_PACE=true
-// to slow it down for the demo recording (DELEGATION rule 11).
+// project), and teaches one rule (as a corrected card would) so the first
+// message resolves on the phone. It prints `XPENSE_MARK <name>` before
+// each step, so a script watching the output can take simulator
+// screenshots, and `XPENSE_ROUTE` and `XPENSE_TRACE` lines for the PR.
+// Add --dart-define=XPENSE_DEMO_PACE=true to slow it down for the demo
+// recording (DELEGATION rule 11).
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
@@ -34,6 +36,7 @@ import 'package:xpense_app/bootstrap.dart';
 import 'package:xpense_app/core/routing/routing.dart';
 import 'package:xpense_app/data/auth_repository.dart';
 import 'package:xpense_app/data/household_repository.dart';
+import 'package:xpense_app/data/rules_repository.dart';
 import 'package:xpense_app/features/ask/ask_controller.dart';
 import 'package:xpense_app/features/ask/ask_state.dart';
 import 'package:xpense_shared/xpense_shared.dart';
@@ -124,11 +127,34 @@ void main() {
     await tester.pumpWidget(
       UncontrolledProviderScope(container: container, child: const XpenseApp()),
     );
+    // A provider nobody listens to is paused (Riverpod 3), so listen.
+    final membership = container.listen(membershipProvider, (_, _) {});
+    addTearDown(membership.close);
     await pumpUntil(
       tester,
-      () => container.read(membershipProvider).value is InHousehold,
+      () => membership.read().value is InHousehold,
       'the seeded household (run tool/seed_demo_household.dart)',
     );
+
+    // Path L needs a learned rule: the parser never settles a category from
+    // a keyword alone (AI_PIPELINE 2). Teach the one a corrected "Trader
+    // Joes" card would (story S3.11), through the Firestore rules store.
+    final rules = container.read(rulesRepositoryProvider);
+    const lesson = RuleLesson(
+      kind: RuleKind.merchant,
+      pattern: 'Trader Joes',
+      categoryId: 'groceries',
+      accountId: 'acc_chk',
+    );
+    await rules.learn(lesson);
+    await pumpUntil(
+      tester,
+      () => rules.current.any((r) => r.pattern == rulePattern('Trader Joes')),
+      'the learned rule',
+    );
+    // The same lesson again updates the rule (the Firestore rules allow
+    // the member's own update).
+    await rules.learn(lesson);
 
     container.read(routerProvider).go(AppRoutes.home);
     await tester.pumpAndSettle();
@@ -162,7 +188,7 @@ void main() {
 
     await capture(
       'local',
-      'Spent 25 dollars on groceries from checking',
+      'Spent 25 dollars at Trader Joes',
       CapturePath.local,
     );
     await capture(
