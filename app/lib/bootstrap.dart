@@ -24,6 +24,9 @@ import 'package:xpense_app/data/auth_repository_firebase.dart';
 import 'package:xpense_app/data/household_repository.dart';
 import 'package:xpense_app/data/household_repository_fake.dart';
 import 'package:xpense_app/data/household_repository_firebase.dart';
+import 'package:xpense_app/data/read/firestore_transactions_reader.dart';
+import 'package:xpense_app/data/read/memory_transactions_reader.dart';
+import 'package:xpense_app/data/transactions_reader.dart';
 import 'package:xpense_app/data/transactions_repository.dart';
 import 'package:xpense_app/data/write/firestore_ledger_store.dart';
 import 'package:xpense_app/data/write/ledger_store.dart';
@@ -281,9 +284,39 @@ Future<TransactionsRepository> connectTransactions(
   return repository;
 }
 
+/// The read side (WP-21) for [environment], following [households]. In
+/// `fakes` use [memoryLedger], whose reader shares the write path's store.
+TransactionsReader connectTransactionsReader(
+  AppEnvironment environment, {
+  required HouseholdRepository households,
+}) => switch (environment) {
+  AppEnvironment.fakes => memoryLedger().reader,
+  // Firestore is already pointed at the emulator by connectHouseholds.
+  AppEnvironment.dev ||
+  AppEnvironment.prod ||
+  AppEnvironment.emulators => FirestoreTransactionsReader.connect(
+    auth: FirebaseAuth.instance,
+    firestore: FirebaseFirestore.instance,
+    households: households,
+  ),
+};
+
 /// A write path in memory over the sample household's accounts
 /// (`FakeAccountsRepository.sample`), for the fakes build and tests.
-TransactionsRepository memoryTransactions() {
+TransactionsRepository memoryTransactions() => memoryLedger().repository;
+
+/// The in-memory write path and a reader over the same store, so what is
+/// saved shows on the entry detail screen.
+({TransactionsRepository repository, TransactionsReader reader})
+memoryLedger() {
+  final store = ObservedLedgerStore(_sampleLedgerStore());
+  return (
+    repository: LedgerTransactionsRepository(store),
+    reader: MemoryTransactionsReader(store),
+  );
+}
+
+MemoryLedgerStore _sampleLedgerStore() {
   const viewer = FakeAccountsRepository.sampleViewer;
   final store = MemoryLedgerStore(
     scope: const LedgerScope(householdId: 'fake-household', uid: viewer),
@@ -304,7 +337,7 @@ TransactionsRepository memoryTransactions() {
   for (final c in defaultCategories) {
     store.categories[c.slug] = LedgerCategory(id: c.slug, kind: c.kind.name);
   }
-  return LedgerTransactionsRepository(store);
+  return store;
 }
 
 /// The crash sink the two error handlers write to.
@@ -411,10 +444,13 @@ Future<Bootstrapped> bootstrap({required AppEnvironment environment}) async {
   final auth = await connectAuth(environment);
   final households = connectHouseholds(environment, auth: auth);
   final accounts = connectAccounts(environment, households: households);
-  final transactions = await connectTransactions(
-    environment,
-    households: households,
-  );
+  final memory = environment == AppEnvironment.fakes ? memoryLedger() : null;
+  final transactions =
+      memory?.repository ??
+      await connectTransactions(environment, households: households);
+  final transactionsReader =
+      memory?.reader ??
+      connectTransactionsReader(environment, households: households);
   final flags = await connectFeatureFlags(environment);
   registerFontLicenses();
   final settings = await PrefsSettingsStore.open();
@@ -432,6 +468,7 @@ Future<Bootstrapped> bootstrap({required AppEnvironment environment}) async {
       householdRepository: households,
       accountsRepository: accounts,
       transactionsRepository: transactions,
+      transactionsReader: transactionsReader,
       featureFlags: flags,
     ),
   );
@@ -452,6 +489,7 @@ List<Override> appOverrides({
   required HouseholdRepository householdRepository,
   required AccountsRepository accountsRepository,
   TransactionsRepository? transactionsRepository,
+  TransactionsReader? transactionsReader,
   SecureStore? secureStore,
   FeatureFlagSource? featureFlags,
   AgentClient? agentClient,
@@ -459,26 +497,37 @@ List<Override> appOverrides({
   OnDeviceLlm? onDeviceLlm,
   SpeechCapture? speechCapture,
   OcrEngine? ocrEngine,
-}) => [
-  clockProvider.overrideWithValue(clock),
-  settingsStoreProvider.overrideWithValue(settings),
-  biometricLockProvider.overrideWithValue(biometricLock),
-  glassControllerProvider.overrideWithValue(glass),
-  authRepositoryProvider.overrideWithValue(authRepository),
-  householdRepositoryProvider.overrideWithValue(householdRepository),
-  accountsRepositoryProvider.overrideWithValue(accountsRepository),
-  transactionsRepositoryProvider.overrideWithValue(
-    transactionsRepository ?? memoryTransactions(),
-  ),
-  secureStoreProvider.overrideWithValue(secureStore ?? MemorySecureStore()),
-  featureFlagSourceProvider.overrideWithValue(
-    featureFlags ?? FakeFeatureFlags(),
-  ),
-  agentClientProvider.overrideWithValue(agentClient ?? FakeAgentClient()),
-  decisionsClientProvider.overrideWithValue(
-    decisionsClient ?? FakeDecisionsClient(),
-  ),
-  onDeviceLlmProvider.overrideWithValue(onDeviceLlm ?? FakeOnDeviceLlm()),
-  speechCaptureProvider.overrideWithValue(speechCapture ?? FakeSpeechCapture()),
-  ocrEngineProvider.overrideWithValue(ocrEngine ?? FakeOcrEngine()),
-];
+}) {
+  // With neither given, the reader reads what the write path writes.
+  final memory = transactionsRepository == null && transactionsReader == null
+      ? memoryLedger()
+      : null;
+  return [
+    clockProvider.overrideWithValue(clock),
+    settingsStoreProvider.overrideWithValue(settings),
+    biometricLockProvider.overrideWithValue(biometricLock),
+    glassControllerProvider.overrideWithValue(glass),
+    authRepositoryProvider.overrideWithValue(authRepository),
+    householdRepositoryProvider.overrideWithValue(householdRepository),
+    accountsRepositoryProvider.overrideWithValue(accountsRepository),
+    transactionsRepositoryProvider.overrideWithValue(
+      transactionsRepository ?? memory?.repository ?? memoryTransactions(),
+    ),
+    transactionsReaderProvider.overrideWithValue(
+      transactionsReader ?? memory?.reader ?? memoryLedger().reader,
+    ),
+    secureStoreProvider.overrideWithValue(secureStore ?? MemorySecureStore()),
+    featureFlagSourceProvider.overrideWithValue(
+      featureFlags ?? FakeFeatureFlags(),
+    ),
+    agentClientProvider.overrideWithValue(agentClient ?? FakeAgentClient()),
+    decisionsClientProvider.overrideWithValue(
+      decisionsClient ?? FakeDecisionsClient(),
+    ),
+    onDeviceLlmProvider.overrideWithValue(onDeviceLlm ?? FakeOnDeviceLlm()),
+    speechCaptureProvider.overrideWithValue(
+      speechCapture ?? FakeSpeechCapture(),
+    ),
+    ocrEngineProvider.overrideWithValue(ocrEngine ?? FakeOcrEngine()),
+  ];
+}

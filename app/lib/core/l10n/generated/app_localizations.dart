@@ -192,11 +192,521 @@ abstract class AppLocalizations {
   /// **'Entry'**
   String get activityEntryTitle;
 
-  /// Placeholder line on the entry detail screen until it is built.
+  /// Spoken label of the more button on entry detail.
   ///
   /// In en, this message translates to:
-  /// **'The entry\'s details and history will appear here.'**
-  String get activityEntryPlaceholder;
+  /// **'More'**
+  String get activityEntryMore;
+
+  /// Action that opens the whole entry in the edit sheet.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit'**
+  String get activityEntryEdit;
+
+  /// Entry detail when the entry cannot be read.
+  ///
+  /// In en, this message translates to:
+  /// **'This entry isn\'t here. It was removed or isn\'t shared with you.'**
+  String get activityEntryNotFound;
+
+  /// Entry type in the detail header.
+  ///
+  /// In en, this message translates to:
+  /// **'Expense'**
+  String get activityEntryTypeExpense;
+
+  /// Entry type in the detail header.
+  ///
+  /// In en, this message translates to:
+  /// **'Income'**
+  String get activityEntryTypeIncome;
+
+  /// Entry type in the detail header.
+  ///
+  /// In en, this message translates to:
+  /// **'Transfer'**
+  String get activityEntryTypeTransfer;
+
+  /// Entry type in the detail header.
+  ///
+  /// In en, this message translates to:
+  /// **'Loan given'**
+  String get activityEntryTypeLoanGiven;
+
+  /// Entry type in the detail header.
+  ///
+  /// In en, this message translates to:
+  /// **'Loan taken'**
+  String get activityEntryTypeLoanTaken;
+
+  /// Entry type in the detail header.
+  ///
+  /// In en, this message translates to:
+  /// **'Repayment received'**
+  String get activityEntryTypeRepaymentReceived;
+
+  /// Entry type in the detail header.
+  ///
+  /// In en, this message translates to:
+  /// **'Repayment made'**
+  String get activityEntryTypeRepaymentMade;
+
+  /// Entry type in the detail header.
+  ///
+  /// In en, this message translates to:
+  /// **'Adjustment'**
+  String get activityEntryTypeAdjustment;
+
+  /// Line under the amount: the base-currency amount and the rate used.
+  ///
+  /// In en, this message translates to:
+  /// **'≈ {amount} at {rate} · {label}'**
+  String activityEntryConverted(String amount, String rate, String label);
+
+  /// Row label.
+  ///
+  /// In en, this message translates to:
+  /// **'Category'**
+  String get activityEntryRowCategory;
+
+  /// Row label.
+  ///
+  /// In en, this message translates to:
+  /// **'Account'**
+  String get activityEntryRowAccount;
+
+  /// Row label on a transfer.
+  ///
+  /// In en, this message translates to:
+  /// **'From'**
+  String get activityEntryRowFrom;
+
+  /// Row label on a transfer.
+  ///
+  /// In en, this message translates to:
+  /// **'To'**
+  String get activityEntryRowTo;
+
+  /// Row label: the amount that arrived on a cross-currency transfer.
+  ///
+  /// In en, this message translates to:
+  /// **'Arrives'**
+  String get activityEntryRowArrives;
+
+  /// Row label.
+  ///
+  /// In en, this message translates to:
+  /// **'Who'**
+  String get activityEntryRowWho;
+
+  /// Row label.
+  ///
+  /// In en, this message translates to:
+  /// **'When'**
+  String get activityEntryRowWhen;
+
+  /// Row label.
+  ///
+  /// In en, this message translates to:
+  /// **'Note'**
+  String get activityEntryRowNote;
+
+  /// Row label on a loan event.
+  ///
+  /// In en, this message translates to:
+  /// **'Person'**
+  String get activityEntryRowPerson;
+
+  /// Note row value when there is none.
+  ///
+  /// In en, this message translates to:
+  /// **'Add a note'**
+  String get activityEntryNoNote;
+
+  /// Row value when the field is empty.
+  ///
+  /// In en, this message translates to:
+  /// **'None'**
+  String get activityEntryNone;
+
+  /// Who value: the viewer.
+  ///
+  /// In en, this message translates to:
+  /// **'You'**
+  String get activityEntryWhoYou;
+
+  /// Who value for the partner with no display name.
+  ///
+  /// In en, this message translates to:
+  /// **'Partner'**
+  String get activityEntryWhoPartner;
+
+  /// Who value: both partners.
+  ///
+  /// In en, this message translates to:
+  /// **'Joint'**
+  String get activityEntryWhoJoint;
+
+  /// When value for today.
+  ///
+  /// In en, this message translates to:
+  /// **'Today {time}'**
+  String activityEntryToday(String time);
+
+  /// When value for yesterday.
+  ///
+  /// In en, this message translates to:
+  /// **'Yesterday {time}'**
+  String activityEntryYesterday(String time);
+
+  /// When value for another day.
+  ///
+  /// In en, this message translates to:
+  /// **'{day} {time}'**
+  String activityEntryOnDay(String day, String time);
+
+  /// Ledger row label: the exchange rate stored with the entry.
+  ///
+  /// In en, this message translates to:
+  /// **'Rate used'**
+  String get activityEntryRateUsed;
+
+  /// Ledger row value: the rate and its label.
+  ///
+  /// In en, this message translates to:
+  /// **'{rate} · {label}'**
+  String activityEntryRateValue(String rate, String label);
+
+  /// Label of a rate entered as the market rate.
+  ///
+  /// In en, this message translates to:
+  /// **'Market'**
+  String get activityEntryRateMarket;
+
+  /// Label of a rate entered as the official rate.
+  ///
+  /// In en, this message translates to:
+  /// **'Official'**
+  String get activityEntryRateOfficial;
+
+  /// Label of a rate typed for this entry only.
+  ///
+  /// In en, this message translates to:
+  /// **'Typed'**
+  String get activityEntryRateManual;
+
+  /// Ledger row label: where the entry came from.
+  ///
+  /// In en, this message translates to:
+  /// **'Source'**
+  String get activityEntrySource;
+
+  /// Ledger row value: the source and where it was understood.
+  ///
+  /// In en, this message translates to:
+  /// **'{source} · {mode}'**
+  String activityEntrySourceValue(String source, String mode);
+
+  /// Source: the Add manually sheet.
+  ///
+  /// In en, this message translates to:
+  /// **'Manual'**
+  String get activityEntrySourceManual;
+
+  /// Source: typed in Ask.
+  ///
+  /// In en, this message translates to:
+  /// **'Ask'**
+  String get activityEntrySourceChat;
+
+  /// Source: spoken.
+  ///
+  /// In en, this message translates to:
+  /// **'Voice'**
+  String get activityEntrySourceVoice;
+
+  /// Source: a receipt photo.
+  ///
+  /// In en, this message translates to:
+  /// **'Receipt'**
+  String get activityEntrySourceReceipt;
+
+  /// Source: posted by a recurring entry.
+  ///
+  /// In en, this message translates to:
+  /// **'Recurring'**
+  String get activityEntrySourceRecurring;
+
+  /// Source: imported from a file.
+  ///
+  /// In en, this message translates to:
+  /// **'Import'**
+  String get activityEntrySourceImport;
+
+  /// Source: the iOS shortcut.
+  ///
+  /// In en, this message translates to:
+  /// **'Shortcut'**
+  String get activityEntrySourceShortcut;
+
+  /// Where the entry was understood: on the phone.
+  ///
+  /// In en, this message translates to:
+  /// **'On-device'**
+  String get activityEntryModeOnDevice;
+
+  /// Where the entry was understood: on the server.
+  ///
+  /// In en, this message translates to:
+  /// **'Cloud'**
+  String get activityEntryModeCloud;
+
+  /// Section label above the history.
+  ///
+  /// In en, this message translates to:
+  /// **'Revisions'**
+  String get activityEntryRevisions;
+
+  /// Action on a history row that undoes that change.
+  ///
+  /// In en, this message translates to:
+  /// **'Restore'**
+  String get activityEntryRestore;
+
+  /// First history row of an entry typed in the form.
+  ///
+  /// In en, this message translates to:
+  /// **'Added manually'**
+  String get activityEntryCreatedManual;
+
+  /// First history row of an entry typed in Ask.
+  ///
+  /// In en, this message translates to:
+  /// **'Added in Ask'**
+  String get activityEntryCreatedChat;
+
+  /// First history row of a spoken entry.
+  ///
+  /// In en, this message translates to:
+  /// **'Created by voice'**
+  String get activityEntryCreatedVoice;
+
+  /// First history row of a receipt entry.
+  ///
+  /// In en, this message translates to:
+  /// **'Added from a receipt'**
+  String get activityEntryCreatedReceipt;
+
+  /// First history row of a recurring entry.
+  ///
+  /// In en, this message translates to:
+  /// **'Posted by a recurring entry'**
+  String get activityEntryCreatedRecurring;
+
+  /// First history row of an imported entry.
+  ///
+  /// In en, this message translates to:
+  /// **'Imported'**
+  String get activityEntryCreatedImport;
+
+  /// First history row of a shortcut entry.
+  ///
+  /// In en, this message translates to:
+  /// **'Added with a shortcut'**
+  String get activityEntryCreatedShortcut;
+
+  /// History row title.
+  ///
+  /// In en, this message translates to:
+  /// **'Amount changed'**
+  String get activityEntryChangedAmount;
+
+  /// History row title.
+  ///
+  /// In en, this message translates to:
+  /// **'Account changed'**
+  String get activityEntryChangedAccount;
+
+  /// History row title.
+  ///
+  /// In en, this message translates to:
+  /// **'Category changed'**
+  String get activityEntryChangedCategory;
+
+  /// History row title.
+  ///
+  /// In en, this message translates to:
+  /// **'Who changed'**
+  String get activityEntryChangedWho;
+
+  /// History row title.
+  ///
+  /// In en, this message translates to:
+  /// **'Date changed'**
+  String get activityEntryChangedDate;
+
+  /// History row title.
+  ///
+  /// In en, this message translates to:
+  /// **'Note changed'**
+  String get activityEntryChangedNote;
+
+  /// History row title.
+  ///
+  /// In en, this message translates to:
+  /// **'Person changed'**
+  String get activityEntryChangedPerson;
+
+  /// History row title.
+  ///
+  /// In en, this message translates to:
+  /// **'Type changed'**
+  String get activityEntryChangedType;
+
+  /// History row title.
+  ///
+  /// In en, this message translates to:
+  /// **'Rate changed'**
+  String get activityEntryChangedRate;
+
+  /// History row title when several fields changed at once.
+  ///
+  /// In en, this message translates to:
+  /// **'Edited'**
+  String get activityEntryChangedMany;
+
+  /// History row title.
+  ///
+  /// In en, this message translates to:
+  /// **'Deleted'**
+  String get activityEntryHistoryDeleted;
+
+  /// History row title.
+  ///
+  /// In en, this message translates to:
+  /// **'Undone after saving'**
+  String get activityEntryHistoryUndone;
+
+  /// History row title.
+  ///
+  /// In en, this message translates to:
+  /// **'Restored'**
+  String get activityEntryHistoryRestored;
+
+  /// History row title for a server job.
+  ///
+  /// In en, this message translates to:
+  /// **'Corrected by the app'**
+  String get activityEntryHistorySystem;
+
+  /// History row detail: the old and new value.
+  ///
+  /// In en, this message translates to:
+  /// **'{before} → {after}'**
+  String activityEntryHistoryChange(String before, String after);
+
+  /// History row meta line.
+  ///
+  /// In en, this message translates to:
+  /// **'{when} · {who}'**
+  String activityEntryHistoryWhen(String when, String who);
+
+  /// Destructive action at the bottom of entry detail.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete entry'**
+  String get activityEntryDelete;
+
+  /// Title of the delete confirmation.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete this entry? You can restore it from its history.'**
+  String get activityEntryDeleteQuestion;
+
+  /// Cancel action of confirmations.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancel'**
+  String get activityEntryCancel;
+
+  /// Toast after deleting.
+  ///
+  /// In en, this message translates to:
+  /// **'Entry deleted'**
+  String get activityEntryDeleted;
+
+  /// Toast action that restores the deleted entry.
+  ///
+  /// In en, this message translates to:
+  /// **'Undo'**
+  String get activityEntryUndo;
+
+  /// Line under the header of a deleted entry.
+  ///
+  /// In en, this message translates to:
+  /// **'This entry is deleted.'**
+  String get activityEntryDeletedNote;
+
+  /// Action that restores a deleted entry.
+  ///
+  /// In en, this message translates to:
+  /// **'Restore entry'**
+  String get activityEntryRestoreEntry;
+
+  /// Toast after restoring a revision or the entry.
+  ///
+  /// In en, this message translates to:
+  /// **'Restored'**
+  String get activityEntryRestored;
+
+  /// Line shown while a change is only on this phone.
+  ///
+  /// In en, this message translates to:
+  /// **'Not synced yet'**
+  String get activityEntrySyncing;
+
+  /// Error when a write is not allowed.
+  ///
+  /// In en, this message translates to:
+  /// **'You can\'t change this entry.'**
+  String get activityEntryFailNotAllowed;
+
+  /// Error when the partner's edit won.
+  ///
+  /// In en, this message translates to:
+  /// **'Your partner changed this at the same time. Try again.'**
+  String get activityEntryFailConflict;
+
+  /// Error when restoring a field of a deleted entry.
+  ///
+  /// In en, this message translates to:
+  /// **'This entry is deleted. Restore it first.'**
+  String get activityEntryFailDeleted;
+
+  /// Error for any other failure.
+  ///
+  /// In en, this message translates to:
+  /// **'That didn\'t work. Try again.'**
+  String get activityEntryFailUnknown;
+
+  /// Error when a restore needs a rate.
+  ///
+  /// In en, this message translates to:
+  /// **'This change needs the day\'s dollar rate. Edit the entry to enter it.'**
+  String get activityEntryFailRateNeeded;
+
+  /// Error when the old values no longer pass the checks.
+  ///
+  /// In en, this message translates to:
+  /// **'That version can\'t be restored as it is. Edit the entry instead.'**
+  String get activityEntryFailInvalid;
+
+  /// Toast action that only dismisses it.
+  ///
+  /// In en, this message translates to:
+  /// **'OK'**
+  String get activityEntryOk;
 
   /// Top bar title of Goals.
   ///
@@ -2489,6 +2999,426 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Go to Home'**
   String get onboardingTryItDone;
+
+  /// Title of the Add manually sheet.
+  ///
+  /// In en, this message translates to:
+  /// **'Add manually'**
+  String get captureManualTitle;
+
+  /// Title of the same sheet when it edits a saved entry.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit entry'**
+  String get captureManualEditTitle;
+
+  /// Leading header button that closes the sheet without saving.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancel'**
+  String get captureManualCancel;
+
+  /// Trailing header button that saves the entry.
+  ///
+  /// In en, this message translates to:
+  /// **'Save'**
+  String get captureManualSave;
+
+  /// Bottom button on the Expense tab.
+  ///
+  /// In en, this message translates to:
+  /// **'Save expense'**
+  String get captureManualSaveExpense;
+
+  /// Bottom button on the Income tab.
+  ///
+  /// In en, this message translates to:
+  /// **'Save income'**
+  String get captureManualSaveIncome;
+
+  /// Bottom button on the Transfer tab.
+  ///
+  /// In en, this message translates to:
+  /// **'Save transfer'**
+  String get captureManualSaveTransfer;
+
+  /// Bottom button on the Loan tab.
+  ///
+  /// In en, this message translates to:
+  /// **'Save loan'**
+  String get captureManualSaveLoan;
+
+  /// Bottom button when the sheet edits a saved entry.
+  ///
+  /// In en, this message translates to:
+  /// **'Save changes'**
+  String get captureManualSaveChanges;
+
+  /// Bottom button while the entry is being saved.
+  ///
+  /// In en, this message translates to:
+  /// **'Saving…'**
+  String get captureManualSaving;
+
+  /// Type tab: money spent.
+  ///
+  /// In en, this message translates to:
+  /// **'Expense'**
+  String get captureManualTabExpense;
+
+  /// Type tab: money received.
+  ///
+  /// In en, this message translates to:
+  /// **'Income'**
+  String get captureManualTabIncome;
+
+  /// Type tab: money moved between two accounts.
+  ///
+  /// In en, this message translates to:
+  /// **'Transfer'**
+  String get captureManualTabTransfer;
+
+  /// Type tab: money lent, borrowed or paid back.
+  ///
+  /// In en, this message translates to:
+  /// **'Loan'**
+  String get captureManualTabLoan;
+
+  /// Spoken label of the amount field.
+  ///
+  /// In en, this message translates to:
+  /// **'Amount'**
+  String get captureManualAmount;
+
+  /// Spoken label of the currency mark next to the amount; the currency follows the account.
+  ///
+  /// In en, this message translates to:
+  /// **'Currency, {code}. Choose the account to change it'**
+  String captureManualCurrency(String code);
+
+  /// Caption above the category chips.
+  ///
+  /// In en, this message translates to:
+  /// **'Category'**
+  String get captureManualCategory;
+
+  /// Caption above the chips that say whose entry it is.
+  ///
+  /// In en, this message translates to:
+  /// **'Who'**
+  String get captureManualWho;
+
+  /// Who chip: the signed-in member.
+  ///
+  /// In en, this message translates to:
+  /// **'You'**
+  String get captureManualWhoYou;
+
+  /// Who chip for the partner when they have no display name.
+  ///
+  /// In en, this message translates to:
+  /// **'Partner'**
+  String get captureManualWhoPartner;
+
+  /// Who chip: both partners.
+  ///
+  /// In en, this message translates to:
+  /// **'Joint'**
+  String get captureManualWhoJoint;
+
+  /// Row label: the account the money leaves or enters.
+  ///
+  /// In en, this message translates to:
+  /// **'Account'**
+  String get captureManualAccount;
+
+  /// Row label on the Transfer tab: the account money leaves.
+  ///
+  /// In en, this message translates to:
+  /// **'From'**
+  String get captureManualFrom;
+
+  /// Row label on the Transfer tab: the account money arrives in.
+  ///
+  /// In en, this message translates to:
+  /// **'To'**
+  String get captureManualTo;
+
+  /// Row value when no account is chosen yet.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose'**
+  String get captureManualChoose;
+
+  /// Caption of the optional amount that arrives when a transfer crosses currencies.
+  ///
+  /// In en, this message translates to:
+  /// **'Arrives'**
+  String get captureManualArrives;
+
+  /// Placeholder of the arriving amount: empty converts at the day's rate.
+  ///
+  /// In en, this message translates to:
+  /// **'At the day\'s rate'**
+  String get captureManualArrivesHint;
+
+  /// Row label: the day of the entry.
+  ///
+  /// In en, this message translates to:
+  /// **'Date'**
+  String get captureManualDate;
+
+  /// Date row value for today.
+  ///
+  /// In en, this message translates to:
+  /// **'Today'**
+  String get captureManualToday;
+
+  /// Date row value for yesterday.
+  ///
+  /// In en, this message translates to:
+  /// **'Yesterday'**
+  String get captureManualYesterday;
+
+  /// Trailing button of the date picker.
+  ///
+  /// In en, this message translates to:
+  /// **'Done'**
+  String get captureManualDone;
+
+  /// Caption of the note field.
+  ///
+  /// In en, this message translates to:
+  /// **'Note'**
+  String get captureManualNote;
+
+  /// Placeholder of the note field.
+  ///
+  /// In en, this message translates to:
+  /// **'Add a note'**
+  String get captureManualNoteHint;
+
+  /// Caption of the counterparty field on the Loan tab.
+  ///
+  /// In en, this message translates to:
+  /// **'Person'**
+  String get captureManualPerson;
+
+  /// Placeholder of the counterparty field.
+  ///
+  /// In en, this message translates to:
+  /// **'Who it\'s with'**
+  String get captureManualPersonHint;
+
+  /// Loan tab chip: the member lent money.
+  ///
+  /// In en, this message translates to:
+  /// **'I lent'**
+  String get captureManualLoanLent;
+
+  /// Loan tab chip: the member borrowed money.
+  ///
+  /// In en, this message translates to:
+  /// **'I borrowed'**
+  String get captureManualLoanBorrowed;
+
+  /// Loan tab chip: someone paid the member back.
+  ///
+  /// In en, this message translates to:
+  /// **'Paid back to me'**
+  String get captureManualLoanPaidBack;
+
+  /// Loan tab chip: the member paid someone back.
+  ///
+  /// In en, this message translates to:
+  /// **'I paid back'**
+  String get captureManualLoanRepaid;
+
+  /// Caption of the rate field shown when the day has no USD/IQD rate yet.
+  ///
+  /// In en, this message translates to:
+  /// **'Dollar rate, dinars per dollar'**
+  String get captureManualRate;
+
+  /// Placeholder of the rate field: an example rate.
+  ///
+  /// In en, this message translates to:
+  /// **'1,705'**
+  String get captureManualRateHint;
+
+  /// Error under the amount when it is empty.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter an amount.'**
+  String get captureManualErrorAmountMissing;
+
+  /// Error under the amount when it does not read, for example decimals on dinars.
+  ///
+  /// In en, this message translates to:
+  /// **'That isn\'t an amount in {code}.'**
+  String captureManualErrorAmountInvalid(String code);
+
+  /// Error under the amount when it is zero or too large.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter an amount above zero.'**
+  String get captureManualErrorAmountRange;
+
+  /// Error under the account row when none is chosen.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose an account.'**
+  String get captureManualErrorAccountMissing;
+
+  /// Error under the To row of a transfer.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose where the money goes.'**
+  String get captureManualErrorToAccountMissing;
+
+  /// Error under the To row when it is the same as From.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose a different account.'**
+  String get captureManualErrorSameAccount;
+
+  /// Error next to an account, category or person the household no longer has.
+  ///
+  /// In en, this message translates to:
+  /// **'This isn\'t available any more. Choose another.'**
+  String get captureManualErrorUnknown;
+
+  /// Error under the category chips when none is chosen.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose a category.'**
+  String get captureManualErrorCategoryMissing;
+
+  /// Error when an expense category is on income or the reverse.
+  ///
+  /// In en, this message translates to:
+  /// **'This category doesn\'t fit this entry.'**
+  String get captureManualErrorWrongKind;
+
+  /// Error under the person field on the Loan tab.
+  ///
+  /// In en, this message translates to:
+  /// **'Add who it\'s with.'**
+  String get captureManualErrorPersonMissing;
+
+  /// Error under a text field that is over its length limit.
+  ///
+  /// In en, this message translates to:
+  /// **'That\'s too long.'**
+  String get captureManualErrorTooLong;
+
+  /// Error under Who when the partner chip is chosen before they joined.
+  ///
+  /// In en, this message translates to:
+  /// **'Your partner hasn\'t joined yet.'**
+  String get captureManualErrorNoPartner;
+
+  /// Error when the entry's currency differs from the account or the loan.
+  ///
+  /// In en, this message translates to:
+  /// **'The currency doesn\'t match.'**
+  String get captureManualErrorCurrencyMismatch;
+
+  /// Shown under the rate field when the day has no USD/IQD rate.
+  ///
+  /// In en, this message translates to:
+  /// **'There\'s no dollar rate for this day yet. Enter it to save.'**
+  String get captureManualErrorRateNeeded;
+
+  /// Generic error next to a field whose value does not read.
+  ///
+  /// In en, this message translates to:
+  /// **'Check this.'**
+  String get captureManualErrorInvalid;
+
+  /// Toast after a save that reached the server.
+  ///
+  /// In en, this message translates to:
+  /// **'Saved'**
+  String get captureManualSaved;
+
+  /// Toast after a save made offline.
+  ///
+  /// In en, this message translates to:
+  /// **'Saved on this phone. It syncs when you\'re online.'**
+  String get captureManualSavedOffline;
+
+  /// Toast action that undoes the save.
+  ///
+  /// In en, this message translates to:
+  /// **'Undo'**
+  String get captureManualUndo;
+
+  /// Toast action that tries the save again.
+  ///
+  /// In en, this message translates to:
+  /// **'Retry'**
+  String get captureManualRetry;
+
+  /// Toast action that only dismisses it.
+  ///
+  /// In en, this message translates to:
+  /// **'OK'**
+  String get captureManualOk;
+
+  /// Toast when the write is not allowed.
+  ///
+  /// In en, this message translates to:
+  /// **'You can\'t save to this account.'**
+  String get captureManualFailNotAllowed;
+
+  /// Toast when one save touches more accounts than allowed.
+  ///
+  /// In en, this message translates to:
+  /// **'That touches too many accounts at once.'**
+  String get captureManualFailTooMany;
+
+  /// Toast when the edited entry no longer exists.
+  ///
+  /// In en, this message translates to:
+  /// **'This entry isn\'t here any more.'**
+  String get captureManualFailNotFound;
+
+  /// Toast when the edited entry is deleted.
+  ///
+  /// In en, this message translates to:
+  /// **'This entry was deleted. Restore it first.'**
+  String get captureManualFailDeleted;
+
+  /// Toast when the partner's edit won.
+  ///
+  /// In en, this message translates to:
+  /// **'Your partner changed this at the same time. Try again.'**
+  String get captureManualFailConflict;
+
+  /// Toast for any other failure.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t save. Try again.'**
+  String get captureManualFailUnknown;
+
+  /// Destructive action when cancelling a sheet with changes.
+  ///
+  /// In en, this message translates to:
+  /// **'Discard changes'**
+  String get captureManualDiscard;
+
+  /// Cancel action of the discard question.
+  ///
+  /// In en, this message translates to:
+  /// **'Keep editing'**
+  String get captureManualKeepEditing;
+
+  /// Shown in the account picker when there are none.
+  ///
+  /// In en, this message translates to:
+  /// **'Add an account first.'**
+  String get captureManualNoAccounts;
 }
 
 class _AppLocalizationsDelegate

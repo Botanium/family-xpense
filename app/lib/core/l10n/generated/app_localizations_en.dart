@@ -64,8 +64,284 @@ class AppLocalizationsEn extends AppLocalizations {
   String get activityEntryTitle => 'Entry';
 
   @override
-  String get activityEntryPlaceholder =>
-      'The entry\'s details and history will appear here.';
+  String get activityEntryMore => 'More';
+
+  @override
+  String get activityEntryEdit => 'Edit';
+
+  @override
+  String get activityEntryNotFound =>
+      'This entry isn\'t here. It was removed or isn\'t shared with you.';
+
+  @override
+  String get activityEntryTypeExpense => 'Expense';
+
+  @override
+  String get activityEntryTypeIncome => 'Income';
+
+  @override
+  String get activityEntryTypeTransfer => 'Transfer';
+
+  @override
+  String get activityEntryTypeLoanGiven => 'Loan given';
+
+  @override
+  String get activityEntryTypeLoanTaken => 'Loan taken';
+
+  @override
+  String get activityEntryTypeRepaymentReceived => 'Repayment received';
+
+  @override
+  String get activityEntryTypeRepaymentMade => 'Repayment made';
+
+  @override
+  String get activityEntryTypeAdjustment => 'Adjustment';
+
+  @override
+  String activityEntryConverted(String amount, String rate, String label) {
+    return '≈ $amount at $rate · $label';
+  }
+
+  @override
+  String get activityEntryRowCategory => 'Category';
+
+  @override
+  String get activityEntryRowAccount => 'Account';
+
+  @override
+  String get activityEntryRowFrom => 'From';
+
+  @override
+  String get activityEntryRowTo => 'To';
+
+  @override
+  String get activityEntryRowArrives => 'Arrives';
+
+  @override
+  String get activityEntryRowWho => 'Who';
+
+  @override
+  String get activityEntryRowWhen => 'When';
+
+  @override
+  String get activityEntryRowNote => 'Note';
+
+  @override
+  String get activityEntryRowPerson => 'Person';
+
+  @override
+  String get activityEntryNoNote => 'Add a note';
+
+  @override
+  String get activityEntryNone => 'None';
+
+  @override
+  String get activityEntryWhoYou => 'You';
+
+  @override
+  String get activityEntryWhoPartner => 'Partner';
+
+  @override
+  String get activityEntryWhoJoint => 'Joint';
+
+  @override
+  String activityEntryToday(String time) {
+    return 'Today $time';
+  }
+
+  @override
+  String activityEntryYesterday(String time) {
+    return 'Yesterday $time';
+  }
+
+  @override
+  String activityEntryOnDay(String day, String time) {
+    return '$day $time';
+  }
+
+  @override
+  String get activityEntryRateUsed => 'Rate used';
+
+  @override
+  String activityEntryRateValue(String rate, String label) {
+    return '$rate · $label';
+  }
+
+  @override
+  String get activityEntryRateMarket => 'Market';
+
+  @override
+  String get activityEntryRateOfficial => 'Official';
+
+  @override
+  String get activityEntryRateManual => 'Typed';
+
+  @override
+  String get activityEntrySource => 'Source';
+
+  @override
+  String activityEntrySourceValue(String source, String mode) {
+    return '$source · $mode';
+  }
+
+  @override
+  String get activityEntrySourceManual => 'Manual';
+
+  @override
+  String get activityEntrySourceChat => 'Ask';
+
+  @override
+  String get activityEntrySourceVoice => 'Voice';
+
+  @override
+  String get activityEntrySourceReceipt => 'Receipt';
+
+  @override
+  String get activityEntrySourceRecurring => 'Recurring';
+
+  @override
+  String get activityEntrySourceImport => 'Import';
+
+  @override
+  String get activityEntrySourceShortcut => 'Shortcut';
+
+  @override
+  String get activityEntryModeOnDevice => 'On-device';
+
+  @override
+  String get activityEntryModeCloud => 'Cloud';
+
+  @override
+  String get activityEntryRevisions => 'Revisions';
+
+  @override
+  String get activityEntryRestore => 'Restore';
+
+  @override
+  String get activityEntryCreatedManual => 'Added manually';
+
+  @override
+  String get activityEntryCreatedChat => 'Added in Ask';
+
+  @override
+  String get activityEntryCreatedVoice => 'Created by voice';
+
+  @override
+  String get activityEntryCreatedReceipt => 'Added from a receipt';
+
+  @override
+  String get activityEntryCreatedRecurring => 'Posted by a recurring entry';
+
+  @override
+  String get activityEntryCreatedImport => 'Imported';
+
+  @override
+  String get activityEntryCreatedShortcut => 'Added with a shortcut';
+
+  @override
+  String get activityEntryChangedAmount => 'Amount changed';
+
+  @override
+  String get activityEntryChangedAccount => 'Account changed';
+
+  @override
+  String get activityEntryChangedCategory => 'Category changed';
+
+  @override
+  String get activityEntryChangedWho => 'Who changed';
+
+  @override
+  String get activityEntryChangedDate => 'Date changed';
+
+  @override
+  String get activityEntryChangedNote => 'Note changed';
+
+  @override
+  String get activityEntryChangedPerson => 'Person changed';
+
+  @override
+  String get activityEntryChangedType => 'Type changed';
+
+  @override
+  String get activityEntryChangedRate => 'Rate changed';
+
+  @override
+  String get activityEntryChangedMany => 'Edited';
+
+  @override
+  String get activityEntryHistoryDeleted => 'Deleted';
+
+  @override
+  String get activityEntryHistoryUndone => 'Undone after saving';
+
+  @override
+  String get activityEntryHistoryRestored => 'Restored';
+
+  @override
+  String get activityEntryHistorySystem => 'Corrected by the app';
+
+  @override
+  String activityEntryHistoryChange(String before, String after) {
+    return '$before → $after';
+  }
+
+  @override
+  String activityEntryHistoryWhen(String when, String who) {
+    return '$when · $who';
+  }
+
+  @override
+  String get activityEntryDelete => 'Delete entry';
+
+  @override
+  String get activityEntryDeleteQuestion =>
+      'Delete this entry? You can restore it from its history.';
+
+  @override
+  String get activityEntryCancel => 'Cancel';
+
+  @override
+  String get activityEntryDeleted => 'Entry deleted';
+
+  @override
+  String get activityEntryUndo => 'Undo';
+
+  @override
+  String get activityEntryDeletedNote => 'This entry is deleted.';
+
+  @override
+  String get activityEntryRestoreEntry => 'Restore entry';
+
+  @override
+  String get activityEntryRestored => 'Restored';
+
+  @override
+  String get activityEntrySyncing => 'Not synced yet';
+
+  @override
+  String get activityEntryFailNotAllowed => 'You can\'t change this entry.';
+
+  @override
+  String get activityEntryFailConflict =>
+      'Your partner changed this at the same time. Try again.';
+
+  @override
+  String get activityEntryFailDeleted =>
+      'This entry is deleted. Restore it first.';
+
+  @override
+  String get activityEntryFailUnknown => 'That didn\'t work. Try again.';
+
+  @override
+  String get activityEntryFailRateNeeded =>
+      'This change needs the day\'s dollar rate. Edit the entry to enter it.';
+
+  @override
+  String get activityEntryFailInvalid =>
+      'That version can\'t be restored as it is. Edit the entry instead.';
+
+  @override
+  String get activityEntryOk => 'OK';
 
   @override
   String get goalsTitle => 'Goals';
@@ -1374,4 +1650,227 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get onboardingTryItDone => 'Go to Home';
+
+  @override
+  String get captureManualTitle => 'Add manually';
+
+  @override
+  String get captureManualEditTitle => 'Edit entry';
+
+  @override
+  String get captureManualCancel => 'Cancel';
+
+  @override
+  String get captureManualSave => 'Save';
+
+  @override
+  String get captureManualSaveExpense => 'Save expense';
+
+  @override
+  String get captureManualSaveIncome => 'Save income';
+
+  @override
+  String get captureManualSaveTransfer => 'Save transfer';
+
+  @override
+  String get captureManualSaveLoan => 'Save loan';
+
+  @override
+  String get captureManualSaveChanges => 'Save changes';
+
+  @override
+  String get captureManualSaving => 'Saving…';
+
+  @override
+  String get captureManualTabExpense => 'Expense';
+
+  @override
+  String get captureManualTabIncome => 'Income';
+
+  @override
+  String get captureManualTabTransfer => 'Transfer';
+
+  @override
+  String get captureManualTabLoan => 'Loan';
+
+  @override
+  String get captureManualAmount => 'Amount';
+
+  @override
+  String captureManualCurrency(String code) {
+    return 'Currency, $code. Choose the account to change it';
+  }
+
+  @override
+  String get captureManualCategory => 'Category';
+
+  @override
+  String get captureManualWho => 'Who';
+
+  @override
+  String get captureManualWhoYou => 'You';
+
+  @override
+  String get captureManualWhoPartner => 'Partner';
+
+  @override
+  String get captureManualWhoJoint => 'Joint';
+
+  @override
+  String get captureManualAccount => 'Account';
+
+  @override
+  String get captureManualFrom => 'From';
+
+  @override
+  String get captureManualTo => 'To';
+
+  @override
+  String get captureManualChoose => 'Choose';
+
+  @override
+  String get captureManualArrives => 'Arrives';
+
+  @override
+  String get captureManualArrivesHint => 'At the day\'s rate';
+
+  @override
+  String get captureManualDate => 'Date';
+
+  @override
+  String get captureManualToday => 'Today';
+
+  @override
+  String get captureManualYesterday => 'Yesterday';
+
+  @override
+  String get captureManualDone => 'Done';
+
+  @override
+  String get captureManualNote => 'Note';
+
+  @override
+  String get captureManualNoteHint => 'Add a note';
+
+  @override
+  String get captureManualPerson => 'Person';
+
+  @override
+  String get captureManualPersonHint => 'Who it\'s with';
+
+  @override
+  String get captureManualLoanLent => 'I lent';
+
+  @override
+  String get captureManualLoanBorrowed => 'I borrowed';
+
+  @override
+  String get captureManualLoanPaidBack => 'Paid back to me';
+
+  @override
+  String get captureManualLoanRepaid => 'I paid back';
+
+  @override
+  String get captureManualRate => 'Dollar rate, dinars per dollar';
+
+  @override
+  String get captureManualRateHint => '1,705';
+
+  @override
+  String get captureManualErrorAmountMissing => 'Enter an amount.';
+
+  @override
+  String captureManualErrorAmountInvalid(String code) {
+    return 'That isn\'t an amount in $code.';
+  }
+
+  @override
+  String get captureManualErrorAmountRange => 'Enter an amount above zero.';
+
+  @override
+  String get captureManualErrorAccountMissing => 'Choose an account.';
+
+  @override
+  String get captureManualErrorToAccountMissing =>
+      'Choose where the money goes.';
+
+  @override
+  String get captureManualErrorSameAccount => 'Choose a different account.';
+
+  @override
+  String get captureManualErrorUnknown =>
+      'This isn\'t available any more. Choose another.';
+
+  @override
+  String get captureManualErrorCategoryMissing => 'Choose a category.';
+
+  @override
+  String get captureManualErrorWrongKind =>
+      'This category doesn\'t fit this entry.';
+
+  @override
+  String get captureManualErrorPersonMissing => 'Add who it\'s with.';
+
+  @override
+  String get captureManualErrorTooLong => 'That\'s too long.';
+
+  @override
+  String get captureManualErrorNoPartner => 'Your partner hasn\'t joined yet.';
+
+  @override
+  String get captureManualErrorCurrencyMismatch =>
+      'The currency doesn\'t match.';
+
+  @override
+  String get captureManualErrorRateNeeded =>
+      'There\'s no dollar rate for this day yet. Enter it to save.';
+
+  @override
+  String get captureManualErrorInvalid => 'Check this.';
+
+  @override
+  String get captureManualSaved => 'Saved';
+
+  @override
+  String get captureManualSavedOffline =>
+      'Saved on this phone. It syncs when you\'re online.';
+
+  @override
+  String get captureManualUndo => 'Undo';
+
+  @override
+  String get captureManualRetry => 'Retry';
+
+  @override
+  String get captureManualOk => 'OK';
+
+  @override
+  String get captureManualFailNotAllowed => 'You can\'t save to this account.';
+
+  @override
+  String get captureManualFailTooMany =>
+      'That touches too many accounts at once.';
+
+  @override
+  String get captureManualFailNotFound => 'This entry isn\'t here any more.';
+
+  @override
+  String get captureManualFailDeleted =>
+      'This entry was deleted. Restore it first.';
+
+  @override
+  String get captureManualFailConflict =>
+      'Your partner changed this at the same time. Try again.';
+
+  @override
+  String get captureManualFailUnknown => 'Couldn\'t save. Try again.';
+
+  @override
+  String get captureManualDiscard => 'Discard changes';
+
+  @override
+  String get captureManualKeepEditing => 'Keep editing';
+
+  @override
+  String get captureManualNoAccounts => 'Add an account first.';
 }
