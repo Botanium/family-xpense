@@ -1,7 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:xpense_app/data/accounts_repository.dart';
 import 'package:xpense_app/data/household_repository.dart';
-import 'package:xpense_app/data/transactions_reader.dart';
+import 'package:xpense_app/data/read/home_reader.dart';
 import 'package:xpense_app/data/transactions_repository.dart';
 import 'package:xpense_app/features/home/home_summary.dart';
 import 'package:xpense_app/services/clock.dart';
@@ -18,16 +18,15 @@ final StreamProvider<List<LedgerTransaction>> homeMonthTransactionsProvider =
     StreamProvider.autoDispose<List<LedgerTransaction>>((ref) {
       final month = ref.watch(homeMonthProvider);
       return ref
-          .watch(transactionsReaderProvider)
-          .watchDays(fromDay: month.firstDay, toDay: month.today);
+          .watch(homeReaderProvider)
+          .watchRange(fromDay: month.firstDay, toDay: month.today);
     }, name: 'homeMonthTransactionsProvider');
 
 /// The latest entries the viewer can read, for Recent.
 final StreamProvider<List<LedgerTransaction>> homeRecentTransactionsProvider =
     StreamProvider.autoDispose<List<LedgerTransaction>>(
-      (ref) => ref
-          .watch(transactionsReaderProvider)
-          .watchRecent(limit: homeRecentCount),
+      (ref) =>
+          ref.watch(homeReaderProvider).watchRecent(limit: homeRecentCount),
       name: 'homeRecentTransactionsProvider',
     );
 

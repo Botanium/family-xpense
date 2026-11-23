@@ -91,7 +91,7 @@ final class MemoryLedgerStore implements LedgerStore {
   int get pendingBatches => _pending.length;
 
   /// Fires after anything changes what [transactions] returns, so readers
-  /// (`MemoryTransactionsReader`) can emit again.
+  /// (`MemoryHomeReader`) can emit again.
   Stream<void> get changes => _changes.stream;
   final StreamController<void> _changes = StreamController<void>.broadcast(
     sync: true,

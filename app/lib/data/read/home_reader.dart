@@ -9,13 +9,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:xpense_app/data/transactions_repository.dart';
 
 /// Live reads of the transactions the signed-in member can see.
-abstract interface class TransactionsReader {
+abstract interface class HomeReader {
   /// Live, non-deleted entries whose household-local day (`occurredOn`) is
   /// from [fromDay] to [toDay] inclusive (`YYYY-MM-DD`), oldest first.
   ///
   /// Uses the `visibleTo` + `occurredOn` index ("month totals, daily
   /// chart"). Emits an empty list while signed out or outside a household.
-  Stream<List<LedgerTransaction>> watchDays({
+  Stream<List<LedgerTransaction>> watchRange({
     required String fromDay,
     required String toDay,
   });
@@ -27,11 +27,9 @@ abstract interface class TransactionsReader {
   Stream<List<LedgerTransaction>> watchRecent({required int limit});
 }
 
-/// The [TransactionsReader] for this run. Throws until the composition root
+/// The [HomeReader] for this run. Throws until the composition root
 /// sets it.
-final transactionsReaderProvider = Provider<TransactionsReader>(
-  (ref) => throw UnimplementedError(
-    'transactionsReaderProvider is set in bootstrap()',
-  ),
-  name: 'transactionsReaderProvider',
+final homeReaderProvider = Provider<HomeReader>(
+  (ref) => throw UnimplementedError('homeReaderProvider is set in bootstrap()'),
+  name: 'homeReaderProvider',
 );

@@ -4,12 +4,12 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:xpense_app/data/household_repository.dart';
 import 'package:xpense_app/data/mappers/transaction_mapper.dart';
-import 'package:xpense_app/data/transactions_reader.dart';
+import 'package:xpense_app/data/read/home_reader.dart';
 import 'package:xpense_app/data/transactions_repository.dart';
 
-/// A `TransactionsReader` over Firestore, following the signed-in member's
+/// A `HomeReader` over Firestore, following the signed-in member's
 /// household.
-final class FirebaseTransactionsReader implements TransactionsReader {
+final class FirebaseHomeReader implements HomeReader {
   /// Creates the reader. The Firestore instance must already point at the
   /// emulator when one is used.
   new({
@@ -23,7 +23,7 @@ final class FirebaseTransactionsReader implements TransactionsReader {
   final HouseholdRepository _households;
 
   @override
-  Stream<List<LedgerTransaction>> watchDays({
+  Stream<List<LedgerTransaction>> watchRange({
     required String fromDay,
     required String toDay,
   }) => _scoped(

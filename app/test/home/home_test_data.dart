@@ -236,7 +236,7 @@ List<Override> homeOverrides(TestServices services, MemoryLedger ledger) =>
       householdRepository: services.households,
       accountsRepository: services.accounts,
       transactionsRepository: ledger.repository,
-      transactionsReader: ledger.reader,
+      homeReader: ledger.reader,
       featureFlags: services.flags,
       onDeviceLlm: services.onDeviceLlm,
       speechCapture: services.speech,

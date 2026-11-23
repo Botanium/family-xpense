@@ -24,10 +24,10 @@ import 'package:xpense_app/data/auth_repository_firebase.dart';
 import 'package:xpense_app/data/household_repository.dart';
 import 'package:xpense_app/data/household_repository_fake.dart';
 import 'package:xpense_app/data/household_repository_firebase.dart';
-import 'package:xpense_app/data/sample_month_fake.dart';
-import 'package:xpense_app/data/transactions_reader.dart';
-import 'package:xpense_app/data/transactions_reader_firebase.dart';
-import 'package:xpense_app/data/transactions_reader_memory.dart';
+import 'package:xpense_app/data/read/home_reader.dart';
+import 'package:xpense_app/data/read/home_reader_firebase.dart';
+import 'package:xpense_app/data/read/home_reader_memory.dart';
+import 'package:xpense_app/data/read/sample_month_fake.dart';
 import 'package:xpense_app/data/transactions_repository.dart';
 import 'package:xpense_app/data/write/firestore_ledger_store.dart';
 import 'package:xpense_app/data/write/ledger_store.dart';
@@ -252,7 +252,7 @@ AccountsRepository connectAccounts(
 ///
 /// Changes an earlier run queued are re-applied whenever their member is
 /// in a household ([LedgerTransactionsRepository.resumePending]).
-Future<(TransactionsRepository, TransactionsReader)> connectTransactions(
+Future<(TransactionsRepository, HomeReader)> connectTransactions(
   AppEnvironment environment, {
   required HouseholdRepository households,
 }) async {
@@ -285,7 +285,7 @@ Future<(TransactionsRepository, TransactionsReader)> connectTransactions(
       }),
     );
   });
-  final reader = FirebaseTransactionsReader(
+  final reader = FirebaseHomeReader(
     auth: FirebaseAuth.instance,
     firestore: FirebaseFirestore.instance,
     households: households,
@@ -297,7 +297,7 @@ Future<(TransactionsRepository, TransactionsReader)> connectTransactions(
 typedef MemoryLedger = ({
   MemoryLedgerStore store,
   TransactionsRepository repository,
-  TransactionsReader reader,
+  HomeReader reader,
 });
 
 /// A write path in memory over the sample household's accounts
@@ -332,7 +332,7 @@ MemoryLedger memoryLedger({DateTime? sampleMonth}) {
   return (
     store: store,
     repository: LedgerTransactionsRepository(store),
-    reader: MemoryTransactionsReader(store),
+    reader: MemoryHomeReader(store),
   );
 }
 
@@ -440,7 +440,7 @@ Future<Bootstrapped> bootstrap({required AppEnvironment environment}) async {
   final auth = await connectAuth(environment);
   final households = connectHouseholds(environment, auth: auth);
   final accounts = connectAccounts(environment, households: households);
-  final (transactions, transactionsReader) = await connectTransactions(
+  final (transactions, homeReader) = await connectTransactions(
     environment,
     households: households,
   );
@@ -461,7 +461,7 @@ Future<Bootstrapped> bootstrap({required AppEnvironment environment}) async {
       householdRepository: households,
       accountsRepository: accounts,
       transactionsRepository: transactions,
-      transactionsReader: transactionsReader,
+      homeReader: homeReader,
       featureFlags: flags,
     ),
   );
@@ -482,7 +482,7 @@ List<Override> appOverrides({
   required HouseholdRepository householdRepository,
   required AccountsRepository accountsRepository,
   TransactionsRepository? transactionsRepository,
-  TransactionsReader? transactionsReader,
+  HomeReader? homeReader,
   SecureStore? secureStore,
   FeatureFlagSource? featureFlags,
   AgentClient? agentClient,
@@ -493,7 +493,7 @@ List<Override> appOverrides({
 }) {
   // Without a given write or read path, both share one ledger in memory, so
   // what a test saves shows where it reads.
-  final ledger = transactionsRepository == null || transactionsReader == null
+  final ledger = transactionsRepository == null || homeReader == null
       ? memoryLedger()
       : null;
   return [
@@ -507,9 +507,7 @@ List<Override> appOverrides({
     transactionsRepositoryProvider.overrideWithValue(
       transactionsRepository ?? ledger!.repository,
     ),
-    transactionsReaderProvider.overrideWithValue(
-      transactionsReader ?? ledger!.reader,
-    ),
+    homeReaderProvider.overrideWithValue(homeReader ?? ledger!.reader),
     secureStoreProvider.overrideWithValue(secureStore ?? MemorySecureStore()),
     featureFlagSourceProvider.overrideWithValue(
       featureFlags ?? FakeFeatureFlags(),

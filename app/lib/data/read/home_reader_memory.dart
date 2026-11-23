@@ -1,15 +1,15 @@
 import 'dart:async';
 
 import 'package:xpense_app/data/mappers/transaction_mapper.dart';
-import 'package:xpense_app/data/transactions_reader.dart';
+import 'package:xpense_app/data/read/home_reader.dart';
 import 'package:xpense_app/data/transactions_repository.dart';
 import 'package:xpense_app/data/write/memory_ledger_store.dart';
 
-/// [TransactionsReader] over a [MemoryLedgerStore], for the fakes build and
+/// [HomeReader] over a [MemoryLedgerStore], for the fakes build and
 /// tests. It sees what the store's phone sees, queued writes included, and
 /// applies the same `visibleTo` and `deletedAt` filters as the Firestore
 /// queries.
-final class MemoryTransactionsReader implements TransactionsReader {
+final class MemoryHomeReader implements HomeReader {
   /// Reads [store].
   const new(this.store);
 
@@ -17,7 +17,7 @@ final class MemoryTransactionsReader implements TransactionsReader {
   final MemoryLedgerStore store;
 
   @override
-  Stream<List<LedgerTransaction>> watchDays({
+  Stream<List<LedgerTransaction>> watchRange({
     required String fromDay,
     required String toDay,
   }) => _watch(
