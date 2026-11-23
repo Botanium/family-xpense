@@ -160,9 +160,15 @@ gcloud eventarc triggers create xpense-account-visibility \
   --event-filters=type=google.cloud.firestore.document.v1.updated \
   --event-filters=database='(default)' \
   --event-filters-path-pattern=document='households/{hid}/accounts/{accountId}' \
-  --event-data-content-type=application/json \
+  --event-data-content-type=application/protobuf \
   --service-account=xpense-eventarc@$PROJECT.iam.gserviceaccount.com
 ```
+
+Firestore event types accept only `application/protobuf` (Eventarc refuses
+`application/json`); the handler reads only the `document` attribute.
+
+Deployed in `expense-family-cc6ee` on 2026-11-23 (jobs revision
+`xpense-jobs-00001`, image `server:455834d`).
 
 Until the trigger exists, a shared account stays on "Sharing…" in the app
 (its history is not rewritten); joins still widen joint accounts directly.
