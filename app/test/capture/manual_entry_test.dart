@@ -297,6 +297,46 @@ void main() {
       });
     });
 
+    test('a savings move into a goal handles Arrives like a transfer', () {
+      final initial = EntryDraft(
+        id: 'g',
+        intent: 'savings_move',
+        amountMinor: 10000,
+        currency: 'USD',
+        accountId: 'usd',
+        toAccountId: 'iqd',
+        goalId: 'goal-trip',
+      );
+      final values = ManualEntryValues.fromDraft(initial, today: _day);
+      ManualEntryCheck check(String arrives, {bool typed = true}) =>
+          checkManualEntry(
+            values.copyWith(toAmountText: arrives),
+            draftId: 'd1',
+            currencyOf: (id) => _currencies[id],
+            base: Currency.usd,
+            initial: initial,
+            arrivesWasTyped: typed,
+          );
+      final kept = check('150000');
+      expect(kept.errors, isEmpty);
+      expect(kept.extras.toAmountMinor, 150000);
+      // The goal names the destination; the draft does not.
+      expect(kept.draft!.toAccountId, isNull);
+      expect(kept.draft!.goalId, 'goal-trip');
+      expect(check('').extras.toAmountReset, isTrue);
+      expect(check('', typed: false).extras.toAmountReset, isFalse);
+      // A goal whose account the phone does not know: no Arrives, no error.
+      final unknown = checkManualEntry(
+        values.copyWith(toAccountId: 'gone'),
+        draftId: 'd1',
+        currencyOf: (id) => _currencies[id],
+        base: Currency.usd,
+        initial: initial,
+      );
+      expect(unknown.errors, isEmpty);
+      expect(unknown.extras, const EntryExtras());
+    });
+
     test('a category of the other kind counts as none chosen', () {
       // What the chips show (nothing) is what is checked.
       final check = _check(

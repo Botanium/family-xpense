@@ -549,6 +549,95 @@ void main() {
       expect(_stored(app, id)['toAmountSource'], 'rate');
     });
 
+    group('into a goal', () {
+      // Codex review, PR #39: a savings move into a goal dropped the typed
+      // arriving amount on edit.
+      Future<String> seedGoalMove(LedgerApp app) async {
+        app.memory.goals['goal-trip'] = 'acc-cash';
+        final saved = await app.repository.saveEntries(
+          [
+            EntryDraft(
+              id: 'd1',
+              intent: 'savings_move',
+              amountMinor: 10000,
+              currency: 'USD',
+              accountId: 'acc-checking',
+              goalId: 'goal-trip',
+              occurredOn: '2026-11-22',
+            ),
+          ],
+          extras: {'d1': const EntryExtras(toAmountMinor: 150000)},
+        );
+        final id = saved.valueOrNull!.txnIds.single;
+        expect(_stored(app, id)['toAccountId'], 'acc-cash');
+        expect(_stored(app, id)['toAmountSource'], 'entered');
+        return id;
+      }
+
+      Future<void> openEdit(
+        WidgetTester tester,
+        LedgerApp app,
+        String id,
+      ) async {
+        final container = await app.pump(tester);
+        await pushTo(
+          tester,
+          container,
+          AppRoutes.editEntry(id, field: 'amount'),
+        );
+        expect(find.text('Edit entry'), findsOneWidget);
+      }
+
+      testWidgets('its typed arrival is kept when the amount changes', (
+        tester,
+      ) async {
+        final app = LedgerApp();
+        final id = await seedGoalMove(app);
+        await openEdit(tester, app, id);
+        expect(arrivesText(tester), '150000');
+        await tester.enterText(
+          find
+              .descendant(
+                of: find.byType(AmountField),
+                matching: find.byType(EditableText),
+              )
+              .first,
+          '120',
+        );
+        await tester.pump();
+        await _tap(tester, find.text('Save changes'));
+
+        expect(_stored(app, id)['amountMinor'], 12000);
+        expect(_stored(app, id)['toAmountMinor'], 150000);
+        expect(_stored(app, id)['toAmountSource'], 'entered');
+        expect(_stored(app, id)['goalId'], 'goal-trip');
+        expect(_stored(app, id)['toAccountId'], 'acc-cash');
+      });
+
+      testWidgets('clearing its typed arrival converts it again', (
+        tester,
+      ) async {
+        final app = LedgerApp();
+        final id = await seedGoalMove(app);
+        await openEdit(tester, app, id);
+        await tester.enterText(
+          find
+              .descendant(
+                of: find.byType(AmountField),
+                matching: find.byType(EditableText),
+              )
+              .last,
+          '',
+        );
+        await tester.pump();
+        await _tap(tester, find.text('Save changes'));
+
+        expect(_stored(app, id)['toAmountMinor'], 170500);
+        expect(_stored(app, id)['toAmountSource'], 'rate');
+        expect(_stored(app, id)['goalId'], 'goal-trip');
+      });
+    });
+
     testWidgets('a converted arriving amount is converted again', (
       tester,
     ) async {

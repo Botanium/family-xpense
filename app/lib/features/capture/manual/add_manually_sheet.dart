@@ -556,12 +556,15 @@ class AddManuallyFormState extends ConsumerState<AddManuallyForm> {
     final toAccount = byId(values.toAccountId);
     final currency = account?.currency ?? _base();
     final kind = ManualKind.fromIntent(values.intent);
-    final transfer =
+    // A savings move into a goal has no To row: the goal names the
+    // account. It still has Arrives when that account's currency differs.
+    final goalMove =
         kind == ManualKind.transfer &&
-        !(values.intent == CaptureIntent.savingsMove.wire &&
-            widget.initial?.goalId != null);
+        values.intent == CaptureIntent.savingsMove.wire &&
+        widget.initial?.goalId != null;
+    final transfer = kind == ManualKind.transfer && !goalMove;
     final crossCurrency =
-        transfer &&
+        (transfer || goalMove) &&
         toAccount != null &&
         account != null &&
         toAccount.currency != account.currency;
@@ -762,33 +765,33 @@ class AddManuallyFormState extends ConsumerState<AddManuallyForm> {
                 ),
               ),
               _FieldError(error(ManualField.toAccount)),
-              if (crossCurrency) ...[
-                const SizedBox(height: XpSpace.s8),
-                _Caption(l10n.captureManualArrives),
-                anchor(
-                  ManualField.toAmount,
-                  AmountField(
-                    label: l10n.captureManualArrives,
-                    currency: toAccount.currency.code,
-                    exponent: toAccount.currency.exponent,
-                    controller: _toAmount,
-                    onChanged: (text) => _edit(
-                      _values.copyWith(toAmountText: text),
-                      clears: const [ManualField.toAmount],
-                    ),
+            ],
+            if (crossCurrency) ...[
+              const SizedBox(height: XpSpace.s8),
+              _Caption(l10n.captureManualArrives),
+              anchor(
+                ManualField.toAmount,
+                AmountField(
+                  label: l10n.captureManualArrives,
+                  currency: toAccount.currency.code,
+                  exponent: toAccount.currency.exponent,
+                  controller: _toAmount,
+                  onChanged: (text) => _edit(
+                    _values.copyWith(toAmountText: text),
+                    clears: const [ManualField.toAmount],
                   ),
                 ),
-                Padding(
-                  padding: const EdgeInsetsDirectional.only(top: XpSpace.s4),
-                  child: Text(
-                    l10n.captureManualArrivesHint,
-                    style: type.meta.copyWith(color: colors.inkSecondary),
-                  ),
+              ),
+              Padding(
+                padding: const EdgeInsetsDirectional.only(top: XpSpace.s4),
+                child: Text(
+                  l10n.captureManualArrivesHint,
+                  style: type.meta.copyWith(color: colors.inkSecondary),
                 ),
-                _FieldError(
-                  error(ManualField.toAmount, code: toAccount.currency.code),
-                ),
-              ],
+              ),
+              _FieldError(
+                error(ManualField.toAmount, code: toAccount.currency.code),
+              ),
             ],
             anchor(
               ManualField.date,

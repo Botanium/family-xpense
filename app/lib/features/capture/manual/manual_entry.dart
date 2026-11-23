@@ -427,10 +427,16 @@ ManualEntryCheck checkManualEntry(
       intent == CaptureIntent.savingsMove.wire && initial?.goalId != null;
   int? toAmount;
   var toAmountReset = false;
-  if (transfer && !keepsGoal) {
+  if (transfer) {
+    // A savings move into a goal goes to the goal's account, which the
+    // write path finds from the goal; a prefilled edit names it too, so
+    // its currency sets Arrives exactly as for a transfer (Codex review,
+    // PR #39).
     final toId = values.toAccountId;
     final toCurrency = toId == null ? null : currencyOf(toId);
-    if (toId == null) {
+    if (keepsGoal && toCurrency == null) {
+      // No known destination: the write path converts at the rate.
+    } else if (toId == null) {
       errors[ManualField.toAccount] = ManualIssue.missing;
     } else if (toId == values.accountId) {
       errors[ManualField.toAccount] = ManualIssue.sameAccount;
