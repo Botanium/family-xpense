@@ -78,8 +78,335 @@ class AppLocalizationsEn extends AppLocalizations {
   String get accountsTitle => 'Accounts';
 
   @override
-  String get accountsPlaceholder =>
-      'Your accounts and the household total will appear here.';
+  String get accountsHouseholdBalance => 'Household balance';
+
+  @override
+  String get accountsYourView => 'Your view';
+
+  @override
+  String accountsYourViewNote(String name) {
+    return '$name\'s private accounts aren\'t included.';
+  }
+
+  @override
+  String get accountsYourViewNoteUnnamed =>
+      'Your partner\'s private accounts aren\'t included.';
+
+  @override
+  String accountsUnconvertedNote(String currency) {
+    return '$currency accounts aren\'t in the total until the household enters a dollar rate.';
+  }
+
+  @override
+  String get accountsFilterAll => 'All';
+
+  @override
+  String get accountsFilterMine => 'Mine';
+
+  @override
+  String get accountsFilterPartner => 'Partner';
+
+  @override
+  String get accountsFilterJoint => 'Joint';
+
+  @override
+  String get accountsFilterLabel => 'Show accounts';
+
+  @override
+  String get accountsAdd => 'Add an account';
+
+  @override
+  String get accountsEmpty => 'No accounts yet. Add one with the plus button.';
+
+  @override
+  String get accountsFilterEmpty => 'No accounts here.';
+
+  @override
+  String get accountsLoadError => 'Couldn\'t load your accounts.';
+
+  @override
+  String get accountsRetry => 'Try again';
+
+  @override
+  String get accountsKindCash => 'Cash';
+
+  @override
+  String get accountsKindBank => 'Bank account';
+
+  @override
+  String get accountsKindCredit => 'Credit card';
+
+  @override
+  String get accountsKindSavings => 'Savings';
+
+  @override
+  String get accountsKindOther => 'Account';
+
+  @override
+  String get accountsChipCash => 'Cash';
+
+  @override
+  String get accountsChipBank => 'Bank';
+
+  @override
+  String get accountsChipCredit => 'Card';
+
+  @override
+  String get accountsChipSavings => 'Savings';
+
+  @override
+  String get accountsChipOther => 'Other';
+
+  @override
+  String get accountsTagCash => 'CASH';
+
+  @override
+  String get accountsTagBank => 'BANK';
+
+  @override
+  String get accountsTagCredit => 'CARD';
+
+  @override
+  String get accountsTagSavings => 'SAV';
+
+  @override
+  String get accountsTagOther => 'ACCT';
+
+  @override
+  String get accountsOwnerYou => 'You';
+
+  @override
+  String get accountsOwnerYouShared => 'You, shared';
+
+  @override
+  String accountsOwnerPartner(String name) {
+    return '$name, shared';
+  }
+
+  @override
+  String get accountsOwnerPartnerUnnamed => 'Partner, shared';
+
+  @override
+  String get accountsOwnerJoint => 'Joint';
+
+  @override
+  String accountsRowMeta(String kind, String owner) {
+    return '$kind · $owner';
+  }
+
+  @override
+  String get accountsSharing => 'Sharing…';
+
+  @override
+  String accountsApprox(String amount) {
+    return '≈ $amount';
+  }
+
+  @override
+  String accountsArchivedShow(int count) {
+    return 'Show archived ($count)';
+  }
+
+  @override
+  String get accountsArchivedHide => 'Hide archived';
+
+  @override
+  String get accountsDetailTitle => 'Account';
+
+  @override
+  String accountsDetailHeader(String name, String owner) {
+    return '$name · $owner';
+  }
+
+  @override
+  String accountsShareWith(String name) {
+    return 'Share with $name';
+  }
+
+  @override
+  String get accountsShareWithPartner => 'Share with your partner';
+
+  @override
+  String accountsShareOn(String name) {
+    return '$name sees this account and its entries.';
+  }
+
+  @override
+  String get accountsShareOnUnnamed =>
+      'Your partner sees this account and its entries.';
+
+  @override
+  String get accountsShareOff => 'Only you see this account and its entries.';
+
+  @override
+  String get accountsShareNoPartner =>
+      'You can share it once your partner joins.';
+
+  @override
+  String accountsSharingProgress(int done, int total) {
+    return 'Sharing past entries… $done of $total';
+  }
+
+  @override
+  String get accountsSharingStarted => 'Sharing past entries…';
+
+  @override
+  String accountsUnsharingProgress(int done, int total) {
+    return 'Making past entries private… $done of $total';
+  }
+
+  @override
+  String get accountsUnsharingStarted => 'Making past entries private…';
+
+  @override
+  String get accountsEntries => 'Entries';
+
+  @override
+  String get accountsEntriesEmpty => 'No entries on this account yet.';
+
+  @override
+  String accountsEntryMeta(String date, String type) {
+    return '$date · $type';
+  }
+
+  @override
+  String get accountsTypeExpense => 'Expense';
+
+  @override
+  String get accountsTypeIncome => 'Income';
+
+  @override
+  String get accountsTypeTransfer => 'Transfer';
+
+  @override
+  String get accountsTypeLoan => 'Loan';
+
+  @override
+  String get accountsTypeRepayment => 'Repayment';
+
+  @override
+  String get accountsTypeAdjustment => 'Balance';
+
+  @override
+  String get accountsOpeningEntry => 'Opening balance';
+
+  @override
+  String get accountsMore => 'More';
+
+  @override
+  String get accountsEdit => 'Edit';
+
+  @override
+  String get accountsArchive => 'Archive';
+
+  @override
+  String get accountsRestore => 'Restore';
+
+  @override
+  String get accountsCancel => 'Cancel';
+
+  @override
+  String get accountsArchived => 'Archived: hidden from lists and totals.';
+
+  @override
+  String get accountsNotFound => 'This account isn\'t here anymore.';
+
+  @override
+  String get accountsNewTitle => 'New account';
+
+  @override
+  String get accountsEditTitle => 'Edit account';
+
+  @override
+  String get accountsNameLabel => 'Name';
+
+  @override
+  String get accountsNameHint => 'Cash wallet';
+
+  @override
+  String get accountsNameError => 'Use up to 40 characters.';
+
+  @override
+  String get accountsKindLabel => 'Kind';
+
+  @override
+  String get accountsCurrencyLabel => 'Currency';
+
+  @override
+  String get accountsCurrencyFixed =>
+      'The currency can\'t change once an account is added.';
+
+  @override
+  String get accountsWhoseLabel => 'Whose';
+
+  @override
+  String get accountsWhoseMine => 'Just me';
+
+  @override
+  String get accountsWhoseJoint => 'Joint';
+
+  @override
+  String get accountsShareNow => 'Share with your partner now';
+
+  @override
+  String accountsOpeningLabel(String kind) {
+    return '$kind · opening balance';
+  }
+
+  @override
+  String accountsOwedLabel(String kind) {
+    return '$kind · amount owed';
+  }
+
+  @override
+  String get accountsAmountError => 'Enter an amount, such as 250,000.';
+
+  @override
+  String get accountsRateLabel => 'Today\'s dollar rate, in dinars';
+
+  @override
+  String get accountsRateHint => '1,705';
+
+  @override
+  String get accountsRateError => 'Enter the rate, such as 1,705.';
+
+  @override
+  String get accountsAddAction => 'Add account';
+
+  @override
+  String get accountsSave => 'Save';
+
+  @override
+  String get accountsSaving => 'Saving…';
+
+  @override
+  String get accountsErrorNotAllowed => 'You can\'t change this account.';
+
+  @override
+  String get accountsErrorNotFound => 'This account isn\'t here anymore.';
+
+  @override
+  String get accountsErrorUnknown => 'Something went wrong. Try again.';
+
+  @override
+  String get accountsSetupTitle => 'Add accounts';
+
+  @override
+  String get accountsSetupHeadline => 'Where does your money live?';
+
+  @override
+  String get accountsSetupBody =>
+      'Add each account with today\'s balance. You can add more later.';
+
+  @override
+  String get accountsSetupAdded => 'Added';
+
+  @override
+  String get accountsSetupSayIt =>
+      'Or just say it: “I have 3,940 in checking, 250,000 dinars cash, and we owe 612 on the joint Visa.”';
+
+  @override
+  String get accountsSetupContinue => 'Continue';
 
   @override
   String get loansTitle => 'Loan';
@@ -89,11 +416,197 @@ class AppLocalizationsEn extends AppLocalizations {
       'The loan\'s balance, due date and repayments will appear here.';
 
   @override
+  String get householdSetupTitle => 'Household';
+
+  @override
+  String get householdSetupHeadline => 'Set up your household';
+
+  @override
+  String get householdNameLabel => 'Household name';
+
+  @override
+  String get householdNameHint => 'Our home';
+
+  @override
+  String get householdNameErrorEmpty => 'Give your household a name.';
+
+  @override
+  String householdNameErrorLong(int max) {
+    return 'Use $max characters or fewer.';
+  }
+
+  @override
+  String get householdYourNameLabel => 'Your name';
+
+  @override
+  String get householdYourNameHint => 'How your partner will see you';
+
+  @override
+  String get householdYourNameErrorEmpty =>
+      'Add the name your partner will see.';
+
+  @override
+  String get householdCurrencyLabel => 'Base currency';
+
+  @override
+  String get householdCurrencyNote =>
+      'Household totals and reports add up in this currency. It can\'t be changed later.';
+
+  @override
+  String get householdCreateAction => 'Continue';
+
+  @override
+  String get householdCreating => 'Setting up…';
+
+  @override
+  String get householdHaveInvite => 'I have an invite';
+
+  @override
+  String get householdInviteLabel => 'Invite your partner';
+
+  @override
+  String get householdInviteLoading => 'Making an invite code';
+
+  @override
+  String householdInviteCodeSemantics(String spelled) {
+    return 'Invite code $spelled';
+  }
+
+  @override
+  String get householdInviteShare => 'Share';
+
+  @override
+  String householdInviteShareMessage(String code, String link) {
+    return 'Join our household in Family Xpense with this code: $code\n\nOr open this link on your iPhone: $link\n\nThe code works once, for 7 days.';
+  }
+
+  @override
+  String get householdInviteValidity =>
+      'Works once, for 7 days. A new code replaces this one.';
+
+  @override
+  String get householdInviteFailed => 'Couldn\'t make an invite code.';
+
+  @override
+  String get householdInviteOffline =>
+      'You\'re offline. Connect to get an invite code.';
+
+  @override
+  String get householdInviteUnavailable =>
+      'Invites aren\'t available right now. Try again later.';
+
+  @override
+  String get householdInviteRateLimited =>
+      'Too many new codes. Wait an hour, then try again.';
+
+  @override
+  String get householdInviteFull => 'Your partner has joined.';
+
+  @override
+  String get householdRetry => 'Try again';
+
+  @override
+  String get householdSharedLabel => 'Shared';
+
+  @override
+  String get householdSharedValue => 'Joint money, goals';
+
+  @override
+  String get householdPrivateLabel => 'Private';
+
+  @override
+  String get householdPrivateValue => 'Your own accounts';
+
+  @override
+  String get householdContinue => 'Continue';
+
+  @override
+  String get householdInviteLater => 'Invite later';
+
+  @override
+  String get householdOffline =>
+      'You\'re offline. Setting up needs a connection.';
+
+  @override
+  String get householdErrorNotAllowed =>
+      'Your sign-in has expired. Sign out and sign in again.';
+
+  @override
+  String get householdErrorUnknown => 'Something went wrong. Try again.';
+
+  @override
   String get householdJoinTitle => 'Join';
 
   @override
-  String get householdJoinPlaceholder =>
-      'Joining a household from an invite arrives in a later version.';
+  String get householdJoinHeadline => 'Join your partner\'s household';
+
+  @override
+  String get householdJoinBody =>
+      'Enter the code your partner shared. Each code works once, for 7 days.';
+
+  @override
+  String get householdJoinCodeLabel => 'Invite code';
+
+  @override
+  String get householdJoinCodeHint => 'ABCDE-12345';
+
+  @override
+  String get householdJoinCodeErrorEmpty => 'Enter the code from your partner.';
+
+  @override
+  String get householdJoinCodeErrorShape =>
+      'Codes have 10 letters and numbers.';
+
+  @override
+  String get householdJoinAction => 'Join household';
+
+  @override
+  String get householdJoining => 'Joining…';
+
+  @override
+  String get householdJoinErrorInvalid =>
+      'That code doesn\'t match an invite. Check it with your partner.';
+
+  @override
+  String get householdJoinErrorExpired =>
+      'That invite has expired. Ask your partner for a new code.';
+
+  @override
+  String get householdJoinErrorUsed =>
+      'That invite was already used. Ask your partner for a new code.';
+
+  @override
+  String get householdJoinErrorFull => 'That household already has two people.';
+
+  @override
+  String get householdJoinErrorAlready =>
+      'You\'re already in a household. Each person can be in one.';
+
+  @override
+  String get householdJoinErrorRateLimited =>
+      'Too many tries. Wait an hour, then try again.';
+
+  @override
+  String get householdJoinOffline =>
+      'You\'re offline. Joining needs a connection.';
+
+  @override
+  String householdJoinedHeadline(String household) {
+    return 'Welcome to $household';
+  }
+
+  @override
+  String get householdJoinedHeadlineUnnamed => 'You\'re in';
+
+  @override
+  String get householdJoinedBody =>
+      'You and your partner now share joint money and goals. Your own accounts stay yours.';
+
+  @override
+  String get householdJoinedSyncing => 'Getting your household ready…';
+
+  @override
+  String get householdJoinSetUpInstead => 'Set up a household instead';
 
   @override
   String get askTitle => 'Ask';

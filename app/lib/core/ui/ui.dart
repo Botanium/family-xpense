@@ -17,6 +17,7 @@ export 'inputs.dart';
 export 'media.dart';
 export 'mini_bars.dart';
 export 'money_text.dart';
+export 'onboarding_frame.dart';
 export 'progress.dart';
 export 'rate_prompt.dart';
 export 'rows.dart';

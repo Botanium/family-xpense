@@ -1,5 +1,79 @@
 // Test doubles for the admin gateway.
+import 'dart:async';
+
 import 'package:xpense_agent/admin/admin_gateway.dart';
+
+/// A transaction over [FakeDocumentStore]: reads see the committed
+/// documents, writes are buffered and applied when the body returns, and a
+/// read after a write is refused, as in Firestore.
+final class _FakeTransaction implements DocumentTransaction {
+  new(this._store);
+
+  final FakeDocumentStore _store;
+  final _writes = <void Function()>[];
+
+  void _checkReadable() {
+    if (_writes.isNotEmpty) {
+      throw StateError('Firestore transactions read before they write');
+    }
+  }
+
+  @override
+  Future<Map<String, Object?>?> read(String path) {
+    _checkReadable();
+    return _store.read(path);
+  }
+
+  @override
+  Future<List<StoredDocument>> whereEquals(
+    String collection,
+    String field,
+    Object value, {
+    int limit = 50,
+  }) async {
+    _checkReadable();
+    final depth = collection.split('/').length + 1;
+    return [
+      for (final MapEntry(key: path, value: data) in _store.docs.entries)
+        if (path.startsWith('$collection/') &&
+            path.split('/').length == depth &&
+            data[field] == value)
+          StoredDocument(path, Map.of(data)),
+    ].take(limit).toList();
+  }
+
+  @override
+  Future<List<StoredDocument>> whereArrayContains(
+    String collection,
+    String field,
+    Object value, {
+    int limit = 50,
+  }) async {
+    _checkReadable();
+    final depth = collection.split('/').length + 1;
+    return [
+      for (final MapEntry(key: path, value: data) in _store.docs.entries)
+        if (path.startsWith('$collection/') &&
+            path.split('/').length == depth &&
+            data[field] is List &&
+            (data[field]! as List).contains(value))
+          StoredDocument(path, Map.of(data)),
+    ].take(limit).toList();
+  }
+
+  @override
+  void write(String path, Map<String, Object?> data, {bool merge = false}) =>
+      _writes.add(() => unawaited(_store.write(path, data, merge: merge)));
+
+  @override
+  void delete(String path) => _writes.add(() => _store.docs.remove(path));
+
+  void _apply() {
+    for (final write in _writes) {
+      write();
+    }
+  }
+}
 
 /// In-memory documents keyed by path.
 final class FakeDocumentStore implements DocumentStore {
@@ -42,6 +116,105 @@ final class FakeDocumentStore implements DocumentStore {
       docs.putIfAbsent(path, () => {}).addAll(data);
     } else {
       docs[path] = Map.of(data);
+    }
+  }
+
+  /// Transactions run one at a time, like Firestore's serialisable ones.
+  Future<void> _lock = Future.value();
+
+  /// Number of transactions that committed.
+  int commits = 0;
+
+  /// Called as each transaction starts, before its body; tests use it to
+  /// change data between a job's reads and its commit.
+  Future<void> Function()? onTransaction;
+
+  @override
+  Future<T> transaction<T>(
+    Future<T> Function(DocumentTransaction tx) body,
+  ) async {
+    await onTransaction?.call();
+    final previous = _lock;
+    final done = Completer<void>();
+    _lock = done.future;
+    await previous;
+    try {
+      final tx = _FakeTransaction(this);
+      final result = await body(tx);
+      tx._apply();
+      commits++;
+      return result;
+    } finally {
+      done.complete();
+    }
+  }
+
+  /// Documents directly in [collection], ordered by id.
+  List<MapEntry<String, Map<String, Object?>>> _children(String collection) {
+    final prefix = '$collection/';
+    return [
+      for (final e in docs.entries)
+        if (e.key.startsWith(prefix) &&
+            !e.key.substring(prefix.length).contains('/'))
+          e,
+    ]..sort((a, b) => a.key.compareTo(b.key));
+  }
+
+  /// Number of [pageWhereEquals] calls.
+  int pageReads = 0;
+
+  /// Every batch [writeAll] committed, in order.
+  final batches = <List<DocumentWrite>>[];
+
+  /// Called before each page read; tests use it to change data mid-run.
+  Future<void> Function(int page)? onPage;
+
+  @override
+  Future<List<StoredDocument>> pageWhereEquals(
+    String collection,
+    String field,
+    Object value, {
+    int limit = 400,
+    String? startAfterId,
+  }) async {
+    await onPage?.call(pageReads);
+    pageReads++;
+    final after = startAfterId == null ? null : '$collection/$startAfterId';
+    return [
+      for (final e in _children(collection))
+        if (e.value[field] == value &&
+            (after == null || e.key.compareTo(after) > 0))
+          StoredDocument(e.key, Map.of(e.value)),
+    ].take(limit).toList();
+  }
+
+  @override
+  Future<int> countWhereEquals(
+    String collection,
+    String field,
+    Object value,
+  ) async => _children(collection).where((e) => e.value[field] == value).length;
+
+  @override
+  Future<void> writeAll(List<DocumentWrite> writes) async {
+    batches.add(List.of(writes));
+    for (final w in writes) {
+      if (w.merge) {
+        _deepMerge(docs.putIfAbsent(w.path, () => {}), w.data);
+      } else {
+        docs[w.path] = Map.of(w.data);
+      }
+    }
+  }
+
+  static void _deepMerge(Map<String, Object?> into, Map<String, Object?> from) {
+    for (final MapEntry(:key, :value) in from.entries) {
+      final existing = into[key];
+      if (value is Map<String, Object?> && existing is Map<String, Object?>) {
+        _deepMerge(existing, value);
+      } else {
+        into[key] = value is Map<String, Object?> ? Map.of(value) : value;
+      }
     }
   }
 

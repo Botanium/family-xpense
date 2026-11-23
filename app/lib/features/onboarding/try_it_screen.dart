@@ -8,7 +8,6 @@ import 'package:xpense_app/core/l10n/l10n.dart';
 import 'package:xpense_app/core/routing/routing.dart';
 import 'package:xpense_app/core/theme/theme.dart';
 import 'package:xpense_app/core/ui/ui.dart';
-import 'package:xpense_app/features/onboarding/onboarding_layout.dart';
 import 'package:xpense_app/features/onboarding/try_it_view_model.dart';
 
 /// Width of the mono tag column of the example rows (artboard 05).

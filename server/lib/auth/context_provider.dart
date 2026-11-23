@@ -49,17 +49,49 @@ final class XpenseContextProvider {
   /// with [AuthFailure.overLimit] when any of them is at its daily limit.
   /// Routes that do no AI work (such as `ping`) pass none, and no usage is
   /// read.
-  ContextProvider forRoute({Set<UsageCounter> meters = const {}}) =>
-      (request) => resolve(request.headers, meters: meters);
+  ///
+  /// [allowOnDevice] admits On-device members. Only routes that send no
+  /// member text, audio or images to AI (such as `/household/invite`) set it.
+  ContextProvider forRoute({
+    Set<UsageCounter> meters = const {},
+    bool allowOnDevice = false,
+  }) =>
+      (request) => resolve(
+        request.headers,
+        meters: meters,
+        allowOnDevice: allowOnDevice,
+      );
+
+  /// A provider for a route open to any signed-in user, member of a
+  /// household or not, such as `/household/join`. Both tokens are verified;
+  /// the context is only `{uid}` ([CallerContext]).
+  ContextProvider forSignedInUser() =>
+      (request) => resolveCaller(request.headers);
 
   /// Verifies [headers] (lowercased names) and returns the context map.
   Future<Map<String, dynamic>> resolve(
     Map<String, String> headers, {
     Set<UsageCounter> meters = const {},
-  }) async {
+    bool allowOnDevice = false,
+  }) => _guard(() async {
+    final context = await _resolve(headers, meters, allowOnDevice);
+    return context.toMap();
+  });
+
+  /// Verifies [headers] (lowercased names) and returns `{uid}`, without
+  /// looking up a household.
+  Future<Map<String, dynamic>> resolveCaller(Map<String, String> headers) =>
+      _guard(() async {
+        final user = await _verifyTokens(headers);
+        return CallerContext(uid: user.uid).toMap();
+      });
+
+  /// Maps the module's typed refusals to the Genkit errors the phone gets.
+  Future<Map<String, dynamic>> _guard(
+    Future<Map<String, dynamic>> Function() resolve,
+  ) async {
     try {
-      final context = await _resolve(headers, meters);
-      return context.toMap();
+      return await resolve();
     } on AuthRejection catch (e) {
       _log.info('refused: ${e.failure.code}');
       throw e.failure.toException();
@@ -77,7 +109,26 @@ final class XpenseContextProvider {
   Future<XpenseContext> _resolve(
     Map<String, String> headers,
     Set<UsageCounter> meters,
+    bool allowOnDevice,
   ) async {
+    final verifiedUser = await _verifyTokens(headers);
+    final member = await _members.lookup(verifiedUser.uid);
+    if (!allowOnDevice && member.privacyMode == PrivacyMode.onDevice) {
+      throw const AuthRejection(AuthFailure.onDeviceMode);
+    }
+    if (meters.isNotEmpty) await _checkLimits(member.hid, meters);
+
+    return XpenseContext(
+      uid: member.uid,
+      hid: member.hid,
+      locale: member.locale,
+      privacyMode: member.privacyMode,
+      tz: member.timeZone,
+    );
+  }
+
+  /// Steps 1 and 2: both headers present, both tokens verified.
+  Future<VerifiedUser> _verifyTokens(Map<String, String> headers) async {
     final idToken = _bearer(headers['authorization']);
     if (idToken == null) throw const AuthRejection(AuthFailure.missingIdToken);
     final appCheckToken = headers[appCheckHeader]?.trim() ?? '';
@@ -98,20 +149,7 @@ final class XpenseContextProvider {
     )..ignore();
     final verifiedUser = await user;
     await app;
-
-    final member = await _members.lookup(verifiedUser.uid);
-    if (member.privacyMode == PrivacyMode.onDevice) {
-      throw const AuthRejection(AuthFailure.onDeviceMode);
-    }
-    if (meters.isNotEmpty) await _checkLimits(member.hid, meters);
-
-    return XpenseContext(
-      uid: member.uid,
-      hid: member.hid,
-      locale: member.locale,
-      privacyMode: member.privacyMode,
-      tz: member.timeZone,
-    );
+    return verifiedUser;
   }
 
   Future<void> _checkLimits(String hid, Set<UsageCounter> meters) async {

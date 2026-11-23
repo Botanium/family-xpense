@@ -15,8 +15,11 @@ import 'package:xpense_agent/config/server_env.dart';
 import 'package:xpense_agent/decide/classifier.dart';
 import 'package:xpense_agent/decide/decide_flow.dart';
 import 'package:xpense_agent/flows/ping.dart';
+import 'package:xpense_agent/household/household_flows.dart';
+import 'package:xpense_agent/household/household_service.dart';
 import 'package:xpense_agent/http/routes.dart';
 import 'package:xpense_agent/http/server_app.dart';
+import 'package:xpense_agent/jobs/account_visibility.dart';
 import 'package:xpense_agent/runtime/agent.dart';
 import 'package:xpense_agent/telemetry/usage_counters.dart';
 
@@ -72,15 +75,29 @@ final class XpenseServer {
         classifier?.call(config, usage) ?? FakeEntryClassifier();
     final decide = defineDecideFlow(ai, entryClassifier);
     final agentRuntime = agent?.call(entryClassifier, config, usage);
+    final visibility = AccountVisibilityJob(gateway.documents, clock: clock);
+    final household = HouseholdService(
+      gateway.documents,
+      clock: clock,
+      onJoin: visibility.prepareJoinWidening,
+    );
     final handler = buildHandler(
       role: role,
       public: buildPublicRouter(
         auth: auth,
         ping: ping,
         decide: decide,
+        householdInvite: defineHouseholdInviteFlow(ai, household),
+        householdJoin: defineHouseholdJoinFlow(
+          ai,
+          household,
+          members,
+          afterJoin: visibility.syncAfterJoin,
+        ),
         agent: agentRuntime,
       ),
       jobs: buildJobsRouter(),
+      events: {accountVisibilityPath: accountVisibilityHandler(visibility)},
       projectId: projectId,
     );
     return XpenseServer._(

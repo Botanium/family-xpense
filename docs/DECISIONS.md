@@ -177,8 +177,8 @@ Three parts: decisions locked by the owner (L), decisions made while planning (D
 - **App Check:** the debug provider is used on the simulator and in debug and profile builds. App Attest (with DeviceCheck before iOS 14) is used only in a release build on a device (`appleAppCheckFor` in `bootstrap.dart`), so nothing on the free team depends on App Attest.
 - **After approval:**
   1. Read the Team ID again in the developer account and correct it on the Firebase iOS app if it changed (ENVIRONMENTS 3.7).
-  2. Turn on the *Sign in with Apple* and *App Attest* capabilities on the App ID (ENVIRONMENTS section 6, step 3).
-  3. Add the entitlements to `app/ios/Runner`.
+  2. Turn on the *Sign in with Apple* and *App Attest* capabilities on the App ID `com.bitrelia.familyxpense.dev` (D-44; ENVIRONMENTS section 6, step 3).
+  3. Add the entitlements to the dev flavor (`CODE_SIGN_ENTITLEMENTS` in `app/ios/Flutter/Flavors.xcconfig`, D-44).
   4. Set `apple_sign_in_enabled` to true in Remote Config.
 - **Before the App Store:** the flag must be on, because App Review guideline 4.8 requires Sign in with Apple when Google sign-in is offered.
 
@@ -217,6 +217,16 @@ Not verified, and settled by spikes: items marked Verify above; how a real Gemin
 
 **D-42. The app is planned to go public as a paid subscription** after the owner and partner use it themselves. Status: Stated by the owner on 2026-11-22; not yet planned in detail. Consequences to plan before M8: in-app subscriptions and a paywall, a separate production Firebase project (already planned), per-user cost limits that fit the price, App Store review for a subscription finance app, and probably Kurdish and Arabic for the local market (D-36 deferred them). A planning pass is added as WP-P1 in DELEGATION.
 
+**D-43. Launch markets are the United States and Europe (EU and UK), not Iraq.** Status: Stated by the owner on 2026-11-22. Prices, comparable apps and conversion data are taken from those markets ([research/SUBSCRIPTIONS.md](research/SUBSCRIPTIONS.md)). Consequences: English at launch fits D-36; Kurdish and Arabic are no longer a launch need for D-42; EUR and GBP currencies are needed before the public launch; EU and UK users' data in `me-central1` (Doha, D-18) is a GDPR third-country transfer, so an EU region for those households needs a decision; an EU and UK GDPR representative and EU Digital Services Act trader details are needed; how the owner, living in Iraq, gets paid by Apple is open (section 4, item 3).
+
+**D-44. Development and TestFlight use the bundle id `com.bitrelia.familyxpense.dev`; the production id `com.bitrelia.familyxpense` is reserved until the App Store seller is decided.** Status: Decided by the owner on 2026-11-22, from [research/SUBSCRIPTIONS.md](research/SUBSCRIPTIONS.md) section 7.
+- Why: the owner enrols in the Apple Developer Program as an individual now (to unblock D-39), but the App Store seller (the individual or the owner's US company) is still open (section 4, item 3). An App ID registered in one developer account can only move to another together with an app transfer. Keeping the production id out of the individual account keeps both choices open at no cost.
+- The app has two iOS flavors (Flutter `--flavor`, Xcode schemes `dev` and `prod`, build configurations `Debug-`, `Release-` and `Profile-` per flavor): `dev` is `com.bitrelia.familyxpense.dev`, named "Xpense Dev", and is the default for `flutter run`; `prod` is `com.bitrelia.familyxpense`, named "Family Xpense". Each flavor reads its own gitignored `app/ios/config/<flavor>/GoogleService-Info.plist`. Setup and commands: [ENVIRONMENTS.md](ENVIRONMENTS.md) 3.7.
+- The flavor is the app's identity; `--dart-define=XPENSE_ENV` still picks the backend, and without it the app runs on fakes (CI needs no config files). `XPENSE_ENV=dev` builds only in the `dev` flavor, and `prod` only in `prod`.
+- In Firebase project `expense-family-cc6ee`, a second iOS app "Family Xpense Dev" (`1:648682359990:ios:79390f4ac98029d8172a17`) holds the dev id. It shares the restricted "iOS key", which now allows both bundle ids, and the Apple sign-in provider accepts both. The existing "Family Xpense" app is unchanged.
+- **Nobody builds, signs or uploads the `prod` flavor** until the seller is decided. The owner registers only the App ID `com.bitrelia.familyxpense.dev` (with *Sign in with Apple* and *App Attest*) in the individual account, and must **not** register `com.bitrelia.familyxpense` there.
+- No entitlements yet: Apple sign-in is parked by the owner (2026-11-22) until the developer account is sorted out, and both flavors build with the free Personal Team. After enrollment the dev flavor gets an entitlements file for *Sign in with Apple* and *App Attest*. App Attest was already registered in App Check for the dev app before the work was parked; it does nothing until the entitlement exists. D-39's gates stay as they are.
+
 ## 4. Open questions for the owner
 
 Answered on 2026-11-22: region is Doha (D-18); English only for now (D-36); the app asks for the exchange rate every day (D-16); phones are iPhone 17 Pro and iPhone 15 Pro Max, and the base currency is USD (D-37); orange means "act or live" as proposed (D-26, now Locked); the daily rate is labelled `market` (D-16); the catalog domain is bitrelia.com (D-40); categories (D-41, partly); email and password sign-in stays (D-24, Locked); Apple Intelligence is on for the iPhone 15 Pro Max.
@@ -225,3 +235,17 @@ Still open:
 
 1. **Apple Intelligence on the iPhone 17 Pro.** Not yet checked.
 2. **Apple Developer Program.** Enrollment in progress; recheck the Team ID after approval (D-39).
+
+Subscriptions and getting paid (from [research/SUBSCRIPTIONS.md](research/SUBSCRIPTIONS.md), 2026-11-22; recommendation in brackets):
+
+3. **URGENT: enroll as an individual or through the US company?** (Recommendation revised on 2026-11-22: App Transfer needs a released version, so it cannot move the app to the company before launch.) [Individual today, to unblock D-39; test under a separate bundle id such as `com.bitrelia.familyxpense.dev` and keep `com.bitrelia.familyxpense` unused until the seller is chosen; request the company's free D-U-N-S number in parallel. Before launch, if the company should sell: ask Apple to convert the membership to an organization, or else release from a separate company account; release-then-transfer only if already released (Sign in with Apple migration within 60 days). Paths and trade-offs in SUBSCRIPTIONS 7(f).] Right after enrolling, check in App Store Connect whether Iraq and your bank can receive payouts, and what tax form it offers; nobody has confirmed either. Ask a US tax adviser about Form 5472 for the existing LLC and about 30% withholding (no US treaty with Iraq).
+4. **Tiers.** Standard, Pro and VIP as in the matrix (monthly cloud captures 50 / 150 / 300, questions 15 / 40 / 70, Decisions suggestions 1,000 / 1,000 / 2,000, sized to keep a 50% worst-case margin at Apple's 15% rate in every launch market, including 27% VAT; about 40% at the 30% rate)? Launch VIP on day one only if "more than two members" is built by then, or start with Standard and Pro? [Three tiers if members are built; otherwise two, VIP later.]
+5. **Prices.** [US $3.99/$29.99, $7.99/$59.99, $14.99/$119.99 monthly/yearly; EU same numbers in EUR; UK £3.49/£26.99, £6.99/£54.99, £12.99/£109.99.]
+6. **Weekly plan.** [None.]
+7. **Trial.** [1 month on yearly plans, 2 weeks on monthly plans; reminder 3 days before the first charge.]
+8. **Free tier and lapse.** [No free tier; after a lapse, read-only access, export and deletion stay. Open: should manual entry stay free?]
+9. **Privacy modes in every tier,** including On-device only, which costs nothing to run? [Yes.]
+10. **One subscription covers the household** through the server, with Family Sharing left off (it cannot be turned off once on)? [Yes.]
+11. **Billing back end.** [StoreKit 2 and the App Store Server API with own code, free. Options: RevenueCat, free to USD 2,500 a month then 1%; Adapty, free under USD 5,000 a month then 1%.]
+12. **EUR and GBP before launch, and an EU data region** for EU and UK households (D-43)? [Yes to both; region choice needs an architecture pass.]
+13. **GDPR representative** for EU and UK users. [Needed if the seller has no EU or UK establishment; Prighter from EUR 420 a year, VeraSafe USD 2,700 a year; choose before launch.]

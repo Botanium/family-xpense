@@ -5,7 +5,10 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:xpense_app/app.dart';
 import 'package:xpense_app/bootstrap.dart';
 import 'package:xpense_app/core/ui/ui.dart';
+import 'package:xpense_app/data/accounts_repository_fake.dart';
 import 'package:xpense_app/data/auth_repository_fake.dart';
+import 'package:xpense_app/data/household_repository.dart';
+import 'package:xpense_app/data/household_repository_fake.dart';
 import 'package:xpense_app/services/biometric_lock.dart';
 import 'package:xpense_app/services/biometric_lock_fake.dart';
 import 'package:xpense_app/services/feature_flags.dart';
@@ -32,23 +35,58 @@ final class TestClock {
 
 /// The fakes behind one test app, for arranging and asserting.
 final class TestServices {
-  /// Creates fakes; [settings], [unlock], [signedIn] and [flags] set the
-  /// starting state. Signed in by default, so the app opens on Home; flags
-  /// at their shipped defaults (Apple sign-in off, D-39).
-  new({
+  /// Creates fakes; [settings], [unlock], [signedIn], [membership] and
+  /// [flags] set the starting state. Signed in to a household by default,
+  /// so the app opens on Home; flags at their shipped defaults (Apple
+  /// sign-in off, D-39). [onSignIn] is the membership a later sign-in
+  /// finds: none, as for someone new.
+  factory({
     AppSettings settings = AppSettings.defaults,
     UnlockOutcome unlock = const Unlocked(),
     bool signedIn = true,
+    Membership? membership,
+    Membership onSignIn = const NoHousehold(),
     FeatureFlags flags = FeatureFlags.defaults,
-  }) : settingsStore = MemorySettingsStore(settings),
-       flags = FakeFeatureFlags(flags),
-       biometricLock = FakeBiometricLock(outcome: unlock),
-       auth = FakeAuthRepository(
-         signedIn: signedIn ? FakeAuthRepository.providerUser : null,
-       );
+    FakeAccountsRepository? accounts,
+  }) {
+    final auth = FakeAuthRepository(
+      signedIn: signedIn ? FakeAuthRepository.providerUser : null,
+    );
+    return TestServices._(
+      settingsStore: MemorySettingsStore(settings),
+      flags: FakeFeatureFlags(flags),
+      biometricLock: FakeBiometricLock(outcome: unlock),
+      auth: auth,
+      households: FakeHouseholdRepository(
+        membership:
+            membership ??
+            (signedIn
+                ? const InHousehold(FakeHouseholdRepository.sampleHousehold)
+                : const MembershipUnknown()),
+        auth: auth,
+        onSignIn: onSignIn,
+      ),
+      accounts: accounts ?? FakeAccountsRepository(),
+    );
+  }
+
+  new _({
+    required this.settingsStore,
+    required this.flags,
+    required this.biometricLock,
+    required this.auth,
+    required this.households,
+    required this.accounts,
+  });
 
   /// Sign-in.
   final FakeAuthRepository auth;
+
+  /// Households: membership, creating, inviting, joining.
+  final FakeHouseholdRepository households;
+
+  /// Accounts: what the viewer sees, adding, sharing.
+  final FakeAccountsRepository accounts;
 
   /// Remote Config flags; `flags.set` flips one while the app runs.
   final FakeFeatureFlags flags;
@@ -78,6 +116,8 @@ final class TestServices {
     biometricLock: biometricLock,
     glass: glass,
     authRepository: auth,
+    householdRepository: households,
+    accountsRepository: accounts,
     featureFlags: flags,
     onDeviceLlm: onDeviceLlm,
     speechCapture: speech,

@@ -56,6 +56,15 @@ void main() {
       expect(rules(path, '// Colors.red in a comment'), isEmpty);
     });
 
+    test('lets data/ and services/ set timeouts, nothing else', () {
+      const timeout = 'const t = Duration(seconds: 20);';
+      expect(rules('data/r.dart', timeout), isEmpty);
+      expect(rules('services/s.dart', timeout), isEmpty);
+      expect(rules('features/x/y.dart', timeout), ['raw duration']);
+      expect(rules('core/ui/x.dart', timeout), ['raw duration']);
+      expect(rules('data/r.dart', 'Colors.red'), ['Material colour constant']);
+    });
+
     test('lets lib/core/theme/ hold raw values but not break layout rules', () {
       expect(rules('core/theme/primitives.dart', 'Color(0xFF0B0B0C)'), isEmpty);
       expect(

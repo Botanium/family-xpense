@@ -48,6 +48,7 @@ tool/test_emulators.sh --all     # everything, under the emulators
 | `lib/config/` | process environment (`ServerEnv`) and `config/runtime` loader |
 | `lib/telemetry/` | `genkit_otel` wiring (content capture off), usage counters, structured logs |
 | `lib/flows/ping.dart` | sample flow behind the provider |
+| `lib/household/` | invite codes, rate limiter, invite and join service and flows (WP-12) |
 | `lib/genkit.dart` | the Genkit instance and plugins |
 | `lib/runtime/` | the agent (WP-32): `definePromptAgent`, session store, `householdContext` middleware, Firestore household reader, demo household, `tryCapture`/`tryQuestion` flows; the only module that imports `package:genkit/experimental*.dart` |
 | `lib/tools/` | the agent tools and their schemantic schemas; household data through `HouseholdReader` |
@@ -102,6 +103,75 @@ Headers: `Authorization: Bearer <Firebase ID token>` and
 On success the action context is `{uid, hid, locale, privacyMode, tz}`
 (`XpenseContext.of(ctx.context)`). Tools and flows read ids only from it,
 never from input or model output.
+
+## Household routes (WP-12)
+
+`lib/household/`: invites and joins, which change `memberIds` and so need
+admin rights (D-19, D-27). Neither does AI work: no usage counters, and
+On-device members may invite.
+
+| Route | Caller | Input `data` | `result` |
+|---|---|---|---|
+| `POST /v1/household/invite` | a member (`forRoute(allowOnDevice: true)`) | `{}` or null | `{code, link, expiresAt}`: 10 Crockford base32 characters, `xpense://join?code=…`, ISO 8601 UTC |
+| `POST /v1/household/join` | any signed-in user (`forSignedInUser()`, context `{uid}`) | `{code, displayName}` | `{householdId, householdName}` |
+
+Codes are stored only as `invites/{sha256(code)}`, last 7 days, work once,
+and a new invite deletes the household's unused ones. A join runs in one
+Firestore transaction (invite, household, the caller's other household) and
+writes `memberIds`, `members/{uid}` (`role: partner`), `users/{uid}` and the
+invite's `usedBy`. A member retrying gets the same answer with nothing
+written. Each user may call each route 10 times an hour, counted in the
+server-only `rateLimits/{uid}` before the work, so failed guesses count.
+
+| HTTP | `message` | Meaning |
+|---|---|---|
+| 404 | `invite_invalid` | malformed, unknown or replaced code |
+| 400 | `invite_expired` / `invite_used` | older than 7 days / already used |
+| 400 | `household_full` | two members already (join and invite) |
+| 400 | `already_in_household` | the caller belongs to another household |
+| 400 | `invalid_name` / `invalid_input` | display name empty or over 40 characters / missing field |
+| 403 | `not_member` | invite from someone the household does not list |
+| 429 | `rate_limited` | over 10 calls in the hour |
+| 503 | `household_unavailable` | Firestore unreachable; retry |
+
+## Account visibility (WP-13)
+
+`POST /events/account-visibility` on `xpense-jobs` (`lib/jobs/account_visibility.dart`)
+rewrites `visibleTo` on an account's transactions after its sharing changed
+(DATA_MODEL 4). Eventarc posts a CloudEvent for every update under
+`households/*/accounts/*`; the handler takes the account path from the
+`ce-document` (or `ce-subject`) attribute, or a JSON body's `value.name` or
+`document`, and reads the account itself, so the payload encoding does not
+matter. Locally, post the event by hand:
+
+```bash
+curl -X POST localhost:8081/events/account-visibility \
+  -H 'ce-document: households/<hid>/accounts/<accountId>'
+# 200 {"outcome":"synced","rewritten":12,"passes":1}
+```
+
+Account fields it uses, both server-only (the rules refuse them from the
+phone): `visibilityAppliedTo`, the `visibleTo` the history was last rewritten
+for, and `visibilitySync {runId, target, leaseUntil, done, total}` for a
+running rewrite. The job works whenever the account's actual `visibleTo`
+differs from `visibilityAppliedTo` (or it is missing), so no phone-writable
+marker can make it skip a revoke. It pages through the account's
+transactions (400 per page and batch, both `accountId` and `toAccountId`),
+sets each `visibleTo` to the union of its accounts', and finishes, in a
+transaction, by recording `visibilityAppliedTo` once it still equals the
+account's `visibleTo` (another pass otherwise). The app shows "Sharing past
+entries… done of total" while the two differ. A run holds a 90-second lease
+(a `leaseUntil` further out is ignored); the events its own progress writes
+cause get 429 and are delivered again later, and a run that fails releases
+its lease and drops `visibilityAppliedTo` (the history is half rewritten), so
+the retry does a full pass, and answers 503. Answers: 200 with `outcome` (`synced`,
+`upToDate`, `missing`), 429 `busy`, 204 for an event that names no
+account, 503 when Firestore is unreachable (Eventarc retries).
+
+A join widens every joint and shared account to the new member inside the
+join's own transaction, so it is never half done; each widened account then
+fires the event above, and `/v1/household/join` also rewrites their history
+right away, so the partner's first look is complete.
 
 ## Adding a route
 

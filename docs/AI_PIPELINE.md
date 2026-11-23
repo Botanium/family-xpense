@@ -125,7 +125,7 @@ Seeded per household; slugs are stable, names are stored per language (English o
 1. **Normalise:** trim, lower-case, collapse whitespace, unify quote and dash variants.
 2. **Amounts:** digits with `,` and `.` grouping; suffixes `k`, `m`; number words up to millions ("ten thousand", "one and a half million"); multipliers (`thousand`, `million`, `half`, `quarter`).
 3. **Dropped thousands:** a bare number under 1,000 with a dinar word, or with no currency word when the default account is IQD, is read as thousands ("25 for lunch" → IQD 25,000) and marked `guessed`. Numbers that are not multiples of 0.25 thousand are not expanded.
-4. **Currency:** lexicon (`$`, `usd`, `dollar`, `dollars`, `bucks`, `iqd`, `dinar`, `dinars`). With no currency word: the named account's currency, else the default account's, with a magnitude sanity check (an amount of 10,000 or more is assumed IQD).
+4. **Currency:** lexicon (`$`, `usd`, `dollar`, `dollars`, `bucks`, `iqd`, `dinar`, `dinars`). With no currency word: the named account's currency, else the default account's, with a magnitude sanity check (an amount of 10,000 or more is assumed IQD). Planned (BACKLOG S3.15): before the default account, a learned rule's `sets.currency`, then the category's amount history (the currency whose past amounts for that category the number fits); still-ambiguous currencies stay `guessed` and the slip asks.
 5. **Dates:** today, yesterday, weekday names, "last Friday", `dd/mm`, `dd/mm/yyyy`. Default: now.
 6. **Account and person hints:** matches against account names and aliases, `people` names, and words such as cash, card, visa.
 7. **Rules:** apply `rules` (merchant, keyword, person) from the local cache. A rule hit sets the field with confidence 0.99 and source `learned`.

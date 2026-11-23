@@ -118,6 +118,28 @@ final class MemoryStore implements DocumentStore {
     Map<String, Object?> data, {
     bool merge = false,
   }) async => docs[path] = data;
+
+  // The decide flow never needs a transaction (WP-12 added them for joins).
+  @override
+  Future<T> transaction<T>(Future<T> Function(DocumentTransaction tx) body) =>
+      throw UnsupportedError('MemoryStore has no transactions');
+
+  @override
+  Future<List<StoredDocument>> pageWhereEquals(
+    String collection,
+    String field,
+    Object value, {
+    int limit = 400,
+    String? startAfterId,
+  }) => throw UnsupportedError('not used here');
+
+  @override
+  Future<int> countWhereEquals(String collection, String field, Object value) =>
+      throw UnsupportedError('not used here');
+
+  @override
+  Future<void> writeAll(List<DocumentWrite> writes) =>
+      throw UnsupportedError('not used here');
 }
 
 final class FixtureSource implements HouseholdSource {

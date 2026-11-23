@@ -143,9 +143,29 @@ for sa in xpense-scheduler xpense-eventarc; do
 done
 ```
 
-The scheduler jobs and Eventarc triggers themselves come with the jobs
-packages (WP-60 and others); the jobs service serves only the health route
-until then.
+The scheduler jobs and the other Eventarc triggers come with the jobs
+packages (WP-60 and others).
+
+### Eventarc: account visibility (WP-13)
+
+Firestore events reach `xpense-jobs` through Eventarc; the handler reads the
+account path from the event's `document` attribute, so either content type
+works. Enable `eventarc.googleapis.com` once, then:
+
+```bash
+gcloud eventarc triggers create xpense-account-visibility \
+  --project=$PROJECT --location=$REGION \
+  --destination-run-service=xpense-jobs --destination-run-region=$REGION \
+  --destination-run-path=/events/account-visibility \
+  --event-filters=type=google.cloud.firestore.document.v1.updated \
+  --event-filters=database='(default)' \
+  --event-filters-path-pattern=document='households/{hid}/accounts/{accountId}' \
+  --event-data-content-type=application/json \
+  --service-account=xpense-eventarc@$PROJECT.iam.gserviceaccount.com
+```
+
+Until the trigger exists, a shared account stays on "Sharing…" in the app
+(its history is not rewritten); joins still widen joint accounts directly.
 
 ## 8. Verify
 

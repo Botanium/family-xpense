@@ -1,10 +1,23 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:xpense_app/core/routing/routing.dart';
 import 'package:xpense_app/data/auth_repository_fake.dart';
+import 'package:xpense_app/data/household_repository.dart';
+import 'package:xpense_app/data/household_repository_fake.dart';
 import 'package:xpense_app/features/onboarding/onboarding_gate.dart';
+import 'package:xpense_shared/xpense_shared.dart';
 
-String? redirect(String location, {required bool signedIn}) =>
-    onboardingRedirect(Uri.parse(location), signedIn: signedIn);
+const member = InHousehold(FakeHouseholdRepository.sampleHousehold);
+
+/// Signed in, a member unless [membership] says otherwise.
+String? redirect(
+  String location, {
+  required bool signedIn,
+  Membership membership = member,
+}) => onboardingRedirect(
+  Uri.parse(location),
+  signedIn: signedIn,
+  membership: signedIn ? membership : const MembershipUnknown(),
+);
 
 void main() {
   group('onboardingRedirect, signed out', () {
@@ -64,10 +77,11 @@ void main() {
   });
 
   group('onboardingRedirect, signed in', () {
-    test('the app is open', () {
+    test('for a member the app is open, setup and join included', () {
       for (final location in [
         AppRoutes.home,
         AppRoutes.join,
+        AppRoutes.householdSetup,
         OnboardingRoutes.tryIt,
         AppRoutes.askWith(text: 'lunch'),
       ]) {
@@ -75,7 +89,7 @@ void main() {
       }
     });
 
-    test('the signed-out screens give way to Try it', () {
+    test('the signed-out screens give way to Home for a member', () {
       for (final location in [
         OnboardingRoutes.welcome,
         OnboardingRoutes.createAccount,
@@ -83,40 +97,126 @@ void main() {
       ]) {
         expect(
           redirect(location, signedIn: true),
-          OnboardingRoutes.tryIt,
+          AppRoutes.home,
+          reason: location,
+        );
+      }
+    });
+
+    test('and to household setup for someone without one (WP-12)', () {
+      for (final location in [
+        OnboardingRoutes.welcome,
+        OnboardingRoutes.createAccount,
+        OnboardingRoutes.emailWith(signIn: true),
+      ]) {
+        expect(
+          redirect(location, signedIn: true, membership: const NoHousehold()),
+          AppRoutes.householdSetup,
+          reason: location,
+        );
+      }
+    });
+
+    test('while the membership loads, the sign-in screen stays', () {
+      expect(
+        redirect(
+          OnboardingRoutes.emailWith(signIn: true),
+          signedIn: true,
+          membership: const MembershipUnknown(),
+        ),
+        isNull,
+      );
+      // Elsewhere nothing moves until it is known.
+      expect(
+        redirect(
+          AppRoutes.home,
+          signedIn: true,
+          membership: const MembershipUnknown(),
+        ),
+        isNull,
+      );
+    });
+
+    test('without a household only setup and joining are open', () {
+      const none = NoHousehold();
+      for (final location in [
+        AppRoutes.householdSetup,
+        AppRoutes.join,
+        AppRoutes.joinWith(code: 'ABCD2345XY'),
+        OnboardingRoutes.terms,
+      ]) {
+        expect(
+          redirect(location, signedIn: true, membership: none),
+          isNull,
+          reason: location,
+        );
+      }
+      for (final location in [
+        AppRoutes.home,
+        AppRoutes.accounts,
+        OnboardingRoutes.tryIt,
+        AppRoutes.askWith(text: 'lunch'),
+        AppRoutes.settings,
+        '/householdx',
+      ]) {
+        expect(
+          redirect(location, signedIn: true, membership: none),
+          AppRoutes.householdSetup,
           reason: location,
         );
       }
     });
 
     test('the invite path gives way to the join screen, with the code', () {
-      expect(
-        redirect(OnboardingRoutes.emailWith(invite: true), signedIn: true),
-        AppRoutes.join,
-      );
-      expect(
-        redirect(
-          OnboardingRoutes.createAccountWith(code: 'ABCD2345XY'),
-          signedIn: true,
-        ),
-        AppRoutes.joinWith(code: 'ABCD2345XY'),
-      );
+      for (final membership in [
+        member,
+        const NoHousehold(),
+        const MembershipUnknown(),
+      ]) {
+        expect(
+          redirect(
+            OnboardingRoutes.emailWith(invite: true),
+            signedIn: true,
+            membership: membership,
+          ),
+          AppRoutes.join,
+        );
+        expect(
+          redirect(
+            OnboardingRoutes.createAccountWith(code: 'ABCD2345XY'),
+            signedIn: true,
+            membership: membership,
+          ),
+          AppRoutes.joinWith(code: 'ABCD2345XY'),
+        );
+      }
     });
 
     test('no rule sends a location to one another rule rewrites', () {
-      for (final signedIn in [true, false]) {
+      for (final (signedIn, membership) in [
+        (false, const MembershipUnknown()),
+        (true, const MembershipUnknown()),
+        (true, const NoHousehold()),
+        (true, member),
+      ]) {
         for (final location in [
           AppRoutes.home,
+          AppRoutes.householdSetup,
+          OnboardingRoutes.tryIt,
           OnboardingRoutes.welcome,
           OnboardingRoutes.createAccountWith(invite: true, code: 'C0DE1234'),
           AppRoutes.joinWith(code: 'C0DE1234'),
         ]) {
-          final first = redirect(location, signedIn: signedIn);
+          final first = redirect(
+            location,
+            signedIn: signedIn,
+            membership: membership,
+          );
           if (first == null) continue;
           expect(
-            redirect(first, signedIn: signedIn),
+            redirect(first, signedIn: signedIn, membership: membership),
             isNull,
-            reason: '$location -> $first (signedIn: $signedIn)',
+            reason: '$location -> $first ($signedIn, $membership)',
           );
         }
       }
@@ -141,7 +241,8 @@ void main() {
   group('OnboardingGate', () {
     test('notifies once per sign-in or sign-out, and redirects live', () async {
       final auth = FakeAuthRepository();
-      final gate = OnboardingGate(auth);
+      final households = FakeHouseholdRepository(auth: auth, onSignIn: member);
+      final gate = OnboardingGate(auth, households);
       addTearDown(gate.dispose);
       var notified = 0;
       gate.addListener(() => notified++);
@@ -155,15 +256,62 @@ void main() {
       // The repository knows before its event arrives.
       expect(gate.redirect(Uri.parse(AppRoutes.home)), isNull);
       await pumpEventQueue();
-      expect(notified, 1);
+      // Signed in, then the membership became known.
+      expect(notified, 2);
 
       await auth.signOut();
       await pumpEventQueue();
-      expect(notified, 2);
+      expect(notified, 4);
       expect(
         gate.redirect(Uri.parse(AppRoutes.home)),
         OnboardingRoutes.welcome,
       );
     });
+
+    test(
+      'notifies when the household appears or goes, not when it changes',
+      () async {
+        final auth = FakeAuthRepository(
+          signedIn: FakeAuthRepository.providerUser,
+        );
+        final households = FakeHouseholdRepository(
+          membership: const NoHousehold(),
+          auth: auth,
+        );
+        final gate = OnboardingGate(auth, households);
+        addTearDown(gate.dispose);
+        var notified = 0;
+        gate.addListener(() => notified++);
+        await pumpEventQueue();
+        expect(
+          gate.redirect(Uri.parse(AppRoutes.home)),
+          AppRoutes.householdSetup,
+        );
+
+        final result = await households.create(
+          name: 'Our home',
+          displayName: 'Alex',
+          baseCurrency: Currency.usd,
+        );
+        expect(result, isA<Ok<String, HouseholdFailure>>());
+        await pumpEventQueue();
+        expect(notified, 1);
+        expect(gate.redirect(Uri.parse(AppRoutes.home)), isNull);
+
+        // The partner joining changes the household, not the membership kind.
+        households.setMembership(
+          const InHousehold(
+            HouseholdSummary(
+              id: 'fake-new-household',
+              name: 'Our home',
+              baseCurrency: Currency.usd,
+              memberCount: 2,
+            ),
+          ),
+        );
+        await pumpEventQueue();
+        expect(notified, 1);
+      },
+    );
   });
 }

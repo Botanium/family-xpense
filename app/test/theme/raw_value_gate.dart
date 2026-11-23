@@ -14,7 +14,12 @@ const String themeFolder = 'core/theme/';
 /// One forbidden pattern.
 class RawRule {
   /// Creates a rule.
-  const new(this.name, this.pattern, {this.everywhere = false});
+  const new(
+    this.name,
+    this.pattern, {
+    this.everywhere = false,
+    this.exempt = const {},
+  });
 
   /// What the rule forbids.
   final String name;
@@ -24,7 +29,15 @@ class RawRule {
 
   /// Whether the rule applies inside [themeFolder] too.
   final bool everywhere;
+
+  /// Folders, relative to `lib/`, the rule does not apply to.
+  final Set<String> exempt;
 }
+
+/// The non-UI layers. Their timeouts and retry waits are network and
+/// storage limits, not design values, so the duration rule skips them
+/// (WP-12: the household server calls).
+const Set<String> nonUiFolders = {'data/', 'services/'};
 
 /// The rules.
 final List<RawRule> rawRules = [
@@ -45,6 +58,7 @@ final List<RawRule> rawRules = [
     RegExp(
       r'\bDuration\s*\(\s*(milli|micro|)seconds|\bDuration\s*\(\s*(minutes|hours|days)',
     ),
+    exempt: nonUiFolders,
   ),
   RawRule('raw curve', RegExp(r'\bCurves\.\w')),
   RawRule('raw font size', RegExp(r'\bfontSize\s*:')),
@@ -115,6 +129,7 @@ List<RawViolation> checkSource(String libPath, String source) {
     if (code.trim().isEmpty) continue;
     for (final rule in rawRules) {
       if (inTheme && !rule.everywhere) continue;
+      if (rule.exempt.any(libPath.startsWith)) continue;
       if (rule.pattern.hasMatch(code)) {
         violations.add(RawViolation(libPath, i + 1, rule.name, line));
       }
