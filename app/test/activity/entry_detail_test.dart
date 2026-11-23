@@ -216,6 +216,39 @@ void main() {
     expect(_stored(app, id)['toAccountId'], 'acc-trip');
   });
 
+  testWidgets("renaming a loan's person renames its title", (tester) async {
+    final app = LedgerApp();
+    final saved = await app.repository.saveEntries([
+      EntryDraft(
+        id: 'd1',
+        intent: 'loan_given',
+        amountMinor: 30000,
+        currency: 'USD',
+        accountId: 'acc-checking',
+        personName: 'Alex',
+        occurredOn: '2026-11-22',
+      ),
+    ]);
+    final id = saved.valueOrNull!.txnIds.single;
+    expect(_stored(app, id)['title'], 'Alex');
+    final container = await app.pump(tester);
+    await pushTo(tester, container, AppRoutes.entry(id));
+
+    await _tap(tester, find.widgetWithText(XpDisclosure, 'Person'));
+    await tester.enterText(
+      find.descendant(
+        of: find.widgetWithText(XpTextField, 'Person'),
+        matching: find.byType(EditableText),
+      ),
+      'Sam',
+    );
+    await _tap(tester, find.text('Save changes'));
+
+    expect(_stored(app, id)['personName'], 'Sam');
+    expect(_stored(app, id)['title'], 'Sam');
+    expect(find.text('LOAN GIVEN · SAM'), findsOneWidget);
+  });
+
   testWidgets('delete asks first, then offers Undo', (tester) async {
     final app = LedgerApp();
     final id = await seedEntry(app);

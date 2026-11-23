@@ -511,7 +511,17 @@ ManualEntryCheck checkManualEntry(
 
   if (errors.isNotEmpty) return ManualEntryCheck(errors: errors);
 
-  final base0 = initial?.toJson() ?? const <String, Object?>{};
+  // A loan event's title is its person's name unless the member gave it
+  // another (the write path stores `title ?? personName`). A title that
+  // was only that name is dropped, so it follows a new name; one of its
+  // own stays (Codex review, PR #39).
+  final initialTitle = initial?.title;
+  final initialPerson = initial?.personName?.trim();
+  final titleFromPerson =
+      ManualKind.fromIntent(initial?.intent ?? '') == ManualKind.loan &&
+      initialTitle != null &&
+      initialPerson != null &&
+      initialTitle.trim() == initialPerson;
   final draft = EntryDraft(
     id: draftId,
     intent: intent,
@@ -526,7 +536,7 @@ ManualEntryCheck checkManualEntry(
     },
     occurredOn: values.occurredOn,
     occurredTime: values.occurredTime,
-    title: base0['title'] as String?,
+    title: titleFromPerson ? null : initialTitle,
     note: note.isEmpty ? null : note,
     personName: loan && person.isNotEmpty ? person : null,
     personId: loan ? initial?.personId : null,

@@ -288,6 +288,40 @@ void main() {
       );
     });
 
+    test("a loan's title follows its person unless it has its own", () {
+      // Codex review, PR #39: renaming the person kept the old name as
+      // the title.
+      EntryDraft loan({required String title}) => EntryDraft(
+        id: 'x',
+        intent: 'loan_given',
+        amountMinor: 30000,
+        currency: 'USD',
+        accountId: 'usd',
+        title: title,
+        personName: 'Alex',
+      );
+      final derived = loan(title: 'Alex');
+      final renamed = _check(
+        ManualEntryValues.fromDraft(
+          derived,
+          today: _day,
+        ).copyWith(personName: 'Sam'),
+        initial: derived,
+      ).draft!;
+      expect(renamed.personName, 'Sam');
+      expect(renamed.title, isNull);
+
+      final own = loan(title: 'Dinner money');
+      final kept = _check(
+        ManualEntryValues.fromDraft(
+          own,
+          today: _day,
+        ).copyWith(personName: 'Sam'),
+        initial: own,
+      ).draft!;
+      expect(kept.title, 'Dinner money');
+    });
+
     test('an adjustment keeps its intent and hides the tabs', () {
       final values = ManualEntryValues.fromDraft(
         EntryDraft(

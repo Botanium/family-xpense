@@ -1,6 +1,7 @@
 import 'package:intl/intl.dart';
 import 'package:xpense_app/core/l10n/generated/app_localizations.dart';
 import 'package:xpense_app/data/transactions_repository.dart';
+import 'package:xpense_app/features/activity/detail/entry_days.dart';
 import 'package:xpense_app/features/activity/detail/entry_history.dart';
 import 'package:xpense_shared/xpense_shared.dart';
 
@@ -78,15 +79,18 @@ extension EntryLabels on AppLocalizations {
       };
 
   /// "Today 13:20", "Yesterday 09:10" or "Nov 20 13:20", in local time.
+  ///
+  /// Today and yesterday are calendar days ([entryDaysAgo]), not 24 hours
+  /// of local time, which a daylight-saving change stretches or shortens
+  /// (Codex review, PR #39).
   String entryWhen(DateTime at, DateTime now, String locale) {
     final local = at.toLocal();
-    final today = DateTime(now.year, now.month, now.day);
-    final day = DateTime(local.year, local.month, local.day);
+    final today = now.toLocal();
     final time = DateFormat.Hm(locale).format(local);
-    final days = today.difference(day).inDays;
+    final days = entryDaysAgo(at, today);
     if (days == 0) return activityEntryToday(time);
     if (days == 1) return activityEntryYesterday(time);
-    final date = local.year == now.year
+    final date = local.year == today.year
         ? DateFormat.MMMd(locale).format(local)
         : DateFormat.yMMMd(locale).format(local);
     return activityEntryOnDay(date, time);
