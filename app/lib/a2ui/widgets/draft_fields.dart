@@ -210,7 +210,10 @@ Map<String, Object?> withField(
   XpenseHousehold? household,
 }) {
   final next = Map<String, Object?>.of(draft);
-  if (field == 'personName' && value is String) {
+  // A person's id; a name the household does not know stays a name.
+  if (field == 'personName' &&
+      value is String &&
+      (household == null || household.person(value) != null)) {
     next['personId'] = value;
     next['personName'] = household?.person(value)?.name ?? value;
   } else {

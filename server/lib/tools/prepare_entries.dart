@@ -225,6 +225,10 @@ final class _DraftBuilder {
   /// Account ids by the classifier's probability, highest first.
   List<String> accountRanking = const [];
 
+  /// Category ids (or slugs) and person ids the same way.
+  List<String> categoryRanking = const [];
+  List<String> personRanking = const [];
+
   /// Whether the classifier answered the category question (any answer,
   /// low or `unspecified` included).
   bool categoryScored = false;
@@ -607,14 +611,15 @@ final class _DraftBuilder {
       return a.choice;
     }
 
-    if (answer.account?.probabilities case final probs?) {
-      accountRanking = [
-        for (final e
-            in probs.entries.toList()
-              ..sort((a, b) => b.value.compareTo(a.value)))
-          e.key,
-      ];
-    }
+    List<String> ranking(ChoiceAnswer? a) => [
+      for (final e
+          in (a?.probabilities ?? const <String, num>{}).entries.toList()
+            ..sort((a, b) => b.value.compareTo(a.value)))
+        e.key,
+    ];
+    accountRanking = ranking(answer.account);
+    categoryRanking = ranking(answer.category);
+    personRanking = ranking(answer.person);
     if (accountId == null) {
       accountScored = answer.account?.choice != null;
       final id = pick(answer.account, 'accountId', 'account');
@@ -829,6 +834,26 @@ bool _mentions(String text, String phrase) {
   return p.isNotEmpty && ' ${_norm(text)} '.contains(' $p ');
 }
 
+/// [items] with those named in [first] (by any of [keys]) in that order,
+/// then the rest in their own order.
+List<T> _ranked<T>(
+  List<T> items,
+  List<String> first,
+  List<String> Function(T) keys,
+) {
+  int order(T item) {
+    final ranks = [
+      for (final k in keys(item))
+        if (first.indexOf(k) case final r when r >= 0) r,
+    ];
+    return ranks.isEmpty
+        ? first.length + items.indexOf(item)
+        : ranks.reduce((a, b) => a < b ? a : b);
+  }
+
+  return [...items]..sort((a, b) => order(a).compareTo(order(b)));
+}
+
 /// Fields a follow-up question may ask. Amount, currency and date are
 /// edited on the slip itself (A2UI_CATALOG 3.2).
 const askableFields = {
@@ -882,15 +907,34 @@ FollowUp? _firstFollowUp(
         for (final a in ranked)
           if (a.id != d.accountId) FollowUpOption(label: a.name, value: a.id),
       ],
-      'categoryId' => const <FollowUpOption>[],
+      // Ids, never slugs: the ChoicePrompt writes the value into the draft
+      // as it is. The model's reading first, then the classifier's, then
+      // the household's order; only categories of the entry's kind.
+      'categoryId' => [
+        for (final c in _ranked(snap.activeCategories, [
+          ?builders[i].modelCategory?.id,
+          ...builders[i].categoryRanking,
+        ], (c) => [c.id, c.slug]))
+          if (c.kind == d.intent) FollowUpOption(label: c.name, value: c.id),
+      ],
+      // A person's id: the phone sets `personId` and the name from it.
+      'personName' => [
+        for (final p in _ranked(
+          snap.people,
+          builders[i].personRanking,
+          (p) => [p.id],
+        ))
+          FollowUpOption(label: p.name, value: p.id),
+      ],
       _ => const <FollowUpOption>[],
     };
     return FollowUp(
       draftId: d.id,
       index: i,
       field: field,
-      // Up to four: a ChoicePrompt takes 2 to 5 options.
-      options: options.isEmpty ? null : options.take(4).toList(),
+      // Up to four: a ChoicePrompt takes 2 to 5 options; with fewer the
+      // slip asks.
+      options: options.length < 2 ? null : options.take(4).toList(),
     );
   }
   return null;

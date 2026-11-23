@@ -12,6 +12,7 @@ import 'package:xpense_agent/decide/classifier.dart';
 import 'package:xpense_agent/runtime/agent.dart';
 import 'package:xpense_agent/runtime/demo_household.dart';
 import 'package:xpense_agent/runtime/household_context.dart';
+import 'package:xpense_agent/telemetry/usage_counters.dart';
 import 'package:xpense_agent/tools/household_snapshot.dart';
 import 'package:xpense_shared/xpense_shared.dart';
 
@@ -22,6 +23,7 @@ Future<({XpenseAgentRuntime rt, Genkit ai, List<String> turns})> _runtime({
   required Script lite,
   Script? flash,
   Map<String, Object?> config = const {},
+  UsageReader? usage,
 }) async {
   final ai = Genkit(plugins: [A2uiPlugin()], promptDir: 'prompts');
   defineScripted(ai, 'test/lite', lite);
@@ -39,9 +41,12 @@ Future<({XpenseAgentRuntime rt, Genkit ai, List<String> turns})> _runtime({
     sessions: const MemorySessions(),
     modelName: (id) => 'test/$id',
     clock: fixedClock,
+    usage: usage,
     onTurn: (c, r) => turns.add(
       '${c.hid}:${r.finishReason?.value}:${r.modelCalls}'
-      '${r.escalated ? ':escalated' : ''}',
+      '${r.escalated ? ':escalated' : ''}'
+      '${r.images > 0 ? ':images=${r.images}' : ''}'
+      '${r.audioSeconds > 0 ? ':audio=${r.audioSeconds}' : ''}',
     ),
   );
   return (rt: rt, ai: ai, turns: turns);
@@ -282,6 +287,70 @@ void main() {
       expect(turns, isEmpty);
     },
   );
+
+  // PR #30 review: the images and audioSeconds allowances are checked
+  // before any model call and recorded with the turn.
+  group('media allowances', () {
+    final photo = Message(
+      role: Role.user,
+      content: [
+        MediaPart(
+          media: Media(
+            url: 'data:image/jpeg;base64,AAAA',
+            contentType: 'image/jpeg',
+          ),
+        ),
+        TextPart(text: 'Salary came in 3200'),
+      ],
+    );
+    Future<Map<UsageCounter, int>> Function(String) usedToday(
+      Map<UsageCounter, int> used,
+    ) =>
+        (_) async => used;
+
+    test('a photo at the images limit is refused before the model', () async {
+      final lite = Script(entries: salaryGroceries, render: scriptedCapture);
+      final (:rt, ai: _, :turns) = await _runtime(
+        lite: lite,
+        usage: usedToday({UsageCounter.images: 40}),
+      );
+      await expectLater(
+        rt.agent.chat().send(message: photo, context: demoContext),
+        throwsA(
+          isA<Exception>().having(
+            (e) => '$e',
+            'error',
+            'AgentError(RESOURCE_EXHAUSTED): over_limit',
+          ),
+        ),
+      );
+      expect(lite.requests, isEmpty);
+      expect(turns, isEmpty);
+    });
+
+    test('a photo under the limit is counted with the turn', () async {
+      final lite = Script(entries: salaryGroceries, render: scriptedCapture);
+      final (:rt, ai: _, :turns) = await _runtime(
+        lite: lite,
+        usage: usedToday({UsageCounter.images: 39, UsageCounter.agentTurns: 5}),
+      );
+      await rt.agent.chat().send(message: photo, context: demoContext);
+      expect(turns.single, endsWith(':images=1'));
+    });
+
+    test('a text turn ignores media allowances already spent', () async {
+      final lite = Script(entries: salaryGroceries, render: scriptedCapture);
+      final (:rt, ai: _, :turns) = await _runtime(
+        lite: lite,
+        usage: usedToday({
+          UsageCounter.images: 40,
+          UsageCounter.audioSeconds: 600,
+        }),
+      );
+      await rt.runTurn('Salary came in 3200', context: demoContext);
+      expect(turns.single, 'hh_demo:stop:2');
+    });
+  });
 
   test('a later turn resumes the session by snapshot id', () async {
     final lite = Script(entries: salaryGroceries, render: scriptedCapture);

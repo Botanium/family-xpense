@@ -54,6 +54,7 @@ void main() {
       sessions: const MemorySessions(),
       modelName: (id) => 'test/$id',
       clock: fixedClock,
+      usage: usage.today,
     );
     final server = XpenseServer.create(
       role: XpenseRole.agent,
@@ -133,6 +134,42 @@ void main() {
           (e) => '$e',
           'error',
           contains('agent_paused'),
+        ),
+      ),
+    );
+    expect(script.requests, isEmpty);
+  });
+
+  // PR #30 review: a household that spent its images allowance cannot
+  // send a photo, refused like the turn limit (`over_limit`).
+  test('a photo over the images allowance is refused', () async {
+    docs.docs[UsageCounters.pathFor(demoHid, DateTime.utc(2026, 11, 22))] = {
+      'images': 40,
+    };
+    final client = remoteAgent<void>(
+      url: url(),
+      headers: () => headersFor(demoUid),
+    );
+    addTearDown(client.close);
+    await expectLater(
+      client.chat().send(
+        message: Message(
+          role: Role.user,
+          content: [
+            MediaPart(
+              media: Media(
+                url: 'data:image/jpeg;base64,AAAA',
+                contentType: 'image/jpeg',
+              ),
+            ),
+          ],
+        ),
+      ),
+      throwsA(
+        isA<AgentError<dynamic>>().having(
+          (e) => '$e',
+          'error',
+          contains('over_limit'),
         ),
       ),
     );

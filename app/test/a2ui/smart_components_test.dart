@@ -378,6 +378,62 @@ void main() {
       expect(sent, isEmpty);
     });
 
+    // PR #30 review: person options carry ids; the pick links the person.
+    _test('picking a person links the id and shows the name', (tester) async {
+      final (:host, :actions, :sent) = hostWith([
+        {
+          'version': '1.0',
+          'createSurface': {
+            'surfaceId': 'cap_lend',
+            'catalogId': xpenseCatalogId,
+            'sendDataModel': false,
+            'components': [
+              {
+                'id': 'root',
+                'component': 'Column',
+                'children': ['ask', 'list'],
+              },
+              {
+                'id': 'ask',
+                'component': 'ChoicePrompt',
+                'question': 'Who did you lend it to?',
+                'options': [
+                  {'label': 'Alex', 'value': 'p_alex'},
+                  {'label': 'Someone else', 'value': 'p_other'},
+                ],
+                'value': {'@path': '/drafts/0/personName'},
+              },
+              {
+                'id': 'list',
+                'component': 'EntryList',
+                'drafts': {'@path': '/drafts'},
+              },
+            ],
+            'dataModel': {
+              'drafts': [
+                {
+                  'id': 'd1',
+                  'intent': 'loan_given',
+                  'amountMinor': 5000,
+                  'currency': 'USD',
+                  'accountId': 'acc_chk',
+                  'occurredOn': '2026-11-22',
+                  'missing': ['personName'],
+                },
+              ],
+            },
+          },
+        },
+      ]);
+      await pumpThread(tester, host);
+      await tester.tap(find.text('Alex').first);
+      await tester.pump();
+      expect(_model(host, 'cap_lend', '/drafts/0/personId'), 'p_alex');
+      expect(_model(host, 'cap_lend', '/drafts/0/personName'), 'Alex');
+      expect(_model(host, 'cap_lend', '/drafts/0/missing'), isEmpty);
+      expect(_enabled(tester, 'Save'), isTrue);
+    });
+
     _test("today's rate is asked inline and saved for the household", (
       tester,
     ) async {

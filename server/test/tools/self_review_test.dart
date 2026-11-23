@@ -34,6 +34,23 @@ InMemoryHouseholdReader withAccounts(List<Visible<HouseholdAccount>> accounts) {
 
 const List<String> both = [demoUid, demoPartnerUid];
 
+/// The demo household with its people replaced by [people].
+InMemoryHouseholdReader withPeople(List<({String id, String name})> people) {
+  final h = demoHousehold('2026-11-22');
+  return InMemoryHouseholdReader({
+    demoHid: InMemoryHousehold(
+      profile: h.profile,
+      members: h.members,
+      accounts: h.accounts,
+      categories: h.categories,
+      people: [
+        for (final p in people)
+          (item: HouseholdPerson(id: p.id, name: p.name), visibleTo: both),
+      ],
+    ),
+  });
+}
+
 Future<PrepareEntriesOutput> prepare(
   ProposedEntry entry,
   String text, {
@@ -302,6 +319,83 @@ void main() {
       (recheck.parsed?.amountMinor, recheck.parsed?.currency),
       (45, 'IQD'),
     );
+  });
+
+  // PR #30 review: the ChoicePrompt writes an option's value into the
+  // draft as it is, so every option is an id the phone knows.
+  group('follow-up options are ids (PR #30 review)', () {
+    test('category options carry ids, not slugs', () async {
+      // Category ids that are not their slugs.
+      final h = demoHousehold('2026-11-22');
+      final reader = InMemoryHouseholdReader({
+        demoHid: InMemoryHousehold(
+          profile: h.profile,
+          members: h.members,
+          accounts: h.accounts,
+          people: h.people,
+          categories: [
+            for (final c in h.categories)
+              HouseholdCategory(
+                id: 'cat_${c.slug}',
+                slug: c.slug,
+                name: c.name,
+                kind: c.kind,
+                parentId: c.parentId == null ? null : 'cat_${c.parentId}',
+              ),
+          ],
+        ),
+      });
+      final classifier = FakeEntryClassifier.always(
+        DecideResponse(
+          account: ChoiceAnswer(choice: 'acc_chk', confidence: 0.95),
+          category: ChoiceAnswer(
+            choice: 'groceries',
+            probabilities: {'groceries': 0.4, 'electricity_generator': 0.3},
+            confidence: 0.4,
+          ),
+        ),
+      );
+      final out = await prepare(
+        ProposedEntry(intent: 'expense', amount: '20', text: 'spent 20'),
+        'spent 20',
+        classifier: classifier,
+        reader: reader,
+      );
+      expect(out.ask?.field, 'categoryId');
+      final options = out.ask!.options!;
+      expect(options.take(2).map((o) => o.value), [
+        'cat_groceries',
+        'cat_electricity_generator',
+      ]);
+      expect(options.first.label, 'Groceries');
+      final ids = {
+        for (final c in reader.households[demoHid]!.categories) c.id,
+      };
+      expect(options.map((o) => o.value), everyElement(isIn(ids)));
+    });
+
+    test('a person question offers person ids', () async {
+      final out = await prepare(
+        ProposedEntry(intent: 'loan_given', amount: '50', text: 'lent 50'),
+        'lent 50',
+        classifier: FakeEntryClassifier.always(
+          DecideResponse(
+            intent: ChoiceAnswer(choice: 'loan_given', confidence: 0.99),
+            account: ChoiceAnswer(choice: 'acc_chk', confidence: 0.95),
+            who: ChoiceAnswer(choice: 'joint', confidence: 0.95),
+          ),
+        ),
+        reader: withPeople([
+          (id: 'p_alex', name: 'Alex'),
+          (id: 'p_rawa', name: 'Rawa'),
+        ]),
+      );
+      expect(out.ask?.field, 'personName');
+      expect(out.ask?.options?.map((o) => (o.label, o.value)), [
+        ('Alex', 'p_alex'),
+        ('Rawa', 'p_rawa'),
+      ]);
+    });
   });
 
   group('written ISO dates (PR #30 review)', () {

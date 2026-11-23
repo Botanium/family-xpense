@@ -10,6 +10,18 @@ import 'package:xpense_shared/xpense_shared.dart';
 
 final RegExp _draftField = RegExp(r'^/drafts/(\d+)/(\w+)$');
 
+/// Draft keys a pick may change besides the bound field: the answered
+/// field leaves `missing` and `guessed`; an account settles a guessed
+/// currency and its amount; a person's id sets `personId` and the name.
+const List<String> _derived = [
+  'missing',
+  'guessed',
+  'currency',
+  'amountMinor',
+  'personId',
+  'personName',
+];
+
 /// `ChoicePrompt(question, options, value, allowOther?, action?)`
 /// (A2UI_CATALOG 3.2). A pick writes `value` locally. When `value` is a
 /// draft field (`/drafts/N/field`), the field also leaves that draft's
@@ -86,12 +98,7 @@ final ComponentImplementation choicePromptComponent = ComponentImplementation(
                   value,
                   household: scope.actions.household,
                 );
-                for (final key in [
-                  'missing',
-                  'guessed',
-                  'currency',
-                  'amountMinor',
-                ]) {
+                for (final key in _derived) {
                   if (jsonEncode(old[key]) == jsonEncode(next[key])) continue;
                   final isList = key == 'missing' || key == 'guessed';
                   model.set(

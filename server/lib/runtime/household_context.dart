@@ -17,8 +17,11 @@ library;
 import 'package:clock/clock.dart';
 import 'package:genkit/genkit.dart';
 import 'package:logging/logging.dart';
+import 'package:xpense_agent/auth/auth_failure.dart';
 import 'package:xpense_agent/auth/xpense_context.dart';
 import 'package:xpense_agent/config/runtime_config.dart';
+import 'package:xpense_agent/runtime/media_use.dart';
+import 'package:xpense_agent/telemetry/usage_counters.dart';
 import 'package:xpense_agent/tools/household_snapshot.dart';
 import 'package:xpense_agent/tools/local_day.dart';
 import 'package:xpense_agent/tools/tool_deps.dart';
@@ -50,6 +53,7 @@ GenerateMiddlewareDef<void> defineHouseholdContext(
   ModelNamer modelName = googleAiModel,
   Clock clock = const Clock(),
   TurnObserver? onTurn,
+  UsageReader? usage,
 }) => ai.defineGenerateMiddleware<void>(
   name: householdContextName,
   create: (_, _) => HouseholdContextMiddleware(
@@ -58,8 +62,12 @@ GenerateMiddlewareDef<void> defineHouseholdContext(
     modelName: modelName,
     clock: clock,
     onTurn: onTurn,
+    usage: usage,
   ),
 );
+
+/// Today's usage counters of a household (`UsageCounters.today`).
+typedef UsageReader = Future<Map<UsageCounter, int>> Function(String hid);
 
 /// Observes a finished agent turn (usage counters).
 typedef TurnObserver = void Function(XpenseContext context, TurnStats stats);
@@ -82,6 +90,12 @@ final class TurnStats {
 
   /// Whether the turn was re-run on the escalation model.
   bool escalated = false;
+
+  /// Images in the member's message.
+  int images = 0;
+
+  /// Seconds of audio in the member's message.
+  int audioSeconds = 0;
 }
 
 /// The middleware instance (one per generate call).
@@ -93,10 +107,14 @@ final class HouseholdContextMiddleware extends GenerateMiddleware {
     required this.modelName,
     required this.clock,
     this.onTurn,
+    this.usage,
   });
 
   /// Observes each finished turn.
   final TurnObserver? onTurn;
+
+  /// Today's counters, for the media limits; null skips them (demo).
+  final UsageReader? usage;
 
   // One instance per generate call, so these are per turn.
   final TurnStats _stats = TurnStats();
@@ -140,6 +158,16 @@ final class HouseholdContextMiddleware extends GenerateMiddleware {
       for (final m in envelope.request.messages)
         if (m.role == Role.user) m,
     ];
+    // The media allowances: checked here, before any model call, because
+    // the context provider runs before the message is read; recorded with
+    // the turn (TurnStats).
+    final media = users.isEmpty
+        ? (images: 0, audioSeconds: 0)
+        : mediaUse(users.last.toJson());
+    await _checkMediaLimits(context.hid, media, cfg);
+    _stats
+      ..images = media.images
+      ..audioSeconds = media.audioSeconds;
     TurnEvidence fresh() => TurnEvidence(
       mediaTurn: users.isNotEmpty && TurnEvidence.hasMedia(users.last.toJson()),
     );
@@ -165,6 +193,35 @@ final class HouseholdContextMiddleware extends GenerateMiddleware {
     _stats.finishReason = result.finishReason;
     onTurn?.call(context, _stats);
     return result;
+  }
+
+  Future<void> _checkMediaLimits(
+    String hid,
+    ({int images, int audioSeconds}) media,
+    RuntimeConfig cfg,
+  ) async {
+    final read = usage;
+    final meters = {
+      if (media.images > 0) UsageCounter.images,
+      if (media.audioSeconds > 0) UsageCounter.audioSeconds,
+    };
+    if (read == null || meters.isEmpty) return;
+    final Map<UsageCounter, int> today;
+    try {
+      today = await read(hid);
+    } on Object catch (e) {
+      _log.warning('usage unreadable; media turn refused', e);
+      throw AuthFailure.unavailable.toException();
+    }
+    final over = UsageCounters.overLimit(
+      usage: today,
+      limits: cfg.limits,
+      meters: meters,
+    );
+    if (over.isNotEmpty) {
+      _log.info('over limit: ${over.map((c) => c.field).join(', ')}');
+      throw AuthFailure.overLimit.toException();
+    }
   }
 
   GenerateTurnState _withModel(GenerateTurnState envelope, String modelId) =>

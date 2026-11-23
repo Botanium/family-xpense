@@ -121,7 +121,8 @@ final class XpenseAgentRuntime {
   /// [strict] selects `xpense_agent.strict.prompt` (`validate: 'strict',
   /// repair: false`). [modelName] maps `config/runtime` model ids to
   /// registered models (tests register a scripted model). [onTurn] observes
-  /// each finished turn (usage counters).
+  /// each finished turn (usage counters). [usage] reads today's counters
+  /// for the media limits (left out in demo mode).
   factory create({
     required Genkit ai,
     required Map<String, dynamic> catalogJson,
@@ -133,6 +134,7 @@ final class XpenseAgentRuntime {
     ModelNamer modelName = googleAiModel,
     Clock clock = const Clock(),
     TurnObserver? onTurn,
+    UsageReader? usage,
   }) {
     registerXpenseCatalog(ai, catalogJson);
     final snapshots = HouseholdSnapshots(reader, clock: clock);
@@ -152,6 +154,7 @@ final class XpenseAgentRuntime {
       modelName: modelName,
       clock: clock,
       onTurn: onTurn,
+      usage: usage,
     );
     defineOutputGuard(ai);
     defineXpenseTools(ai, deps);

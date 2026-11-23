@@ -174,6 +174,7 @@ Future<AgentFactory> _agentFactory(
         ? const MemorySessions()
         : FirestoreSessions(admin.firestore),
     strict: strict,
+    usage: demo ? null : usage.today,
     onTurn: demo
         ? null
         : (context, stats) => unawaited(
@@ -182,6 +183,8 @@ Future<AgentFactory> _agentFactory(
                   UsageCounter.agentTurns: 1,
                   UsageCounter.inputTokens: stats.inputTokens,
                   UsageCounter.outputTokens: stats.outputTokens,
+                  UsageCounter.images: stats.images,
+                  UsageCounter.audioSeconds: stats.audioSeconds,
                 })
                 .catchError(
                   (Object e) => _log.warning('usage not recorded', e),
