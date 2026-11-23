@@ -201,6 +201,26 @@ void main() {
 
   // PR #30 review: an account picked on the phone settles a guessed
   // currency; the amount keeps the major units the member wrote.
+  // PR #30 review: a transfer never goes to its own account.
+  test('a transfer to its own source account cannot be saved', () {
+    const refs = HouseholdRefs(
+      accountCurrencies: {'acc_chk': 'USD', 'acc_sav': 'USD'},
+    );
+    Map<String, Object?> transfer(String to) => {
+      'id': 'd1',
+      'intent': 'transfer',
+      'amountMinor': 10000,
+      'currency': 'USD',
+      'accountId': 'acc_chk',
+      'toAccountId': to,
+      'occurredOn': '2026-11-22',
+    };
+    final same = checkDraft(transfer('acc_chk'), refs);
+    expect(same.canSave, isFalse);
+    expect(same.missing, ['toAccountId']);
+    expect(checkDraft(transfer('acc_sav'), refs).canSave, isTrue);
+  });
+
   group('followAccountCurrency', () {
     const guessed = <String, Object?>{
       'id': 'd1',

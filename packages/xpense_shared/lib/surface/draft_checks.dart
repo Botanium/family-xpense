@@ -185,7 +185,8 @@ DraftCheck checkDraft(Object? raw, HouseholdRefs refs) {
 
 /// The fields of [draft] still to answer: those the producer listed in
 /// `missing` (even if a provisional value is present, as for an intent
-/// question), then required fields that are empty.
+/// question), then required fields that are empty. A destination equal to
+/// the source is unanswered too: a transfer never goes to its own account.
 List<String> missingFields(EntryDraft draft) {
   final listed = draft.missing ?? const [];
   final required = <String>[
@@ -209,6 +210,8 @@ List<String> missingFields(EntryDraft draft) {
     ...listed,
     for (final field in required)
       if (json[field] == null) field,
+    if (draft.toAccountId != null && draft.toAccountId == draft.accountId)
+      'toAccountId',
   }.toList();
 }
 
