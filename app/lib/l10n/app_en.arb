@@ -62,9 +62,249 @@
   "@activityTitle": {
     "description": "Top bar title of Activity."
   },
-  "activityPlaceholder": "Every entry, grouped by day, will appear here.",
-  "@activityPlaceholder": {
-    "description": "Placeholder line on Activity until the Activity screen is built."
+  "activitySearchHint": "Search or ask",
+  "@activitySearchHint": {
+    "description": "Placeholder and spoken label of the Activity search field, which searches entries or sends a question to Ask."
+  },
+  "activityFilterAll": "All",
+  "@activityFilterAll": {
+    "description": "Activity filter: every entry."
+  },
+  "activityFilterOut": "Out",
+  "@activityFilterOut": {
+    "description": "Activity filter: money spent (expenses)."
+  },
+  "activityFilterIn": "In",
+  "@activityFilterIn": {
+    "description": "Activity filter: money received (income)."
+  },
+  "activityFilterLoans": "Loans",
+  "@activityFilterLoans": {
+    "description": "Activity filter: loans and repayments."
+  },
+  "activityFilterYou": "You",
+  "@activityFilterYou": {
+    "description": "Activity filter: the signed-in member's own entries."
+  },
+  "activityFilterPartner": "Partner",
+  "@activityFilterPartner": {
+    "description": "Activity filter: the partner's entries, when the partner has no display name."
+  },
+  "activityToday": "Today",
+  "@activityToday": {
+    "description": "Day header in Activity for entries made today."
+  },
+  "activityYesterday": "Yesterday",
+  "@activityYesterday": {
+    "description": "Day header in Activity for entries made yesterday."
+  },
+  "activityDayNet": "Net for the day: {amount}",
+  "@activityDayNet": {
+    "description": "VoiceOver label of the figure beside a day header in Activity: income minus spending that day.",
+    "placeholders": {
+      "amount": {
+        "type": "String",
+        "example": "+1,757.20"
+      }
+    }
+  },
+  "activityWhoYou": "You",
+  "@activityWhoYou": {
+    "description": "Who an entry belongs to, in an Activity row: the signed-in member."
+  },
+  "activityWhoJoint": "Joint",
+  "@activityWhoJoint": {
+    "description": "Who an entry belongs to, in an Activity row: both members."
+  },
+  "activityWhoPartner": "Partner",
+  "@activityWhoPartner": {
+    "description": "Who an entry belongs to, in an Activity row: the partner, when they have no display name."
+  },
+  "activityRowMeta": "{kind} · {who} · {account}",
+  "@activityRowMeta": {
+    "description": "Subtitle of an Activity row: category or entry type, whose it is, and the account, separated by middle dots.",
+    "placeholders": {
+      "kind": {
+        "type": "String",
+        "example": "Groceries"
+      },
+      "who": {
+        "type": "String",
+        "example": "You"
+      },
+      "account": {
+        "type": "String",
+        "example": "Joint Visa"
+      }
+    }
+  },
+  "activityRowMetaShort": "{who} · {account}",
+  "@activityRowMetaShort": {
+    "description": "Subtitle of an Activity row whose title is already the entry type (no merchant or category): whose it is and the account, separated by a middle dot.",
+    "placeholders": {
+      "who": {
+        "type": "String",
+        "example": "You"
+      },
+      "account": {
+        "type": "String",
+        "example": "My checking"
+      }
+    }
+  },
+  "activityTransferAccounts": "{from} → {to}",
+  "@activityTransferAccounts": {
+    "description": "Accounts of a transfer in an Activity row: where the money left and where it arrived.",
+    "placeholders": {
+      "from": {
+        "type": "String",
+        "example": "My checking"
+      },
+      "to": {
+        "type": "String",
+        "example": "Emergency fund"
+      }
+    }
+  },
+  "activityUnknownAccount": "Account",
+  "@activityUnknownAccount": {
+    "description": "Account name in an Activity row when the account is not loaded or was removed."
+  },
+  "activityTypeExpense": "Expense",
+  "@activityTypeExpense": {
+    "description": "Entry type name, in Activity rows without a category."
+  },
+  "activityTypeIncome": "Income",
+  "@activityTypeIncome": {
+    "description": "Entry type name, in Activity rows without a category."
+  },
+  "activityTypeTransfer": "Transfer",
+  "@activityTypeTransfer": {
+    "description": "Entry type name, in Activity rows: money moved between accounts."
+  },
+  "activityTypeLoanGiven": "Loan given",
+  "@activityTypeLoanGiven": {
+    "description": "Entry type name, in Activity rows: money lent to someone."
+  },
+  "activityTypeLoanTaken": "Loan taken",
+  "@activityTypeLoanTaken": {
+    "description": "Entry type name, in Activity rows: money borrowed."
+  },
+  "activityTypeRepaymentReceived": "Repayment received",
+  "@activityTypeRepaymentReceived": {
+    "description": "Entry type name, in Activity rows: someone paid back a loan."
+  },
+  "activityTypeRepaymentMade": "Repayment made",
+  "@activityTypeRepaymentMade": {
+    "description": "Entry type name, in Activity rows: a loan or debt paid back."
+  },
+  "activityTypeAdjustment": "Balance correction",
+  "@activityTypeAdjustment": {
+    "description": "Entry type name, in Activity rows: an opening balance or a correction."
+  },
+  "activitySyncing": "Not synced yet",
+  "@activitySyncing": {
+    "description": "VoiceOver label of the dot on an Activity row whose change is still only on this phone."
+  },
+  "activityEdit": "Edit",
+  "@activityEdit": {
+    "description": "Swipe and context-menu action on an Activity row: opens the entry's edit form."
+  },
+  "activityDelete": "Delete",
+  "@activityDelete": {
+    "description": "Swipe and context-menu action on an Activity row: deletes the entry (it can be undone)."
+  },
+  "activityDeleted": "{title} deleted",
+  "@activityDeleted": {
+    "description": "Undo toast after deleting an entry in Activity.",
+    "placeholders": {
+      "title": {
+        "type": "String",
+        "example": "Coffee"
+      }
+    }
+  },
+  "activityDeletedEntry": "Entry deleted",
+  "@activityDeletedEntry": {
+    "description": "Undo toast after deleting an entry that has no title."
+  },
+  "activityUndo": "Undo",
+  "@activityUndo": {
+    "description": "Action on the Activity undo toast: brings the deleted entry back."
+  },
+  "activityDeleteFailed": "Couldn't delete that entry. Try again.",
+  "@activityDeleteFailed": {
+    "description": "Error line in Activity when a delete did not happen."
+  },
+  "activityRestoreFailed": "Couldn't bring that entry back. It's in its history.",
+  "@activityRestoreFailed": {
+    "description": "Error line in Activity when Undo did not restore the entry."
+  },
+  "activityChangedElsewhere": "Your partner changed that entry just now. Try again.",
+  "@activityChangedElsewhere": {
+    "description": "Error line in Activity when a delete or undo met the partner's change."
+  },
+  "activityEmpty": "No entries yet.",
+  "@activityEmpty": {
+    "description": "Empty state of Activity when the household has no entries."
+  },
+  "activityEmptyAdd": "Add one",
+  "@activityEmptyAdd": {
+    "description": "Action under the empty state of Activity: opens Ask to add an entry."
+  },
+  "activityEmptyFiltered": "Nothing here yet.",
+  "@activityEmptyFiltered": {
+    "description": "Empty state of Activity when a filter (Out, In, Loans, You, partner) has no entries."
+  },
+  "activityEmptyLoaded": "Nothing here in the entries loaded so far.",
+  "@activityEmptyLoaded": {
+    "description": "Empty state of an Activity filter when the entries read so far have none, but older entries exist (with a Load older action)."
+  },
+  "activityLateFailure": "A change you made offline didn't go through. The entry is back as it was.",
+  "@activityLateFailure": {
+    "description": "Error line in Activity when a delete or undo made offline was refused once it reached the server."
+  },
+  "activitySearchEmpty": "No matches in the loaded entries.",
+  "@activitySearchEmpty": {
+    "description": "Shown when an Activity search matches nothing in the entries loaded so far."
+  },
+  "activitySearchOlder": "Search older entries",
+  "@activitySearchOlder": {
+    "description": "Action under Activity search results: loads older entries to search them too."
+  },
+  "activityAskRow": "Ask “{text}”",
+  "@activityAskRow": {
+    "description": "Row at the top of Activity search results when the text reads like a question: opens Ask with it.",
+    "placeholders": {
+      "text": {
+        "type": "String",
+        "example": "How much did we spend on food?"
+      }
+    }
+  },
+  "activityLoadError": "Couldn't load your entries.",
+  "@activityLoadError": {
+    "description": "Error state of Activity when the entries could not be read."
+  },
+  "activityLoadNotAllowed": "You can't see these entries any more.",
+  "@activityLoadNotAllowed": {
+    "description": "Error state of Activity when the rules refused the read (the member left or lost access)."
+  },
+  "activityRetry": "Try again",
+  "@activityRetry": {
+    "description": "Action under the Activity error state."
+  },
+  "activityOffline": "Offline. Showing saved entries.",
+  "@activityOffline": {
+    "description": "Strip under the Activity filter bar while the phone is offline."
+  },
+  "activityLoading": "Loading entries",
+  "@activityLoading": {
+    "description": "VoiceOver label of the Activity loading skeleton and of the spinner while older entries load."
+  },
+  "activityLoadOlder": "Load older entries",
+  "@activityLoadOlder": {
+    "description": "Action at the end of the Activity list when older entries exist."
   },
   "activityEntryTitle": "Entry",
   "@activityEntryTitle": {
