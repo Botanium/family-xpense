@@ -221,6 +221,16 @@ List<HistoryItem> buildHistory(
 /// What Restore on an edit row saves: the entry as it is now with the
 /// fields that revision changed set back. Null when the old version no
 /// longer reads.
+///
+/// The fields the write path keeps or recomputes are named so it rebuilds
+/// that version (Codex review, PR #39):
+/// - an arriving amount that was typed is sent again; one that was
+///   converted at the rate is converted again ([EntryExtras.toAmountReset])
+///   rather than keeping a typed amount from a later edit;
+/// - the rate goes back in the draft's `fx`, with its source and day, so
+///   it is used as it was;
+/// - the time goes back as `HH:mm` (the draft holds no seconds), and the
+///   title as stored, so a title that was the person's name stays theirs.
 ({EntryDraft draft, EntryExtras extras})? restoreDraft(
   LedgerTransaction current,
   EntryRevision revision, {
@@ -241,6 +251,7 @@ List<HistoryItem> buildHistory(
       toAmountMinor: old.toAmountSource == ToAmountSource.entered
           ? old.toAmountMinor
           : null,
+      toAmountReset: old.toAmountSource == ToAmountSource.rate,
       adjustmentSign: old.adjustmentSign,
     ),
   );

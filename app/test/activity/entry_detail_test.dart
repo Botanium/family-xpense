@@ -5,6 +5,7 @@ import 'package:xpense_app/core/routing/routing.dart';
 import 'package:xpense_app/core/ui/ui.dart';
 import 'package:xpense_app/data/read/entry_reader.dart';
 import 'package:xpense_app/data/transactions_repository.dart';
+import 'package:xpense_app/data/write/ledger_store.dart';
 import 'package:xpense_app/features/activity/detail/entry_history.dart';
 import 'package:xpense_shared/xpense_shared.dart';
 
@@ -167,6 +168,129 @@ void main() {
       expect(history.first.restorable, isTrue);
       // Field restores wait until the entry is back.
       expect(history[1].restorable, isFalse);
+    });
+  });
+
+  group('Restore rebuilds the old version (Codex review, PR #39)', () {
+    /// Restores the newest revision of [id], as the history row does.
+    Future<void> restoreNewest(LedgerApp app, String id) async {
+      final record = await app.reader.watchEntry(id).first;
+      final revisions = await app.reader.watchRevisions(id).first;
+      final restored = restoreDraft(
+        record!.txn,
+        newestFirst(revisions).first,
+        viewerUid: viewer,
+      )!;
+      final result = await app.repository.editEntry(
+        id,
+        restored.draft,
+        extras: restored.extras,
+      );
+      expect(result.isOk, isTrue, reason: '$result');
+    }
+
+    // From dinars into dollars: the entry is not in the base currency, so
+    // every version stores the rate, and only toAmountSource tells a typed
+    // arriving amount from a converted one.
+    EntryDraft transfer() => EntryDraft(
+      id: 'd1',
+      intent: 'transfer',
+      amountMinor: 170500,
+      currency: 'IQD',
+      accountId: 'acc-cash',
+      toAccountId: 'acc-checking',
+      occurredOn: '2026-11-22',
+    );
+
+    test('back to a converted arriving amount converts it again', () async {
+      final app = LedgerApp();
+      final saved = await app.repository.saveEntries([transfer()]);
+      final id = saved.valueOrNull!.txnIds.single;
+      expect(_stored(app, id)['toAmountSource'], 'rate');
+      await app.repository.editEntry(
+        id,
+        transfer(),
+        extras: const EntryExtras(toAmountMinor: 9000),
+      );
+      expect(_stored(app, id)['toAmountMinor'], 9000);
+      expect(_stored(app, id)['fx'], isNotNull);
+
+      await restoreNewest(app, id);
+      expect(_stored(app, id)['toAmountMinor'], 10000);
+      expect(_stored(app, id)['toAmountSource'], 'rate');
+    });
+
+    test('back to a typed arriving amount sends it again', () async {
+      final app = LedgerApp();
+      final saved = await app.repository.saveEntries(
+        [transfer()],
+        extras: {'d1': const EntryExtras(toAmountMinor: 9000)},
+      );
+      final id = saved.valueOrNull!.txnIds.single;
+      await app.repository.editEntry(
+        id,
+        transfer(),
+        extras: const EntryExtras(toAmountReset: true),
+      );
+      expect(_stored(app, id)['toAmountMinor'], 10000);
+
+      await restoreNewest(app, id);
+      expect(_stored(app, id)['toAmountMinor'], 9000);
+      expect(_stored(app, id)['toAmountSource'], 'entered');
+    });
+
+    test('back to another day brings back its rate and time', () async {
+      final app = LedgerApp();
+      app.memory.rates['2026-11-20'] = DayRate(
+        day: '2026-11-20',
+        rate: FxRate.forPair(FxPair.usdIqd, '1600').valueOrNull!,
+        kind: 'market',
+      );
+      EntryDraft dinars(String day) => EntryDraft(
+        id: 'd1',
+        intent: 'expense',
+        amountMinor: 16000,
+        currency: 'IQD',
+        accountId: 'acc-cash',
+        categoryId: 'dining',
+        occurredOn: day,
+        occurredTime: '08:20',
+      );
+      final saved = await app.repository.saveEntries([dinars('2026-11-10')]);
+      final id = saved.valueOrNull!.txnIds.single;
+      final first = Map<String, Object?>.of(_stored(app, id));
+      expect(first['fx'], containsPair('pairRate', '1705'));
+      await app.repository.editEntry(id, dinars('2026-11-22'));
+      expect(_stored(app, id)['fx'], containsPair('pairRate', '1600'));
+
+      await restoreNewest(app, id);
+      final back = _stored(app, id);
+      expect(back['occurredOn'], '2026-11-10');
+      expect(back['fx'], first['fx']);
+      expect(back['baseAmountMinor'], first['baseAmountMinor']);
+      final at = (back['occurredAt']! as DateTime).toLocal();
+      expect((at.hour, at.minute), (8, 20));
+    });
+
+    test('back to the old person brings back the title from it', () async {
+      final app = LedgerApp();
+      EntryDraft loan(String person) => EntryDraft(
+        id: 'd1',
+        intent: 'loan_given',
+        amountMinor: 30000,
+        currency: 'USD',
+        accountId: 'acc-checking',
+        personName: person,
+        occurredOn: '2026-11-22',
+      );
+      final saved = await app.repository.saveEntries([loan('Alex')]);
+      final id = saved.valueOrNull!.txnIds.single;
+      await app.repository.editEntry(id, loan('Sam'));
+      expect(_stored(app, id)['title'], 'Sam');
+
+      await restoreNewest(app, id);
+      expect(_stored(app, id)['personName'], 'Alex');
+      expect(_stored(app, id)['title'], 'Alex');
     });
   });
 
