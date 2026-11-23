@@ -6,8 +6,10 @@ the dev server `xpense-agent` on Cloud Run (me-central1). Test data only.
 
 ## 1. Once, on the Mac
 
-- [ ] Xcode → Settings → Accounts: your Apple ID is signed in. It shows a
-      "Personal Team"; that is the free team `7TMGB6MVP7` the project uses.
+- [ ] Xcode → Settings → Accounts → **+** → Apple ID: sign in. It then
+      shows a "Personal Team"; that is the free team `7TMGB6MVP7` the
+      project uses. Without it every build stops at "No Accounts" (the
+      script checks this first).
 - [ ] `gcloud` and `firebase` are signed in as you. The script needs them
       only on the first run (to fetch the Firebase config and register an
       App Check token), and again if you delete `~/.config/xpense/`.

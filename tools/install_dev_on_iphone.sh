@@ -50,6 +50,13 @@ need flutter "Install Flutter 3.50.1 (see /.fvmrc)."
 need xcrun "Install Xcode and open it once."
 need python3 "Install the Xcode command line tools: xcode-select --install"
 
+# Automatic signing needs an Apple ID in Xcode. Only the known empty form
+# stops here; anything else is left to Xcode to judge.
+xcode_accounts="$(defaults read com.apple.dt.Xcode DVTDeveloperAccountManagerAppleIDLists 2>/dev/null | tr -d '[:space:]' || true)"
+if [[ "$xcode_accounts" == '{"IDE.Identifiers.Prod"=();}' ]]; then
+  die "Xcode has no Apple ID signed in. Open Xcode > Settings > Accounts > + > Apple ID, sign in, then run this again."
+fi
+
 # 1. Firebase config for the dev app ---------------------------------------
 plist_bundle() { /usr/libexec/PlistBuddy -c 'Print :BUNDLE_ID' "$1" 2>/dev/null || true; }
 if [[ "$(plist_bundle "$PLIST")" != "$BUNDLE_ID" ]]; then
