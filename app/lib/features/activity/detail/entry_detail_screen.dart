@@ -318,17 +318,20 @@ class _EntryBody extends ConsumerWidget {
       return '${figure.currency} ${figure.whole}${figure.fraction}';
     }
 
+    // Each side reads the entry as it was then: an old USD amount stays
+    // USD after the entry moved to an IQD account.
     String? change(HistoryItem item) {
       String pair(String before, String after) =>
           l10n.activityEntryHistoryChange(before, after);
-      final b = item.before;
-      final a = item.after;
+      final changed = item.before;
+      final b = item.beforeState;
+      final a = item.afterState;
       return switch (item.onlyPart) {
-        ChangedPart.amount when b.containsKey('amountMinor') => pair(
-          money(b['amountMinor'], b['currency'] ?? txn.currency.code),
-          money(a['amountMinor'], a['currency'] ?? txn.currency.code),
+        ChangedPart.amount when changed.containsKey('amountMinor') => pair(
+          money(b['amountMinor'], b['currency']),
+          money(a['amountMinor'], a['currency']),
         ),
-        ChangedPart.account when b.containsKey('accountId') => pair(
+        ChangedPart.account when changed.containsKey('accountId') => pair(
           accountName(b['accountId']),
           accountName(a['accountId']),
         ),
@@ -341,7 +344,7 @@ class _EntryBody extends ConsumerWidget {
           categoryLabel(a['categoryId']),
         ),
         ChangedPart.who => pair(
-          who(b['whoScope'] ?? a['whoScope'], b['whoUid']),
+          who(b['whoScope'], b['whoUid']),
           who(a['whoScope'], a['whoUid']),
         ),
         ChangedPart.date => switch ((b['occurredAt'], a['occurredAt'])) {
@@ -527,7 +530,10 @@ class _EntryBody extends ConsumerWidget {
           HistoryRow(
             title: l10n.entryHistoryTitle(item, txn.source),
             detail: item.kind == HistoryKind.created
-                ? money(item.after['amountMinor'], item.after['currency'])
+                ? money(
+                    item.afterState['amountMinor'],
+                    item.afterState['currency'],
+                  )
                 : change(item),
             when: [
               if (item.at case final at?) l10n.entryWhen(at, now, locale),

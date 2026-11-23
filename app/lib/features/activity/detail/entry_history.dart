@@ -69,6 +69,8 @@ final class HistoryItem {
     this.parts = const {},
     this.before = const {},
     this.after = const {},
+    this.beforeState = const {},
+    this.afterState = const {},
     this.revision,
     this.restorable = false,
   });
@@ -90,6 +92,15 @@ final class HistoryItem {
 
   /// The same fields' values after.
   final Map<String, Object?> after;
+
+  /// The whole entry just before the change, as rebuilt from the
+  /// revisions: what a changed field is read with (its currency, its
+  /// scope), never the entry as it is now (Codex review, PR #39).
+  final Map<String, Object?> beforeState;
+
+  /// The whole entry just after the change (for the first save, the
+  /// version first saved).
+  final Map<String, Object?> afterState;
 
   /// The revision, for every row but [HistoryKind.created].
   final EntryRevision? revision;
@@ -154,6 +165,8 @@ List<HistoryItem> buildHistory(
         if (e.key != 'deletedAt') e.key: e.value,
     };
     final after = {for (final k in before.keys) k: state[k]};
+    final afterState = Map<String, Object?>.of(state);
+    final beforeState = {...state, ...before};
     var parts = {for (final k in before.keys) ?_partOf[k]};
     // The rate follows a change of amount, day or account; it is named
     // only when nothing else changed.
@@ -182,6 +195,8 @@ List<HistoryItem> buildHistory(
             : const {},
         before: before,
         after: after,
+        beforeState: beforeState,
+        afterState: afterState,
         revision: r,
         restorable: restorable,
       ),
@@ -197,6 +212,7 @@ List<HistoryItem> buildHistory(
         'amountMinor': state['amountMinor'],
         'currency': state['currency'],
       },
+      afterState: Map<String, Object?>.of(state),
     ),
   );
   return items;

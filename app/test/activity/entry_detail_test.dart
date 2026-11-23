@@ -48,6 +48,38 @@ Future<String> seedEntry(LedgerApp app) async {
   return id;
 }
 
+/// A USD expense edited from 10.00 to 12.00, then moved to the IQD cash
+/// account as 12,000 dinars. Returns its id.
+Future<String> seedCurrencyMove(LedgerApp app) async {
+  EntryDraft draft(int amount, String currency, String account) => EntryDraft(
+    id: 'd1',
+    intent: 'expense',
+    amountMinor: amount,
+    currency: currency,
+    accountId: account,
+    categoryId: 'groceries',
+    who: 'me',
+    occurredOn: '2026-11-22',
+    occurredTime: '08:20',
+  );
+  final saved = await app.repository.saveEntries([
+    draft(1000, 'USD', 'acc-checking'),
+  ]);
+  final id = saved.valueOrNull!.txnIds.single;
+  expect(
+    (await app.repository.editEntry(
+      id,
+      draft(1200, 'USD', 'acc-checking'),
+    )).isOk,
+    isTrue,
+  );
+  expect(
+    (await app.repository.editEntry(id, draft(12000, 'IQD', 'acc-cash'))).isOk,
+    isTrue,
+  );
+  return id;
+}
+
 Future<void> _tap(WidgetTester tester, Finder finder) async {
   await tester.ensureVisible(finder);
   await tester.pumpAndSettle();
@@ -60,6 +92,25 @@ Map<String, Object?> _stored(LedgerApp app, String id) =>
 
 void main() {
   group('buildHistory', () {
+    test('each row keeps the currency it was written in', () async {
+      // Codex review, PR #39: an old USD amount change read as IQD after
+      // the entry moved to a dinar account.
+      final app = LedgerApp();
+      final id = await seedCurrencyMove(app);
+      final record = await app.reader.watchEntry(id).first;
+      final revisions = await app.reader.watchRevisions(id).first;
+      final [moved, amount, created] = buildHistory(record!, revisions);
+      expect(moved.parts, {ChangedPart.account, ChangedPart.amount});
+      expect(moved.beforeState['currency'], 'USD');
+      expect(moved.afterState['currency'], 'IQD');
+      expect(amount.onlyPart, ChangedPart.amount);
+      expect(amount.beforeState['currency'], 'USD');
+      expect(amount.afterState['currency'], 'USD');
+      expect(amount.afterState['amountMinor'], 1200);
+      expect(created.afterState['currency'], 'USD');
+      expect(created.afterState['amountMinor'], 1000);
+    });
+
     test('rows run newest first, each with its before and after', () async {
       final app = LedgerApp();
       final id = await seedEntry(app);
@@ -247,6 +298,23 @@ void main() {
     expect(_stored(app, id)['personName'], 'Sam');
     expect(_stored(app, id)['title'], 'Sam');
     expect(find.text('LOAN GIVEN · SAM'), findsOneWidget);
+  });
+
+  testWidgets('history amounts show the currency of their time', (
+    tester,
+  ) async {
+    final app = LedgerApp();
+    final id = await seedCurrencyMove(app);
+    final container = await app.pump(tester);
+    await pushTo(tester, container, AppRoutes.entry(id));
+
+    expect(find.text('IQD 12,000'), findsWidgets);
+    await tester.ensureVisible(find.text('Amount changed'));
+    expect(find.text('USD 10.00 → USD 12.00'), findsOneWidget);
+    // The move changed the account and the amount: one "Edited" row.
+    expect(find.text('Edited'), findsOneWidget);
+    await tester.ensureVisible(find.text('Added manually'));
+    expect(find.text('USD 10.00'), findsOneWidget);
   });
 
   testWidgets('delete asks first, then offers Undo', (tester) async {
