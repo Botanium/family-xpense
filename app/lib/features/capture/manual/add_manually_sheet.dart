@@ -319,6 +319,7 @@ class AddManuallyFormState extends ConsumerState<AddManuallyForm> {
           accounts.where((a) => a.id == id).firstOrNull?.currency,
       base: _base(),
       initial: widget.initial,
+      arrivesWasTyped: _start.toAmountText.isNotEmpty,
     );
     final draft = check.draft;
     if (draft == null) {

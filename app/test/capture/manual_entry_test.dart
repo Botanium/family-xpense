@@ -117,6 +117,39 @@ void main() {
       expect(badArrival.errors, {ManualField.toAmount: ManualIssue.invalid});
     });
 
+    test('an emptied typed arrival asks to convert again', () {
+      const values = ManualEntryValues(
+        kind: ManualKind.transfer,
+        occurredOn: _day,
+        amountText: '100',
+        accountId: 'usd',
+        toAccountId: 'iqd',
+      );
+      ManualEntryCheck check({required bool typed}) => checkManualEntry(
+        values,
+        draftId: 'd1',
+        currencyOf: (id) => _currencies[id],
+        base: Currency.usd,
+        arrivesWasTyped: typed,
+      );
+      expect(check(typed: true).extras.toAmountReset, isTrue);
+      expect(check(typed: true).extras.toAmountMinor, isNull);
+      // Empty from the start (converted before, or a new entry): nothing
+      // to reset.
+      expect(check(typed: false).extras.toAmountReset, isFalse);
+      // A same-currency transfer has no arriving amount at all.
+      expect(
+        checkManualEntry(
+          values.copyWith(toAccountId: 'usd2'),
+          draftId: 'd1',
+          currencyOf: (id) => _currencies[id],
+          base: Currency.usd,
+          arrivesWasTyped: true,
+        ).extras.toAmountReset,
+        isFalse,
+      );
+    });
+
     test('a loan needs a person and takes its direction', () {
       const loan = ManualEntryValues(
         kind: ManualKind.loan,

@@ -396,6 +396,33 @@ void main() {
       expect(_stored(app, id)['toAmountSource'], 'entered');
     });
 
+    testWidgets('clearing a typed arriving amount converts it again', (
+      tester,
+    ) async {
+      // Codex review, PR #39: an emptied Arrives read as "keep it".
+      final app = LedgerApp();
+      final id = await seedTransfer(app, arrives: 150000);
+      final container = await app.pump(tester);
+      await pushTo(tester, container, AppRoutes.editEntry(id, field: 'amount'));
+      expect(arrivesText(tester), '150000');
+      await tester.enterText(
+        find
+            .descendant(
+              of: find.byType(AmountField),
+              matching: find.byType(EditableText),
+            )
+            .last,
+        '',
+      );
+      await tester.pump();
+      await _tap(tester, find.text('Save changes'));
+
+      expect(find.text('Edit entry'), findsNothing);
+      expect(_stored(app, id)['amountMinor'], 10000);
+      expect(_stored(app, id)['toAmountMinor'], 170500);
+      expect(_stored(app, id)['toAmountSource'], 'rate');
+    });
+
     testWidgets('a converted arriving amount is converted again', (
       tester,
     ) async {

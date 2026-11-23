@@ -379,6 +379,10 @@ final class ManualEntryCheck {
 /// show (title, person and loan ids, goal, origin, AI confidence) are kept,
 /// so "Change" on a slip and an edit lose nothing.
 ///
+/// [arrivesWasTyped] says Arrives opened with a typed arriving amount (an
+/// edit): emptied, it asks the write path to convert again
+/// ([EntryExtras.toAmountReset]) instead of keeping the stored amount.
+///
 /// The write path checks the draft again against the household cache;
 /// this only catches what the form can know.
 ManualEntryCheck checkManualEntry(
@@ -387,6 +391,7 @@ ManualEntryCheck checkManualEntry(
   required Currency? Function(String accountId) currencyOf,
   required Currency base,
   EntryDraft? initial,
+  bool arrivesWasTyped = false,
 }) {
   final errors = <ManualField, ManualIssue>{};
   final currency = switch (values.accountId) {
@@ -421,6 +426,7 @@ ManualEntryCheck checkManualEntry(
   final keepsGoal =
       intent == CaptureIntent.savingsMove.wire && initial?.goalId != null;
   int? toAmount;
+  var toAmountReset = false;
   if (transfer && !keepsGoal) {
     final toId = values.toAccountId;
     final toCurrency = toId == null ? null : currencyOf(toId);
@@ -430,6 +436,10 @@ ManualEntryCheck checkManualEntry(
       errors[ManualField.toAccount] = ManualIssue.sameAccount;
     } else if (toCurrency == null) {
       errors[ManualField.toAccount] = ManualIssue.unknown;
+    } else if (currency != null &&
+        toCurrency != currency &&
+        values.toAmountText.trim().isEmpty) {
+      toAmountReset = arrivesWasTyped;
     } else if (currency != null &&
         toCurrency != currency &&
         values.toAmountText.trim().isNotEmpty) {
@@ -551,7 +561,7 @@ ManualEntryCheck checkManualEntry(
   );
   return ManualEntryCheck(
     draft: draft,
-    extras: EntryExtras(toAmountMinor: toAmount),
+    extras: EntryExtras(toAmountMinor: toAmount, toAmountReset: toAmountReset),
   );
 }
 

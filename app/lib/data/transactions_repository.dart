@@ -370,7 +370,11 @@ final class LedgerTransaction {
 @immutable
 final class EntryExtras {
   /// Creates the extras.
-  const new({this.toAmountMinor, this.adjustmentSign});
+  const new({
+    this.toAmountMinor,
+    this.adjustmentSign,
+    this.toAmountReset = false,
+  });
 
   /// What arrives in a transfer's destination when its currency differs,
   /// in that account's minor units. Null converts the amount with the rate
@@ -382,14 +386,22 @@ final class EntryExtras {
   /// the stored sign on an edit.
   final int? adjustmentSign;
 
+  /// On an edit with no [toAmountMinor]: true converts the arriving amount
+  /// at the rate again (`toAmountSource: rate`) even when the stored one
+  /// was typed, because the member cleared it; false keeps the stored
+  /// amount while the amount, accounts and rate stay (WP-21, Codex review
+  /// of PR #39).
+  final bool toAmountReset;
+
   @override
   bool operator ==(Object other) =>
       other is EntryExtras &&
       other.toAmountMinor == toAmountMinor &&
-      other.adjustmentSign == adjustmentSign;
+      other.adjustmentSign == adjustmentSign &&
+      other.toAmountReset == toAmountReset;
 
   @override
-  int get hashCode => Object.hash(toAmountMinor, adjustmentSign);
+  int get hashCode => Object.hash(toAmountMinor, adjustmentSign, toAmountReset);
 }
 
 /// Whether a write has reached the server.
