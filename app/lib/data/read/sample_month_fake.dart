@@ -1,12 +1,12 @@
-// Sample entries for the fakes build: a month of spending, two salaries,
-// rent and a savings move over the artboards' accounts
+// Sample entries for the fakes build: a month of spending, two salaries
+// and a savings move over the artboards' accounts
 // (`FakeAccountsRepository.sampleAccounts`), so Home and Activity have
 // something to show without Firebase. Not used in dev or prod builds.
 import 'package:xpense_app/data/accounts_repository_fake.dart';
 import 'package:xpense_app/data/write/memory_ledger_store.dart';
 
 /// Puts a month of sample entries, from the 1st to [today], in [store]: a
-/// salary each, rent, a savings move and daily spending, so Home and
+/// salary each, a savings move and daily spending, so Home and
 /// Activity have something to show in the fakes build. All in USD.
 void seedSampleMonth(MemoryLedgerStore store, DateTime today) {
   const viewer = FakeAccountsRepository.sampleViewer;
@@ -62,15 +62,7 @@ void seedSampleMonth(MemoryLedgerStore store, DateTime today) {
       who: day % 3 == 0 ? partner : viewer,
     );
   }
-  put(
-    day: 1,
-    type: 'expense',
-    cents: 140000,
-    account: 'acc-visa',
-    visibleTo: both,
-    merchant: 'Rent',
-    category: 'rent',
-  );
+
   put(
     day: 1,
     type: 'income',
