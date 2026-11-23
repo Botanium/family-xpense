@@ -50,9 +50,36 @@ tool/test_emulators.sh --all     # everything, under the emulators
 | `lib/flows/ping.dart` | sample flow behind the provider |
 | `lib/household/` | invite codes, rate limiter, invite and join service and flows (WP-12) |
 | `lib/genkit.dart` | the Genkit instance and plugins |
+| `lib/runtime/` | the agent (WP-32): `definePromptAgent`, session store, `householdContext` middleware, Firestore household reader, demo household, `tryCapture`/`tryQuestion` flows; the only module that imports `package:genkit/experimental*.dart` |
+| `lib/tools/` | the agent tools and their schemantic schemas; household data through `HouseholdReader` |
+| `lib/catalog/` | registers the agent's trimmed view of the shared Xpense catalog |
+| `lib/safety/` | `outputGuard` and the untrusted-content wrapper |
+| `prompts/` | `.prompt` files: `xpense_agent` (production), `xpense_agent.strict` (development and CI), partials |
 
-`lib/runtime/`, `lib/tools/`, `lib/decide/`, `lib/jobs/` and `prompts/` belong
-to later packages.
+`lib/jobs/` belongs to a later package.
+
+## Run the agent locally
+
+AI_PIPELINE section 8 has the details. The key is read from Secret Manager
+into the process environment only; it is never printed or written.
+
+```bash
+# The demo household from memory, no emulator:
+XPENSE_AGENT_DATA=demo tool/with_gemini_key.sh \
+  genkit flow:run tryCapture '"Salary came in 3200 and groceries were 140"' -- dart run bin/server.dart
+genkit trace:get <traceId> --format json
+
+# The production path (Firestore reader and sessions, the /decide classifier):
+tool/with_gemini_key.sh firebase emulators:exec --project demo-xpense \
+  --config test/emulator/firebase.json --only firestore \
+  'dart run tool/seed_demo_household.dart && genkit flow:run tryQuestion "\"How much did we spend on food this month?\"" -- dart run bin/server.dart'
+
+# The A2UI instructions the agent pays for on every model call:
+tool/with_gemini_key.sh dart run tool/instruction_tokens.dart
+```
+
+Off Cloud Run the agent runs the strict prompt (`a2ui` validate strict, no
+repair); `XPENSE_A2UI=warn` switches to the production one.
 
 ## Request contract for `/v1/*`
 
@@ -106,6 +133,45 @@ server-only `rateLimits/{uid}` before the work, so failed guesses count.
 | 403 | `not_member` | invite from someone the household does not list |
 | 429 | `rate_limited` | over 10 calls in the hour |
 | 503 | `household_unavailable` | Firestore unreachable; retry |
+
+## Account visibility (WP-13)
+
+`POST /events/account-visibility` on `xpense-jobs` (`lib/jobs/account_visibility.dart`)
+rewrites `visibleTo` on an account's transactions after its sharing changed
+(DATA_MODEL 4). Eventarc posts a CloudEvent for every update under
+`households/*/accounts/*`; the handler takes the account path from the
+`ce-document` (or `ce-subject`) attribute, or a JSON body's `value.name` or
+`document`, and reads the account itself, so the payload encoding does not
+matter. Locally, post the event by hand:
+
+```bash
+curl -X POST localhost:8081/events/account-visibility \
+  -H 'ce-document: households/<hid>/accounts/<accountId>'
+# 200 {"outcome":"synced","rewritten":12,"passes":1}
+```
+
+Account fields it uses, both server-only (the rules refuse them from the
+phone): `visibilityAppliedTo`, the `visibleTo` the history was last rewritten
+for, and `visibilitySync {runId, target, leaseUntil, done, total}` for a
+running rewrite. The job works whenever the account's actual `visibleTo`
+differs from `visibilityAppliedTo` (or it is missing), so no phone-writable
+marker can make it skip a revoke. It pages through the account's
+transactions (400 per page and batch, both `accountId` and `toAccountId`),
+sets each `visibleTo` to the union of its accounts', and finishes, in a
+transaction, by recording `visibilityAppliedTo` once it still equals the
+account's `visibleTo` (another pass otherwise). The app shows "Sharing past
+entries… done of total" while the two differ. A run holds a 90-second lease
+(a `leaseUntil` further out is ignored); the events its own progress writes
+cause get 429 and are delivered again later, and a run that fails releases
+its lease and drops `visibilityAppliedTo` (the history is half rewritten), so
+the retry does a full pass, and answers 503. Answers: 200 with `outcome` (`synced`,
+`upToDate`, `missing`), 429 `busy`, 204 for an event that names no
+account, 503 when Firestore is unreachable (Eventarc retries).
+
+A join widens every joint and shared account to the new member inside the
+join's own transaction, so it is never half done; each widened account then
+fires the event above, and `/v1/household/join` also rewrites their history
+right away, so the partner's first look is complete.
 
 ## Adding a route
 

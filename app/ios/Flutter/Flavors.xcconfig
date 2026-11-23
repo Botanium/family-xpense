@@ -1,0 +1,33 @@
+// The two app flavors (docs/DECISIONS.md D-44, docs/ENVIRONMENTS.md 3.7).
+//
+// XPENSE_FLAVOR is set per build configuration in Runner.xcodeproj
+// (Debug-dev, Release-dev, Profile-dev -> dev; the -prod ones -> prod), and
+// `flutter run --flavor <name>` picks the scheme of that name. Everything
+// that differs between the flavors is chosen here from it.
+//
+// dev:  com.bitrelia.familyxpense.dev, for development and TestFlight.
+// prod: com.bitrelia.familyxpense, the App Store id. Reserved: nobody builds
+//       or uploads it until the App Store seller is decided (D-44).
+
+XPENSE_BUNDLE_ID_dev = com.bitrelia.familyxpense.dev
+XPENSE_BUNDLE_ID_prod = com.bitrelia.familyxpense
+PRODUCT_BUNDLE_IDENTIFIER = $(XPENSE_BUNDLE_ID_$(XPENSE_FLAVOR))
+
+XPENSE_DISPLAY_NAME_dev = Xpense Dev
+XPENSE_DISPLAY_NAME_prod = Family Xpense
+XPENSE_DISPLAY_NAME = $(XPENSE_DISPLAY_NAME_$(XPENSE_FLAVOR))
+
+// Firebase Auth's web flow (Sign in with Google) returns through a URL scheme
+// made from the flavor's Firebase iOS app id, with '-' for ':'. Without it
+// the Firebase SDK stops the app on "Continue with Google".
+// dev: "Family Xpense Dev" in expense-family-cc6ee.
+// prod: for now the "Family Xpense" app in expense-family-cc6ee, the one
+// registered for this bundle id; replace it with the production project's
+// app when that project exists (ENVIRONMENTS 8).
+XPENSE_GOOGLE_AUTH_SCHEME_dev = app-1-648682359990-ios-79390f4ac98029d8172a17
+XPENSE_GOOGLE_AUTH_SCHEME_prod = app-1-648682359990-ios-b2b46595d20bceaf172a17
+XPENSE_GOOGLE_AUTH_SCHEME = $(XPENSE_GOOGLE_AUTH_SCHEME_$(XPENSE_FLAVOR))
+
+// No entitlements yet: Sign in with Apple and App Attest need the paid Apple
+// Developer Program, so both flavors build with a free Personal Team. They
+// come back after enrollment (DECISIONS D-39, D-44).

@@ -80,7 +80,7 @@ class _HouseholdSetupScreenState extends ConsumerState<HouseholdSetupScreen> {
     _viewModel.markShared();
   }
 
-  void _next() => unawaited(context.push(AppRoutes.tryIt));
+  void _next() => unawaited(context.push(AppRoutes.addAccounts));
 
   @override
   Widget build(BuildContext context) {

@@ -125,10 +125,15 @@ final class FakeDocumentStore implements DocumentStore {
   /// Number of transactions that committed.
   int commits = 0;
 
+  /// Called as each transaction starts, before its body; tests use it to
+  /// change data between a job's reads and its commit.
+  Future<void> Function()? onTransaction;
+
   @override
   Future<T> transaction<T>(
     Future<T> Function(DocumentTransaction tx) body,
   ) async {
+    await onTransaction?.call();
     final previous = _lock;
     final done = Completer<void>();
     _lock = done.future;
@@ -141,6 +146,75 @@ final class FakeDocumentStore implements DocumentStore {
       return result;
     } finally {
       done.complete();
+    }
+  }
+
+  /// Documents directly in [collection], ordered by id.
+  List<MapEntry<String, Map<String, Object?>>> _children(String collection) {
+    final prefix = '$collection/';
+    return [
+      for (final e in docs.entries)
+        if (e.key.startsWith(prefix) &&
+            !e.key.substring(prefix.length).contains('/'))
+          e,
+    ]..sort((a, b) => a.key.compareTo(b.key));
+  }
+
+  /// Number of [pageWhereEquals] calls.
+  int pageReads = 0;
+
+  /// Every batch [writeAll] committed, in order.
+  final batches = <List<DocumentWrite>>[];
+
+  /// Called before each page read; tests use it to change data mid-run.
+  Future<void> Function(int page)? onPage;
+
+  @override
+  Future<List<StoredDocument>> pageWhereEquals(
+    String collection,
+    String field,
+    Object value, {
+    int limit = 400,
+    String? startAfterId,
+  }) async {
+    await onPage?.call(pageReads);
+    pageReads++;
+    final after = startAfterId == null ? null : '$collection/$startAfterId';
+    return [
+      for (final e in _children(collection))
+        if (e.value[field] == value &&
+            (after == null || e.key.compareTo(after) > 0))
+          StoredDocument(e.key, Map.of(e.value)),
+    ].take(limit).toList();
+  }
+
+  @override
+  Future<int> countWhereEquals(
+    String collection,
+    String field,
+    Object value,
+  ) async => _children(collection).where((e) => e.value[field] == value).length;
+
+  @override
+  Future<void> writeAll(List<DocumentWrite> writes) async {
+    batches.add(List.of(writes));
+    for (final w in writes) {
+      if (w.merge) {
+        _deepMerge(docs.putIfAbsent(w.path, () => {}), w.data);
+      } else {
+        docs[w.path] = Map.of(w.data);
+      }
+    }
+  }
+
+  static void _deepMerge(Map<String, Object?> into, Map<String, Object?> from) {
+    for (final MapEntry(:key, :value) in from.entries) {
+      final existing = into[key];
+      if (value is Map<String, Object?> && existing is Map<String, Object?>) {
+        _deepMerge(existing, value);
+      } else {
+        into[key] = value is Map<String, Object?> ? Map.of(value) : value;
+      }
     }
   }
 

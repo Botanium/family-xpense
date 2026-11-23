@@ -1,16 +1,45 @@
+import 'dart:convert';
+
 import 'package:a2ui_flutter/a2ui_flutter.dart';
 import 'package:xpense_app/a2ui/catalog/schema_dsl.dart';
 import 'package:xpense_app/a2ui/components/support.dart';
 import 'package:xpense_app/a2ui/widgets/choice_prompt_view.dart';
+import 'package:xpense_app/a2ui/widgets/draft_fields.dart';
 import 'package:xpense_app/a2ui/xpense_scope.dart';
 import 'package:xpense_shared/xpense_shared.dart';
 
 final RegExp _draftField = RegExp(r'^/drafts/(\d+)/(\w+)$');
 
+/// Draft fields that hold an id: a typed "Other…" answer would be a name
+/// the household does not know, so they take only the offered options (the
+/// slip's own picker lists every choice).
+const Set<String> _idFields = {
+  'accountId',
+  'toAccountId',
+  'categoryId',
+  'personName',
+};
+
+/// Draft keys a pick may change besides the bound field: the answered
+/// field leaves `missing` and `guessed`; an account settles a guessed
+/// currency and its amount (dropping the duplicate hint and FX quote made
+/// for the old ones); a person's id sets `personId` and the name.
+const List<String> _derived = [
+  'missing',
+  'guessed',
+  'currency',
+  'amountMinor',
+  'duplicate',
+  'fx',
+  'personId',
+  'personName',
+];
+
 /// `ChoicePrompt(question, options, value, allowOther?, action?)`
 /// (A2UI_CATALOG 3.2). A pick writes `value` locally. When `value` is a
 /// draft field (`/drafts/N/field`), the field also leaves that draft's
-/// `missing` and `guessed`: the member answered it. The action fires only
+/// `missing` and `guessed`: the member answered it; an account also settles
+/// a guessed currency (`withField`). The action fires only
 /// when the agent asked for one, never for a dummy `click`, and not while a
 /// turn is streaming.
 final ComponentImplementation choicePromptComponent = ComponentImplementation(
@@ -60,23 +89,37 @@ final ComponentImplementation choicePromptComponent = ComponentImplementation(
             ),
       ],
       selected: unanswered ? null : props.string('value'),
-      allowOther: props.boolean('allowOther') ?? false,
+      allowOther:
+          (props.boolean('allowOther') ?? false) &&
+          !_idFields.contains(asked?[2]),
       onPick: binding == null
           ? null
           : (value) {
               binding.set(value);
               final match = _draftField.firstMatch(binding.path);
               final model = dataModelOf(node);
-              if (match != null && model != null) {
+              final before = match == null
+                  ? null
+                  : model?.get('/drafts/${match[1]}');
+              if (match != null && model != null && before is Map) {
+                // The same edit as a pick on the slip (withField): the
+                // field leaves `missing` and `guessed`, and an account
+                // settles a guessed currency and its amount.
                 final draft = '/drafts/${match[1]}';
-                for (final list in ['missing', 'guessed']) {
-                  final values = model.get('$draft/$list');
-                  if (values is List && values.contains(match[2])) {
-                    model.set('$draft/$list', [
-                      for (final v in values)
-                        if (v != match[2]) v,
-                    ]);
-                  }
+                final old = Map<String, Object?>.from(before);
+                final next = withField(
+                  old,
+                  match[2]!,
+                  value,
+                  household: scope.actions.household,
+                );
+                for (final key in _derived) {
+                  if (jsonEncode(old[key]) == jsonEncode(next[key])) continue;
+                  final isList = key == 'missing' || key == 'guessed';
+                  model.set(
+                    '$draft/$key',
+                    next[key] ?? (isList ? <Object?>[] : null),
+                  );
                 }
               }
               if (fires) fire(action);
