@@ -20,12 +20,34 @@ import 'package:xpense_shared/xpense_shared.dart';
 ///
 /// No cards: content sits on the canvas with hairlines. Every figure is
 /// derived from what the viewer can read ([homeSummaryProvider]).
-class HomeScreen extends ConsumerWidget {
+class HomeScreen extends ConsumerStatefulWidget {
   /// Creates Home.
   const new({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends ConsumerState<HomeScreen> {
+  late final AppLifecycleListener _lifecycle;
+
+  @override
+  void initState() {
+    super.initState();
+    // Back from the background: today may be another day, or another month.
+    _lifecycle = AppLifecycleListener(
+      onResume: () => ref.read(homeMonthProvider.notifier).refresh(),
+    );
+  }
+
+  @override
+  void dispose() {
+    _lifecycle.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final colors = XpColors.of(context);
     final summary = ref.watch(homeSummaryProvider);
     final l10n = context.l10n;
@@ -36,6 +58,8 @@ class HomeScreen extends ConsumerWidget {
         child: RefreshIndicator.adaptive(
           onRefresh: () => _refresh(ref),
           child: ListView(
+            // Pull to refresh works even when Home fits on the screen.
+            physics: const AlwaysScrollableScrollPhysics(),
             padding: EdgeInsetsDirectional.only(
               start: XpSpace.screenMargin,
               end: XpSpace.screenMargin,
@@ -64,8 +88,8 @@ class HomeScreen extends ConsumerWidget {
   }
 
   static Future<void> _refresh(WidgetRef ref) async {
+    ref.read(homeMonthProvider.notifier).refresh();
     ref
-      ..invalidate(homeMonthProvider)
       ..invalidate(homeMonthTransactionsProvider)
       ..invalidate(homeRecentTransactionsProvider)
       ..invalidate(accountsProvider);

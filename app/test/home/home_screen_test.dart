@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:xpense_app/app.dart';
 import 'package:xpense_app/core/routing/routing.dart';
 import 'package:xpense_app/core/ui/ui.dart';
@@ -188,6 +189,69 @@ void main() {
       findsOneWidget,
     );
     semantics.dispose();
+  });
+
+  // A regression guard: the list was already pullable as the primary
+  // scroll view; the explicit physics keep it so if that ever changes
+  // (Codex review, PR #37).
+  testWidgets('pull to refresh works when Home fits on the screen, and '
+      'reads the clock again', (tester) async {
+    final services = artboardServices();
+    // A tall screen and an empty month: nothing to scroll.
+    await pumpHome(tester, services: services, size: const Size(390, 2400));
+    expect(find.text('NOV 2026 · OUR HOME'), findsOneWidget);
+    services.clock.now = DateTime(2026, 12, 1, 8);
+
+    await tester.drag(find.text('Household balance'), const Offset(0, 1200));
+    await tester.pumpAndSettle();
+
+    expect(find.text('DEC 2026 · OUR HOME'), findsOneWidget);
+    expect(tester.widget<MiniBars>(find.byType(MiniBars)).values, hasLength(1));
+  });
+
+  testWidgets('rolls over to the new month at local midnight', (tester) async {
+    final services = artboardServices();
+    await pumpHome(
+      tester,
+      services: services,
+      transactions: artboardMonth(),
+      now: DateTime(2026, 11, 30, 23, 59),
+    );
+    expect(find.text('NOV 2026 · OUR HOME'), findsOneWidget);
+    expect(ledgerValue(tester, 'Spent'), '4,410.00');
+
+    services.clock.now = DateTime(2026, 12, 1, 0, 0, 2);
+    await tester.pump(const Duration(minutes: 2));
+    await tester.pumpAndSettle();
+
+    expect(find.text('DEC 2026 · OUR HOME'), findsOneWidget);
+    expect(ledgerValue(tester, 'Spent'), '0.00');
+    expect(tester.widget<MiniBars>(find.byType(MiniBars)).values, hasLength(1));
+  });
+
+  testWidgets('back from the background, Home shows the new day', (
+    tester,
+  ) async {
+    final services = artboardServices();
+    await pumpHome(tester, services: services, transactions: artboardMonth());
+    expect(
+      tester.widget<MiniBars>(find.byType(MiniBars)).values,
+      hasLength(21),
+    );
+
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.hidden);
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
+    services.clock.now = DateTime(2026, 11, 22, 7);
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.hidden);
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+    await tester.pumpAndSettle();
+
+    expect(
+      tester.widget<MiniBars>(find.byType(MiniBars)).values,
+      hasLength(22),
+    );
   });
 
   for (final scale in [1.5, 2.0, 3.0]) {

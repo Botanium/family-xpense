@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:xpense_app/data/accounts_repository.dart';
 import 'package:xpense_app/data/household_repository.dart';
@@ -6,12 +8,45 @@ import 'package:xpense_app/data/transactions_repository.dart';
 import 'package:xpense_app/features/home/home_summary.dart';
 import 'package:xpense_app/services/clock.dart';
 
-/// The month Home shows: the one of today, by the injected clock. Pull to
-/// refresh reads it again, so Home moves on after midnight.
-final homeMonthProvider = Provider<HomeMonth>(
-  (ref) => HomeMonth.of(ref.watch(clockProvider).now()),
-  name: 'homeMonthProvider',
-);
+/// The month Home shows: the one of today, by the injected clock.
+///
+/// It moves on by itself at local midnight, and [HomeMonthNotifier.refresh]
+/// reads the clock again when the app resumes and on pull to refresh, so a
+/// Home left open overnight or in the background shows the new day (and,
+/// on the 1st, the new month) rather than yesterday's (Codex review,
+/// PR #37).
+final NotifierProvider<HomeMonthNotifier, HomeMonth> homeMonthProvider =
+    NotifierProvider<HomeMonthNotifier, HomeMonth>(
+      HomeMonthNotifier.new,
+      name: 'homeMonthProvider',
+    );
+
+/// Holds [homeMonthProvider]'s month and rolls it over.
+class HomeMonthNotifier extends Notifier<HomeMonth> {
+  Timer? _midnight;
+
+  @override
+  HomeMonth build() {
+    ref.onDispose(() => _midnight?.cancel());
+    return _read();
+  }
+
+  /// Reads the clock again; changes the month (or the day) only if it moved.
+  void refresh() {
+    final next = _read();
+    if (next != state) state = next;
+  }
+
+  HomeMonth _read() {
+    final now = ref.read(clockProvider).now();
+    _midnight?.cancel();
+    final nextDay = DateTime(now.year, now.month, now.day + 1);
+    // Fires at local midnight. Should it fire a moment early, the day has
+    // not changed, nothing is emitted and the next timer is set again.
+    _midnight = Timer(nextDay.difference(now), refresh);
+    return HomeMonth.of(now);
+  }
+}
 
 /// This month's entries the viewer can read, from the 1st to today.
 final StreamProvider<List<LedgerTransaction>> homeMonthTransactionsProvider =

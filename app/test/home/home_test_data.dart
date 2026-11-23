@@ -270,17 +270,19 @@ Future<MemoryLedgerStore> pumpHome(
   WidgetTester tester, {
   Iterable<LedgerTransaction> transactions = const [],
   TestServices? services,
+  DateTime? now,
+  Size size = const Size(390, 844),
 }) async {
   // An iPhone-sized view, as on the artboards (390 x 844 pt at 3x).
   tester.view
-    ..physicalSize = const Size(390, 844) * 3
+    ..physicalSize = size * 3
     ..devicePixelRatio = 3
     // The artboards' frame: safe areas 47 top and 34 bottom.
     ..padding = const FakeViewPadding(top: 47 * 3, bottom: 34 * 3)
     ..viewPadding = const FakeViewPadding(top: 47 * 3, bottom: 34 * 3);
   addTearDown(tester.view.reset);
   final s = services ?? artboardServices();
-  s.clock.now = today;
+  s.clock.now = now ?? today;
   final repository = memoryTransactions();
   final store = memoryStoreOf(repository)!;
   seed(store, transactions);
