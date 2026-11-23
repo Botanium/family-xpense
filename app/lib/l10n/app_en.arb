@@ -3101,5 +3101,111 @@
   "captureManualNoAccounts": "Add an account first.",
   "@captureManualNoAccounts": {
     "description": "Shown in the account picker when there are none."
+  },
+  "settingsFxPromptQuestion": "Today's dollar rate?",
+  "@settingsFxPromptQuestion": {
+    "description": "The daily question on Home and in forms when nobody in the household has entered today's USD/IQD rate. Followed by the previous rate."
+  },
+  "settingsFxPromptSame": "Same",
+  "@settingsFxPromptSame": {
+    "description": "Text action on the daily rate prompt that keeps the previous rate for today."
+  },
+  "settingsFxPromptChange": "Change",
+  "@settingsFxPromptChange": {
+    "description": "Text action on the daily rate prompt that opens the number pad."
+  },
+  "settingsFxPromptSpoken": "Today's dollar rate? The last one was {rate} dinars.",
+  "@settingsFxPromptSpoken": {
+    "description": "VoiceOver label of the daily rate prompt.",
+    "placeholders": {
+      "rate": {
+        "type": "String",
+        "example": "1,705"
+      }
+    }
+  },
+  "settingsFxPromptFirst": "What's today's dollar rate?",
+  "@settingsFxPromptFirst": {
+    "description": "Home's daily rate question when the household has never entered a rate."
+  },
+  "settingsFxPromptEnter": "Enter",
+  "@settingsFxPromptEnter": {
+    "description": "Text action that opens the rate number pad when there is no previous rate to keep."
+  },
+  "settingsFxPromptFailed": "Couldn't save the rate. Try again.",
+  "@settingsFxPromptFailed": {
+    "description": "Shown under the rate prompt when saving the rate failed."
+  },
+  "settingsFxRateTitle": "Today's dollar rate",
+  "@settingsFxRateTitle": {
+    "description": "Title of the number pad sheet for today's rate."
+  },
+  "settingsFxRateTitleDay": "Dollar rate on {day}",
+  "@settingsFxRateTitleDay": {
+    "description": "Title of the number pad sheet when editing a past day's rate.",
+    "placeholders": {
+      "day": {
+        "type": "String",
+        "example": "Nov 20"
+      }
+    }
+  },
+  "settingsFxRateUnit": "IQD per USD",
+  "@settingsFxRateUnit": {
+    "description": "Unit under the typed exchange rate."
+  },
+  "settingsFxRateSave": "Save",
+  "@settingsFxRateSave": {
+    "description": "Button that saves the typed exchange rate."
+  },
+  "settingsFxRateBackspace": "Delete",
+  "@settingsFxRateBackspace": {
+    "description": "VoiceOver label of the backspace key on the rate number pad."
+  },
+  "settingsFxRateConfirmTitle": "{typed} is more than 5% away from {previous}. Is it right?",
+  "@settingsFxRateConfirmTitle": {
+    "description": "Asked before saving a typed rate far from the previous one, to catch typos.",
+    "placeholders": {
+      "typed": {
+        "type": "String",
+        "example": "17,050"
+      },
+      "previous": {
+        "type": "String",
+        "example": "1,705"
+      }
+    }
+  },
+  "settingsFxRateConfirmSave": "Save {typed}",
+  "@settingsFxRateConfirmSave": {
+    "description": "Action that saves the far-away rate anyway.",
+    "placeholders": {
+      "typed": {
+        "type": "String",
+        "example": "17,050"
+      }
+    }
+  },
+  "settingsFxRateConfirmChange": "Change it",
+  "@settingsFxRateConfirmChange": {
+    "description": "Action that goes back to the number pad to fix the rate."
+  },
+  "settingsFxInlineUse": "Use it",
+  "@settingsFxInlineUse": {
+    "description": "Text action on the inline rate ask in a form: today's rate is the previous one."
+  },
+  "settingsFxInlineSkipHint": "Or skip: this entry then uses {rate} from {date}.",
+  "@settingsFxInlineSkipHint": {
+    "description": "Under the inline rate ask in a form: what happens when the person does not answer.",
+    "placeholders": {
+      "rate": {
+        "type": "String",
+        "example": "1,705"
+      },
+      "date": {
+        "type": "String",
+        "example": "Nov 20"
+      }
+    }
   }
 }

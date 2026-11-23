@@ -40,14 +40,8 @@ final class FakeAccountsRepository implements AccountsRepository {
          viewerUid: viewerUid,
          ledger: ledger,
          clock: clock,
-         rates: [
-           // Entered yesterday: today's rate is still to be asked for.
-           if (rate != null)
-             DailyRate(
-               day: householdDay((clock ?? const Clock()).daysAgo(1)),
-               rate: rate,
-             ),
-         ],
+         // Entered before today: today's rate is still to be asked for.
+         standing: rate,
        ) {
     for (final a in accounts) {
       _all[a.id] = a;

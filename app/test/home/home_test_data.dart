@@ -6,6 +6,7 @@ import 'package:xpense_app/app.dart';
 import 'package:xpense_app/bootstrap.dart';
 import 'package:xpense_app/data/accounts_repository.dart';
 import 'package:xpense_app/data/accounts_repository_fake.dart';
+import 'package:xpense_app/data/fx_repository.dart';
 import 'package:xpense_app/data/mappers/transaction_mapper.dart';
 import 'package:xpense_app/data/transactions_repository.dart';
 import 'package:xpense_app/data/write/memory_ledger_store.dart';
@@ -247,9 +248,28 @@ List<Override> homeOverrides(
 /// The artboard household: the sample accounts without Sam's private
 /// savings, so the hero reads "Household balance" as on artboard 06 (the
 /// total is the same: that account is never visible to the viewer).
+///
+/// With [rateAnswered] (the default, as on the artboard), someone already
+/// entered today's rate, so the notice slot shows the nudge rather than
+/// the daily rate prompt (WP-24).
 TestServices artboardServices({
   AppearanceMode appearance = AppearanceMode.light,
-}) => TestServices(
+  bool rateAnswered = true,
+}) {
+  final services = _artboardServices(appearance);
+  if (rateAnswered) {
+    services.accounts.fx.put(
+      DailyRate(
+        day: '2026-11-21',
+        rate: FxRate.forPair(FxPair.usdIqd, '1705').valueOrNull!,
+        enteredBy: sam,
+      ),
+    );
+  }
+  return services;
+}
+
+TestServices _artboardServices(AppearanceMode appearance) => TestServices(
   settings: AppSettings(appearance: appearance),
   accounts: FakeAccountsRepository(
     members: const [

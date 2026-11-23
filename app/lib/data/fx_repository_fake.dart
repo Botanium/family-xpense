@@ -16,13 +16,19 @@ import 'package:xpense_shared/xpense_shared.dart';
 final class MemoryFxRepository implements FxRepository {
   /// Creates the store for [viewerUid], holding [rates] (any order) and
   /// the rates already in [ledger].
+  ///
+  /// A `standing` rate reads as entered the day before [clock]'s today,
+  /// whatever today is: a household that has a rate and has not been
+  /// asked today. It is in [ledger] for the day before the clock's today
+  /// at creation.
   new({
     this.viewerUid = 'uid-you',
     Iterable<DailyRate> rates = const [],
     this._kind = RateKind.market,
+    this._standing,
     this.ledger,
     Clock? clock,
-  }) : _clock = clock ?? const Clock() {
+  }) : clock = clock ?? const Clock() {
     for (final r in ledger?.rates.values ?? const <DayRate>[]) {
       _rates[r.day] = DailyRate(
         day: r.day,
@@ -31,7 +37,20 @@ final class MemoryFxRepository implements FxRepository {
       );
     }
     rates.forEach(_put);
+    if (_standing case final standing?) {
+      final day = rateDayOf(this.clock.daysAgo(1));
+      ledger?.rates.putIfAbsent(
+        day,
+        () => DayRate(day: day, rate: standing, kind: _kind.wire),
+      );
+    }
   }
+
+  /// Today, for the `standing` rate and the history window. The
+  /// composition root sets it to the app's clock.
+  Clock clock;
+
+  FxRate? _standing;
 
   /// Who [setRate] enters rates as.
   String viewerUid;
@@ -39,7 +58,6 @@ final class MemoryFxRepository implements FxRepository {
   /// The write path's store this one keeps in step.
   final MemoryLedgerStore? ledger;
 
-  final Clock _clock;
   final Map<String, DailyRate> _rates = {};
   RateKind _kind;
   final _changes = StreamController<void>.broadcast(sync: true);
@@ -51,8 +69,17 @@ final class MemoryFxRepository implements FxRepository {
   final List<DailyRate> written = [];
 
   /// The rates, newest first.
-  List<DailyRate> get rates =>
-      _rates.values.toList()..sort((a, b) => b.day.compareTo(a.day));
+  List<DailyRate> get rates {
+    final all = {..._rates};
+    if (_standing case final standing?) {
+      final day = rateDayOf(clock.daysAgo(1));
+      all.putIfAbsent(
+        day,
+        () => DailyRate(day: day, rate: standing, kind: _kind),
+      );
+    }
+    return all.values.toList()..sort((a, b) => b.day.compareTo(a.day));
+  }
 
   /// The newest rate, if any.
   DailyRate? get latest => rates.firstOrNull;
@@ -64,9 +91,10 @@ final class MemoryFxRepository implements FxRepository {
     _changes.add(null);
   }
 
-  /// Removes every rate.
+  /// Removes every rate, the standing one too.
   void clear() {
     _rates.clear();
+    _standing = null;
     ledger?.rates.clear();
     _changes.add(null);
   }
@@ -87,7 +115,7 @@ final class MemoryFxRepository implements FxRepository {
 
   @override
   Stream<List<DailyRate>> watchRates() => _watch(() {
-    final from = rateDayOf(_clock.now().subtract(rateHistoryWindow));
+    final from = rateDayOf(clock.now().subtract(rateHistoryWindow));
     return [
       for (final r in rates)
         if (r.day.compareTo(from) >= 0) r,

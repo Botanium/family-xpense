@@ -1,10 +1,13 @@
 import 'package:material_ui/material_ui.dart';
 
+import 'package:xpense_app/core/l10n/l10n.dart';
 import 'package:xpense_app/core/theme/theme.dart';
 import 'package:xpense_app/core/ui/badges.dart';
 import 'package:xpense_app/core/ui/buttons.dart';
 import 'package:xpense_app/core/ui/inputs.dart';
 import 'package:xpense_app/core/ui/rows.dart';
+import 'package:xpense_app/core/ui/sheet.dart';
+import 'package:xpense_app/core/ui/system.dart';
 import 'package:xpense_app/core/ui/xp_pressable.dart';
 
 /// Where a [RatePrompt] sits.
@@ -261,4 +264,120 @@ class _RateChangeSheetState extends State<RateChangeSheet> {
       ],
     );
   }
+}
+
+/// [rate] (a decimal string such as `"1705"` or `"1507.5"`) grouped by
+/// thousands for display, such as "1,705", without parsing it as a number.
+String formatRate(String rate) {
+  final dot = rate.indexOf('.');
+  final whole = dot < 0 ? rate : rate.substring(0, dot);
+  final rest = dot < 0 ? '' : rate.substring(dot);
+  return '${_RateChangeSheetState._groupDigits(whole)}$rest';
+}
+
+/// The words [showRateEntry] uses.
+@immutable
+class RateEntryLabels {
+  /// Creates the labels.
+  const new({
+    required this.title,
+    required this.unit,
+    required this.save,
+    required this.backspace,
+    required this.confirmTitle,
+    required this.confirmSave,
+    required this.confirmChange,
+  });
+
+  /// "Today's dollar rate".
+  final String title;
+
+  /// "IQD per USD".
+  final String unit;
+
+  /// "Save".
+  final String save;
+
+  /// Spoken label of the backspace key.
+  final String backspace;
+
+  /// The question when a typed rate is far from the previous one, given the
+  /// typed rate as entered, such as "1,900 is more than 5% from 1,705.".
+  final String Function(String typed) confirmTitle;
+
+  /// The confirming action, given the typed rate, such as "Save 1,900".
+  final String Function(String typed) confirmSave;
+
+  /// The action that goes back to the keypad, such as "Change it".
+  final String confirmChange;
+}
+
+/// Opens the rate keypad starting at [initial] and returns the rate typed
+/// (a decimal string), or null when the person closed it.
+///
+/// When [needsConfirm] says the typed rate is suspicious (more than 5% from
+/// the previous one, a typo guard), an action sheet asks first; going back
+/// reopens the keypad with what was typed.
+Future<String?> showRateEntry({
+  required BuildContext context,
+  required RateEntryLabels labels,
+  required String initial,
+  bool Function(String typed)? needsConfirm,
+}) async {
+  var start = initial;
+  while (true) {
+    final typed = await showGlassSheet<String>(
+      context: context,
+      // Over the tab bar when asked from Home.
+      useRootNavigator: true,
+      builder: (sheet) => RateChangeSheet(
+        title: labels.title,
+        initial: start,
+        unit: labels.unit,
+        saveLabel: labels.save,
+        backspaceLabel: labels.backspace,
+        onSave: (rate) => Navigator.of(sheet).pop(rate),
+      ),
+    );
+    if (typed == null || !context.mounted) return null;
+    if (!(needsConfirm?.call(typed) ?? false)) return typed;
+    var confirmed = false;
+    await showXpActionSheet(
+      context: context,
+      title: labels.confirmTitle(typed),
+      actions: [
+        XpAction(
+          label: labels.confirmSave(typed),
+          onPressed: () => confirmed = true,
+        ),
+      ],
+      cancelLabel: labels.confirmChange,
+    );
+    if (confirmed) return typed;
+    if (!context.mounted) return null;
+    start = typed;
+  }
+}
+
+/// The app's words for [showRateEntry]: [title] defaults to "Today's dollar
+/// rate"; [previous] is the rate a typed one is compared with, as stored
+/// (such as `"1705"`).
+RateEntryLabels rateEntryLabelsOf(
+  BuildContext context, {
+  String? title,
+  String? previous,
+}) {
+  final l10n = context.l10n;
+  return RateEntryLabels(
+    title: title ?? l10n.settingsFxRateTitle,
+    unit: l10n.settingsFxRateUnit,
+    save: l10n.settingsFxRateSave,
+    backspace: l10n.settingsFxRateBackspace,
+    confirmTitle: (typed) => l10n.settingsFxRateConfirmTitle(
+      formatRate(typed),
+      previous == null ? '' : formatRate(previous),
+    ),
+    confirmSave: (typed) => l10n.settingsFxRateConfirmSave(formatRate(typed)),
+    confirmChange: l10n.settingsFxRateConfirmChange,
+  );
 }

@@ -729,7 +729,7 @@ List<Override> appOverrides({
   fxRepositoryProvider.overrideWithValue(
     fxRepository ??
         switch (accountsRepository) {
-          final FakeAccountsRepository fake => fake.fx,
+          final FakeAccountsRepository fake => fake.fx..clock = clock,
           _ => MemoryFxRepository(clock: clock),
         },
   ),
