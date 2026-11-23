@@ -15,6 +15,7 @@ const List<String> transactionContentFields = [
   'accountId',
   'toAccountId',
   'toAmountMinor',
+  'toAmountSource',
   'baseAmountMinor',
   'fx',
   'adjustmentSign',
@@ -53,6 +54,7 @@ Map<String, Object?> transactionContent(LedgerTransaction t) => {
   'accountId': t.accountId,
   'toAccountId': t.toAccountId,
   'toAmountMinor': t.toAmountMinor,
+  'toAmountSource': t.toAmountSource?.wire,
   'baseAmountMinor': t.baseAmountMinor,
   'fx': t.fx == null ? null : fxFields(t.fx!),
   'adjustmentSign': t.type == LedgerType.adjustment
@@ -110,6 +112,7 @@ LedgerTransaction? transactionFromFields(String id, Map<String, Object?> data) {
     accountId: accountId,
     toAccountId: str('toAccountId'),
     toAmountMinor: integer('toAmountMinor'),
+    toAmountSource: ToAmountSource.tryParse(data['toAmountSource']),
     baseAmountMinor: integer('baseAmountMinor') ?? 0,
     fx: _fxFrom(data['fx']),
     adjustmentSign: type == LedgerType.adjustment

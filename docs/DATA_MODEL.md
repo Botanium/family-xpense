@@ -100,6 +100,7 @@ One document per money event. A transfer is one document with both accounts (D-1
 | `accountId` | string | the account money leaves (or enters, for `income`, `loan_taken`, `repayment_received`) |
 | `toAccountId` | string? | transfers only |
 | `toAmountMinor` | int? | transfers between currencies: amount that arrives |
+| `toAmountSource` | `entered` \| `rate`? | whether `toAmountMinor` was typed (kept when the entry moves to another day) or converted with the rate (converted again); absent on entries saved before it was recorded (PR #35) |
 | `baseAmountMinor` | int | in household base currency |
 | `fx` | map? | `{pair, pairRate, source, asOf}`; absent when currency equals base |
 | `categoryId` | string? | required for `expense` and `income` |

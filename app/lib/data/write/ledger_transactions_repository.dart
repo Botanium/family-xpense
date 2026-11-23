@@ -676,9 +676,12 @@ final class LedgerTransactionsRepository implements TransactionsRepository {
     // keeps the amount, the accounts and the rate keeps the stored arriving
     // amount and the quote it was converted with (Codex review, PR #35).
     var toAmount = crossTransfer ? extras.toAmountMinor : null;
+    var toSource = toAmount == null ? null : ToAmountSource.entered;
     StoredFx? retainedFx;
     // A stored arriving amount converted with the day's rate is converted
-    // again when the day changes; a typed one is kept.
+    // again when the day changes; a typed one is kept. The stored
+    // `toAmountSource` says which (Codex review, PR #35); an entry saved
+    // before it was recorded is judged by comparing with the conversion.
     if (crossTransfer &&
         toAmount == null &&
         previous != null &&
@@ -687,8 +690,13 @@ final class LedgerTransactionsRepository implements TransactionsRepository {
         previous.toAccountId == to!.id &&
         !_namesNewRate(draft.fx, previous.fx) &&
         (previous.occurredOn == occurredOn ||
-            !_rateDerived(previous, toCurrency))) {
+            switch (previous.toAmountSource) {
+              ToAmountSource.entered => true,
+              ToAmountSource.rate => false,
+              null => !_rateDerived(previous, toCurrency),
+            })) {
       toAmount = previous.toAmountMinor;
+      toSource = previous.toAmountSource;
       retainedFx = previous.fx;
     }
     final needsRate = currency != base || (crossTransfer && toAmount == null);
@@ -734,6 +742,7 @@ final class LedgerTransactionsRepository implements TransactionsRepository {
           .valueOrNull
           ?.minorUnits;
       if (toAmount == null) return invalid('fx', EntryIssue.malformed);
+      toSource = ToAmountSource.rate;
     }
     if (toAmount != null && (toAmount < 1 || toAmount > maxDraftAmountMinor)) {
       return invalid('toAmountMinor', EntryIssue.amountOutOfRange);
@@ -754,6 +763,7 @@ final class LedgerTransactionsRepository implements TransactionsRepository {
         accountId: account.id,
         toAccountId: to?.id,
         toAmountMinor: toAmount,
+        toAmountSource: toAmount == null ? null : toSource,
         baseAmountMinor: baseMinor,
         fx: fx,
         adjustmentSign: type == LedgerType.adjustment

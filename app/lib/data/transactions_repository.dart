@@ -51,6 +51,22 @@ enum EntrySource {
       values.where((s) => s.wire == wire).firstOrNull ?? manual;
 }
 
+/// Where a transfer's `toAmountMinor` came from (`toAmountSource`).
+enum ToAmountSource {
+  /// The member typed it; it is kept when the entry moves to another day.
+  entered,
+
+  /// Converted with the rate; a move to another day converts it again.
+  rate;
+
+  /// The stored value.
+  String get wire => name;
+
+  /// Parses a stored value; anything else reads as null (not recorded).
+  static ToAmountSource? tryParse(Object? wire) =>
+      values.where((s) => s.name == wire).firstOrNull;
+}
+
 /// Whether an entry belongs to one member or to both (`whoScope`).
 enum WhoScope {
   /// One member's; `whoUid` says whose.
@@ -135,6 +151,7 @@ final class LedgerTransaction {
     required this.visibleTo,
     this.toAccountId,
     this.toAmountMinor,
+    this.toAmountSource,
     this.fx,
     this.adjustmentSign,
     this.categoryId,
@@ -177,6 +194,10 @@ final class LedgerTransaction {
   /// What arrives in [toAccountId] when its currency differs; null means
   /// [amountMinor].
   final int? toAmountMinor;
+
+  /// Whether [toAmountMinor] was typed or converted; null when there is
+  /// none, or for an entry saved before it was recorded.
+  final ToAmountSource? toAmountSource;
 
   /// The amount in the household base currency, fixed at save time.
   final int baseAmountMinor;
@@ -278,6 +299,7 @@ final class LedgerTransaction {
       other.accountId == accountId &&
       other.toAccountId == toAccountId &&
       other.toAmountMinor == toAmountMinor &&
+      other.toAmountSource == toAmountSource &&
       other.baseAmountMinor == baseAmountMinor &&
       other.fx == fx &&
       other.adjustmentSign == adjustmentSign &&
@@ -312,6 +334,7 @@ final class LedgerTransaction {
     accountId,
     toAccountId,
     toAmountMinor,
+    toAmountSource,
     baseAmountMinor,
     fx,
     adjustmentSign,

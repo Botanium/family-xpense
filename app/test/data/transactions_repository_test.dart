@@ -997,6 +997,67 @@ void main() {
       expect(store.transactions[typed]!['baseAmountMinor'], 1100);
     });
 
+    test('an entered arriving amount equal to the conversion stays when '
+        'the day moves (Codex, PR #35)', () async {
+      store.rates['2026-11-22'] = DayRate(
+        day: '2026-11-22',
+        rate: FxRate.forPair(FxPair.usdIqd, '1550').valueOrNull!,
+      );
+      EntryDraft iqdToUsd(String on) => draft(
+        intent: 'transfer',
+        account: 'cash-iqd',
+        to: 'mine-usd',
+        amount: 17050,
+        on: on,
+      );
+      // 17,050 IQD at 1,705 is exactly 10.00 USD, and the member typed 10.00.
+      final typed = await saveOne(
+        repo,
+        iqdToUsd('2026-11-20'),
+        extras: const EntryExtras(toAmountMinor: 1000),
+      );
+      final converted = await saveOne(repo, iqdToUsd('2026-11-20'));
+      expect(store.transactions[typed]!['toAmountSource'], 'entered');
+      expect(store.transactions[converted]!['toAmountSource'], 'rate');
+
+      await repo.editEntry(typed, iqdToUsd('2026-11-23'));
+      await repo.editEntry(converted, iqdToUsd('2026-11-23'));
+      expect(store.transactions[typed]!['toAmountMinor'], 1000);
+      expect(store.transactions[typed]!['toAmountSource'], 'entered');
+      expect(store.transactions[converted]!['toAmountMinor'], 1100);
+      expect(store.transactions[converted]!['toAmountSource'], 'rate');
+    });
+
+    test(
+      'an entry saved before toAmountSource is judged by comparing',
+      () async {
+        store.rates['2026-11-22'] = DayRate(
+          day: '2026-11-22',
+          rate: FxRate.forPair(FxPair.usdIqd, '1550').valueOrNull!,
+        );
+        EntryDraft iqdToUsd(String on) => draft(
+          intent: 'transfer',
+          account: 'cash-iqd',
+          to: 'mine-usd',
+          amount: 17050,
+          on: on,
+        );
+        final legacy = await saveOne(repo, iqdToUsd('2026-11-20'));
+        final typed = await saveOne(
+          repo,
+          iqdToUsd('2026-11-20'),
+          extras: const EntryExtras(toAmountMinor: 900),
+        );
+        for (final id in [legacy, typed]) {
+          store.remoteEdit(id, {'toAmountSource': null});
+        }
+        await repo.editEntry(legacy, iqdToUsd('2026-11-23'));
+        await repo.editEntry(typed, iqdToUsd('2026-11-23'));
+        expect(store.transactions[legacy]!['toAmountMinor'], 1100);
+        expect(store.transactions[typed]!['toAmountMinor'], 900);
+      },
+    );
+
     test('each write names the version it was built on', () async {
       final id = await saveOne(repo, draft());
       final created = store.transactions[id]!;
