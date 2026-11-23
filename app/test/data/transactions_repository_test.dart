@@ -1351,6 +1351,34 @@ void main() {
         expect(late, isEmpty);
       });
 
+      test('a stop while re-applying leaves the change to the next launch '
+          '(Codex, PR #35)', () async {
+        final id = await saveOne(repo, draft());
+        store.goOnline(online: false);
+        await repo.editEntry(id, draft(amount: 4000));
+        store
+          ..restart()
+          ..remoteEdit(id, {'note': 'partner'});
+        // Next launch: the app stops (here: the journal write throws) after
+        // the stale record was read and before its re-apply is recorded.
+        final crashing = _StopsOnPut(journal);
+        final stopped = LedgerTransactionsRepository(store, journal: crashing);
+        final resumed = stopped.resumePending();
+        store.goOnline(online: true);
+        await expectLater(resumed, throwsA(isA<_Stopped>()));
+        expect(store.serverTransactions[id]!['amountMinor'], 1250);
+
+        // The launch after that still finds the change and re-applies it.
+        final next = LedgerTransactionsRepository(store, journal: journal)
+          ..lateFailures.listen(late.add);
+        await next.resumePending();
+        await pumpEventQueue();
+        expect(store.serverTransactions[id]!['amountMinor'], 4000);
+        expect(store.serverBalances['joint-usd'], -4000);
+        expect(journal.entries, isEmpty);
+        expect(late, isEmpty);
+      });
+
       test('synced writes leave nothing in the journal', () async {
         final id = await saveOne(repo, draft());
         await repo.editEntry(id, draft(amount: 5));
@@ -1474,4 +1502,23 @@ final class _StaleOnce implements LedgerStore {
     LedgerPlan plan, {
     void Function(StoreFailure failure)? onLateFailure,
   }) => _inner.commit(plan, onLateFailure: onLateFailure);
+}
+
+/// The app stopping: the journal throws on its next write.
+final class _Stopped implements Exception;
+
+/// [WriteJournal] over [_inner] whose first write "stops the app".
+final class _StopsOnPut implements WriteJournal {
+  new(this._inner);
+
+  final WriteJournal _inner;
+
+  @override
+  List<PendingRevision> get entries => _inner.entries;
+
+  @override
+  Future<void> put(PendingRevision entry) => throw _Stopped();
+
+  @override
+  Future<void> remove(String revId) => _inner.remove(revId);
 }

@@ -162,11 +162,19 @@ final class LedgerTransactionsRepository implements TransactionsRepository {
     for (final entry in pending) {
       // Handled in this run already.
       if (!_journal.entries.any((e) => e.revId == entry.revId)) continue;
-      await _journal.remove(entry.revId);
-      if (await _store.hasRevision(entry.txnId, entry.revId)) continue;
+      // The record is removed only once the change is on the server or its
+      // re-apply has taken it over, so a stop in between loses nothing.
       final op = _Op.fromJournal(entry.op, entry.payload);
-      if (op == null) continue;
-      await _lateRetry(entry.txnId, op, staleVersion: entry.baseVersion);
+      if (op == null || await _store.hasRevision(entry.txnId, entry.revId)) {
+        await _journal.remove(entry.revId);
+        continue;
+      }
+      await _lateRetry(
+        entry.txnId,
+        op,
+        staleVersion: entry.baseVersion,
+        replaces: entry.revId,
+      );
     }
   }
 
@@ -277,24 +285,30 @@ final class LedgerTransactionsRepository implements TransactionsRepository {
 
     final committed = await _store.commit(
       LedgerPlan(writes: writes, effects: effects),
-      onLateFailure: (f) async {
-        await forget();
+      onLateFailure: (f) {
+        // Each re-apply takes its record over.
         for (final p in touched) {
-          unawaited(_lateRetry(p.txnId, op, staleVersion: p.baseVersion));
+          unawaited(
+            _lateRetry(
+              p.txnId,
+              op,
+              staleVersion: p.baseVersion,
+              replaces: p.revId,
+            ),
+          );
         }
       },
     );
-    if (committed case Ok(value: WriteAck.queued)) {
-      return const Ok(WriteAck.queued);
-    }
-    await forget();
     switch (committed) {
+      case Ok(value: WriteAck.queued):
+        return const Ok(WriteAck.queued);
       case Ok(:final value):
+        await forget();
         return Ok(value);
       case Err(:final failure) when failure.kind == StoreFailureKind.denied:
         var ack = WriteAck.synced;
         for (final p in touched) {
-          final one = await deleteEntry(p.txnId, reason: DeleteReason.undo);
+          final one = await _revise(p.txnId, op, replaces: p.revId);
           switch (one) {
             case Ok(:final value):
               if (value == WriteAck.queued) ack = WriteAck.queued;
@@ -306,6 +320,7 @@ final class LedgerTransactionsRepository implements TransactionsRepository {
         }
         return Ok(ack);
       case Err(:final failure):
+        await forget();
         return Err(_fromStore(failure));
     }
   }
@@ -346,30 +361,43 @@ final class LedgerTransactionsRepository implements TransactionsRepository {
   /// first, DATA_MODEL 7), the change is built again once on top of the
   /// server's version. A queued write the server refuses later is
   /// re-applied the same way, in the background.
+  ///
+  /// [replaces] is the journal record of the change this call re-applies.
+  /// It is removed only once this call has journaled its own record or
+  /// reached a final outcome, never before: a stop in between leaves it for
+  /// the next [resumePending] (Codex review, PR #35).
   Future<Result<WriteAck, TransactionsFailure>> _revise(
     String txnId,
     _Op op, {
     bool fresh = false,
     String? staleVersion,
+    String? replaces,
   }) async {
+    Future<Result<WriteAck, TransactionsFailure>> settled(
+      Result<WriteAck, TransactionsFailure> outcome,
+    ) async {
+      if (replaces != null) await _journal.remove(replaces);
+      return outcome;
+    }
+
     final scope = _store.scope;
     if (scope == null) return const Err(TransactionsNotAllowed());
     final prev = await _store.transaction(txnId, fresh: fresh);
-    if (prev == null) return const Err(TransactionNotFound());
+    if (prev == null) return await settled(const Err(TransactionNotFound()));
     final household = await _store.household();
     if (household == null) return const Err(TransactionsNotAllowed());
     if (staleVersion != null && _version(prev) == staleVersion) {
       // The server has the version this write was built on, so the refusal
       // was not a conflict.
-      return const Err(TransactionsNotAllowed());
+      return await settled(const Err(TransactionsNotAllowed()));
     }
     final built = await _build(op, prev, scope, household);
     final _Revision revision;
     switch (built) {
       case Err(:final failure):
-        return Err(failure);
+        return await settled(Err(failure));
       case Ok(value: null):
-        return const Ok(WriteAck.synced);
+        return await settled(const Ok(WriteAck.synced));
       case Ok(:final _Revision value):
         revision = value;
     }
@@ -379,25 +407,34 @@ final class LedgerTransactionsRepository implements TransactionsRepository {
       effects: effectDelta(prev.line, revision.after),
     );
     final retried = staleVersion != null;
-    // Kept until the server has it, so a restart cannot lose the change.
+    // Kept until the server has it, so a restart cannot lose the change;
+    // only then is the record it takes over removed.
     await _journal.put(_pending(scope, prev, revId, op));
+    if (replaces != null) await _journal.remove(replaces);
     final committed = await _store.commit(
       plan,
       onLateFailure: (f) async {
-        await _journal.remove(revId);
         if (!retried && f.kind == StoreFailureKind.denied) {
-          unawaited(_lateRetry(txnId, op, staleVersion: _version(prev)));
+          // The re-apply takes the record over.
+          unawaited(
+            _lateRetry(
+              txnId,
+              op,
+              staleVersion: _version(prev),
+              replaces: revId,
+            ),
+          );
         } else {
+          await _journal.remove(revId);
           _reportLate([txnId], _fromStore(f));
         }
       },
     );
-    if (committed case Ok(value: WriteAck.queued)) {
-      return const Ok(WriteAck.queued);
-    }
-    await _journal.remove(revId);
     switch (committed) {
+      case Ok(value: WriteAck.queued):
+        return const Ok(WriteAck.queued);
       case Ok(:final value):
+        await _journal.remove(revId);
         return Ok(value);
       case Err(:final failure)
           when !retried && failure.kind == StoreFailureKind.denied:
@@ -406,14 +443,17 @@ final class LedgerTransactionsRepository implements TransactionsRepository {
           op,
           fresh: true,
           staleVersion: _version(prev),
+          replaces: revId,
         );
       case Err(:final failure) when retried:
+        await _journal.remove(revId);
         return Err(
           failure.kind == StoreFailureKind.denied
               ? const TransactionConflict()
               : _fromStore(failure),
         );
       case Err(:final failure):
+        await _journal.remove(revId);
         return Err(_fromStore(failure));
     }
   }
@@ -425,13 +465,23 @@ final class LedgerTransactionsRepository implements TransactionsRepository {
   /// was refused: an edit then a delete queued offline are both refused
   /// when the partner wrote first (each names its predecessor), and the
   /// delete must be rebuilt on top of the re-applied edit.
-  Future<void> _lateRetry(String txnId, _Op op, {String? staleVersion}) async {
+  Future<void> _lateRetry(
+    String txnId,
+    _Op op, {
+    String? staleVersion,
+    String? replaces,
+  }) async {
     final before = _lateRetries[txnId]?.future;
     final done = Completer<void>();
     _lateRetries[txnId] = done;
     try {
       await before;
-      await _reapply(txnId, op, staleVersion: staleVersion ?? '');
+      await _reapply(
+        txnId,
+        op,
+        staleVersion: staleVersion ?? '',
+        replaces: replaces,
+      );
     } finally {
       done.complete();
       if (identical(_lateRetries[txnId], done)) _lateRetries.remove(txnId);
@@ -444,12 +494,14 @@ final class LedgerTransactionsRepository implements TransactionsRepository {
     String txnId,
     _Op op, {
     required String staleVersion,
+    String? replaces,
   }) async {
     final again = await _revise(
       txnId,
       op,
       fresh: true,
       staleVersion: staleVersion,
+      replaces: replaces,
     );
     switch (again) {
       case Ok():
