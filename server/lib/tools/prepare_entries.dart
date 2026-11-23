@@ -90,6 +90,10 @@ Future<PrepareEntriesOutput> prepareEntries(
   // message comes last (`_memberText` falls back to it): this turn's
   // transcript after a voice note, the typed text after a typed message.
   final transcripts = evidence?.transcripts ?? const <String>[];
+  final receiptFigures = [
+    for (final t in evidence?.shownTexts ?? const <String>[])
+      if (!transcripts.contains(t)) t,
+  ];
   final words = (evidence?.latestMedia ?? false)
       ? [...texts, ...transcripts]
       : [...transcripts, ...texts];
@@ -101,6 +105,8 @@ Future<PrepareEntriesOutput> prepareEntries(
         entry: e,
         text: _memberText(e.text, words),
         mediaTurn: mediaTurn,
+        receiptFigures: receiptFigures,
+        latestWords: words.isEmpty ? '' : words.last,
         snap: snap,
         today: today.iso,
         parseContext: parseContext,
@@ -191,6 +197,8 @@ final class _DraftBuilder {
     required this.today,
     required this.parseContext,
     this.mediaTurn = false,
+    this.receiptFigures = const [],
+    this.latestWords = '',
   }) : intent =
            CaptureIntent.tryParse(entry.intent ?? '') ?? CaptureIntent.expense;
 
@@ -202,6 +210,13 @@ final class _DraftBuilder {
 
   /// Whether the member's message carried audio or an image.
   final bool mediaTurn;
+
+  /// Receipt figures the agent showed, written as words ("45.20 dollars"):
+  /// their currency is the receipt's own.
+  final List<String> receiptFigures;
+
+  /// The latest member message (typed, or the transcript of a voice note).
+  final String latestWords;
   final HouseholdSnapshot snap;
   final String today;
   final ParseContext parseContext;
@@ -295,9 +310,13 @@ final class _DraftBuilder {
     final named = hint != null && _wrote(hint)
         ? _matchAccounts(hint, null)
         : const <HouseholdAccount>[];
+    // The pool's figure may come from an older message ("50 dollars"
+    // yesterday): it backs the amount, but only a currency word on this
+    // entry's own figure (or a shown receipt's) is written for it.
+    final written = _writtenCurrency(found.value);
     final String code;
-    if (found.source == CurrencySource.word && found.currency != null) {
-      code = found.currency!.code;
+    if (written != null) {
+      code = written.code;
       currencyFromWords = true;
     } else if (named.length == 1) {
       code = named.single.currency;
@@ -320,6 +339,24 @@ final class _DraftBuilder {
     } else {
       notes.add('$id: $code cannot hold the amount ${entry.amount}');
     }
+  }
+
+  /// The currency a word puts on [value] in this entry's words, the latest
+  /// member message ("it was 1,500 dollars") or a shown receipt, preferring
+  /// the model's reading when both currencies appear. An older message
+  /// does not count.
+  Currency? _writtenCurrency(Decimal value) {
+    final plain = ParseContext(clock: parseContext.clock);
+    final words = [
+      for (final t in {text, latestWords, ...receiptFigures})
+        for (final a in parseText(t, plain).amounts)
+          if (a.value == value &&
+              a.source == CurrencySource.word &&
+              a.currency != null)
+            a.currency!,
+    ];
+    return words.where((c) => c.code == entry.currency).firstOrNull ??
+        words.firstOrNull;
   }
 
   /// A figure from audio or an image that the agent did not show the member

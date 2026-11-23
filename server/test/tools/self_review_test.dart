@@ -490,6 +490,30 @@ void main() {
     });
   });
 
+  // PR #30 review: an older message's "50 dollars" backs the figure but
+  // does not put dollars on this entry.
+  test("the currency comes from the entry's own words", () async {
+    final out = prepareEntries(
+      PrepareEntriesInput(
+        entries: [
+          ProposedEntry(
+            intent: 'expense',
+            amount: '50',
+            text: 'paid 50 from Cash wallet',
+            accountHint: 'Cash wallet',
+          ),
+        ],
+      ),
+      dara,
+      demoDeps(texts: ['lunch was 50 dollars', 'paid 50 from Cash wallet']),
+    );
+    final d = (await out).drafts.single;
+    expect(
+      (d.accountId, d.currency, d.amountMinor),
+      ('acc_cash_iqd', 'IQD', 50),
+    );
+  });
+
   group('written ISO dates (PR #30 review)', () {
     test('an ISO date in the date words or the text is kept', () async {
       final viaWords = await prepare(
