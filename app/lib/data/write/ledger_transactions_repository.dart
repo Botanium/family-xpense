@@ -1,0 +1,803 @@
+// The transaction write path over a `LedgerStore` (DATA_MODEL 1, 2.5, 3,
+// 7). The store only reads and commits; every decision is made here, so
+// the in-memory store tests all of it and the Firestore store stays thin.
+import 'dart:async';
+
+import 'package:flutter/foundation.dart';
+import 'package:xpense_app/data/mappers/transaction_mapper.dart';
+import 'package:xpense_app/data/transactions_repository.dart';
+import 'package:xpense_app/data/write/ledger_store.dart';
+import 'package:xpense_shared/xpense_shared.dart';
+
+/// Entries a delete or undo writes per batch. Each revision costs the
+/// rules a `getAfter`, and a batch may make at most 20 document reads.
+const int maxRevisionsPerBatch = 8;
+
+/// [TransactionsRepository] over [LedgerStore].
+final class LedgerTransactionsRepository implements TransactionsRepository {
+  /// Creates the repository.
+  new(this._store);
+
+  final LedgerStore _store;
+  final StreamController<LateWriteFailure> _late =
+      StreamController<LateWriteFailure>.broadcast();
+
+  @override
+  Stream<LateWriteFailure> get lateFailures => _late.stream;
+
+  /// Stops reporting late failures.
+  Future<void> dispose() => _late.close();
+
+  // ---------------------------------------------------------------- save
+
+  @override
+  Future<Result<SavedEntries, TransactionsFailure>> saveEntries(
+    List<EntryDraft> drafts, {
+    EntrySource? source,
+    Map<String, EntryExtras> extras = const {},
+  }) async {
+    if (drafts.isEmpty || drafts.length > maxEntriesPerSave) {
+      return const Err(TooManyEntries());
+    }
+    final scope = _store.scope;
+    final household = await _store.household();
+    if (scope == null || household == null) {
+      return const Err(TransactionsNotAllowed());
+    }
+    final groupId = _store.newId();
+    final txns = <LedgerTransaction>[];
+    for (final draft in drafts) {
+      final resolved = await _resolve(
+        draft,
+        scope: scope,
+        household: household,
+        extras: extras[_draftId(draft)] ?? const EntryExtras(),
+        source:
+            source ??
+            (draft.toJson()['origin'] == null
+                ? EntrySource.manual
+                : EntrySource.chat),
+        groupId: groupId,
+      );
+      switch (resolved) {
+        case Ok(:final value):
+          txns.add(value);
+        case Err(:final failure):
+          return Err(failure);
+      }
+    }
+    final plan = LedgerPlan(
+      writes: [
+        for (final t in txns)
+          TxnCreate(t.id, {
+            ...transactionContent(t),
+            'deletedAt': null,
+            'rev': 0,
+            ..._createStamps(scope.uid),
+          }),
+      ],
+      effects: txns.fold(
+        BalanceEffects.none,
+        (sum, t) => sum + effectDelta(null, t.line),
+      ),
+    );
+    final ids = [for (final t in txns) t.id];
+    final committed = await _store.commit(
+      plan,
+      onLateFailure: (f) => _reportLate(ids, _fromStore(f)),
+    );
+    return switch (committed) {
+      Ok(:final value) => Ok(
+        SavedEntries(groupId: groupId, txnIds: ids, ack: value),
+      ),
+      Err(:final failure) => Err(_fromStore(failure)),
+    };
+  }
+
+  // ------------------------------------------------- edit, delete, restore
+
+  @override
+  Future<Result<WriteAck, TransactionsFailure>> editEntry(
+    String txnId,
+    EntryDraft draft, {
+    EntryExtras extras = const EntryExtras(),
+  }) => _revise(txnId, (prev, scope, household) async {
+    if (prev.deleted) return const Err(TransactionDeleted());
+    final resolved = await _resolve(
+      draft,
+      scope: scope,
+      household: household,
+      extras: extras,
+      source: prev.source,
+      groupId: prev.groupId,
+      previous: prev,
+    );
+    return switch (resolved) {
+      Err(:final failure) => Err(failure),
+      Ok(value: final next) => Ok(_editOf(prev, next)),
+    };
+  });
+
+  @override
+  Future<Result<WriteAck, TransactionsFailure>> deleteEntry(
+    String txnId, {
+    DeleteReason reason = DeleteReason.delete,
+  }) => _revise(txnId, (prev, _, _) async {
+    if (prev.deleted) return const Err(TransactionDeleted());
+    return Ok(_deletionOf(prev, reason));
+  });
+
+  @override
+  Future<Result<WriteAck, TransactionsFailure>> restoreEntry(String txnId) =>
+      _revise(txnId, (prev, _, _) async {
+        if (!prev.deleted) return const Err(TransactionNotDeleted());
+        return Ok(
+          _Revision(
+            fields: const {'deletedAt': null},
+            before: {'deletedAt': prev.deletedAt},
+            reason: RevisionReason.restore,
+            after: prev.line.withDeleted(deleted: false),
+          ),
+        );
+      });
+
+  @override
+  Future<Result<WriteAck, TransactionsFailure>> undoSave(
+    SavedEntries saved,
+  ) async {
+    final scope = _store.scope;
+    if (scope == null) return const Err(TransactionsNotAllowed());
+    var ack = WriteAck.synced;
+    final ids = saved.txnIds;
+    for (var start = 0; start < ids.length; start += maxRevisionsPerBatch) {
+      final chunk = ids.skip(start).take(maxRevisionsPerBatch).toList();
+      final result = await _undoChunk(chunk, scope);
+      switch (result) {
+        case Ok(:final value):
+          if (value == WriteAck.queued) ack = WriteAck.queued;
+        case Err(:final failure):
+          return Err(failure);
+      }
+    }
+    return Ok(ack);
+  }
+
+  /// Deletes [ids] in one batch; on a refusal, one by one, so a conflict on
+  /// one entry is re-applied without holding up the rest.
+  Future<Result<WriteAck, TransactionsFailure>> _undoChunk(
+    List<String> ids,
+    LedgerScope scope,
+  ) async {
+    final writes = <DocWrite>[];
+    var effects = BalanceEffects.none;
+    final touched = <String>[];
+    for (final id in ids) {
+      final prev = await _store.transaction(id);
+      if (prev == null) return const Err(TransactionNotFound());
+      if (prev.deleted) continue;
+      final revision = _deletionOf(prev, DeleteReason.undo);
+      writes.addAll(_revisionWrites(prev, revision, scope.uid));
+      effects = effects + effectDelta(prev.line, revision.after);
+      touched.add(id);
+    }
+    if (writes.isEmpty) return const Ok(WriteAck.synced);
+    final committed = await _store.commit(
+      LedgerPlan(writes: writes, effects: effects),
+      onLateFailure: (f) {
+        for (final id in touched) {
+          unawaited(_lateRetry(id, _undoBuild));
+        }
+      },
+    );
+    switch (committed) {
+      case Ok(:final value):
+        return Ok(value);
+      case Err(:final failure) when failure.kind == StoreFailureKind.denied:
+        var ack = WriteAck.synced;
+        for (final id in touched) {
+          final one = await deleteEntry(id, reason: DeleteReason.undo);
+          switch (one) {
+            case Ok(:final value):
+              if (value == WriteAck.queued) ack = WriteAck.queued;
+            case Err(failure: TransactionDeleted()):
+              break;
+            case Err(:final failure):
+              return Err(failure);
+          }
+        }
+        return Ok(ack);
+      case Err(:final failure):
+        return Err(_fromStore(failure));
+    }
+  }
+
+  Future<Result<_Revision?, TransactionsFailure>> _undoBuild(
+    LedgerTransaction prev,
+    LedgerScope scope,
+    LedgerHousehold household,
+  ) async =>
+      prev.deleted ? const Ok(null) : Ok(_deletionOf(prev, DeleteReason.undo));
+
+  _Revision _deletionOf(LedgerTransaction prev, DeleteReason reason) =>
+      _Revision(
+        fields: const {'deletedAt': serverTime},
+        before: const {'deletedAt': null},
+        reason: switch (reason) {
+          DeleteReason.delete => RevisionReason.delete,
+          DeleteReason.undo => RevisionReason.undo,
+        },
+        after: prev.line.withDeleted(deleted: true),
+      );
+
+  /// The revision that turns [prev] into [next], or null when nothing
+  /// changed.
+  _Revision? _editOf(LedgerTransaction prev, LedgerTransaction next) {
+    final old = transactionContent(prev);
+    final now = transactionContent(next);
+    final changed = [
+      for (final key in transactionContentFields)
+        if (!_deepEquals(old[key], now[key])) key,
+    ];
+    if (changed.isEmpty) return null;
+    return _Revision(
+      fields: {for (final k in changed) k: now[k]},
+      before: {for (final k in changed) k: old[k]},
+      reason: RevisionReason.edit,
+      after: next.line,
+    );
+  }
+
+  /// Reads [txnId], lets [build] decide the change, and commits it with a
+  /// revision and the balance difference.
+  ///
+  /// When the rules refuse it because the entry moved on (the partner saved
+  /// first, DATA_MODEL 7), the change is built again once on top of the
+  /// server's version. A queued write the server refuses later is
+  /// re-applied the same way, in the background.
+  Future<Result<WriteAck, TransactionsFailure>> _revise(
+    String txnId,
+    _Build build, {
+    bool fresh = false,
+    int? staleRev,
+  }) async {
+    final scope = _store.scope;
+    if (scope == null) return const Err(TransactionsNotAllowed());
+    final prev = await _store.transaction(txnId, fresh: fresh);
+    if (prev == null) return const Err(TransactionNotFound());
+    final household = await _store.household();
+    if (household == null) return const Err(TransactionsNotAllowed());
+    if (staleRev != null && prev.rev == staleRev) {
+      // The server has the version this write was built on, so the refusal
+      // was not a conflict.
+      return const Err(TransactionsNotAllowed());
+    }
+    final built = await build(prev, scope, household);
+    final _Revision revision;
+    switch (built) {
+      case Err(:final failure):
+        return Err(failure);
+      case Ok(value: null):
+        return const Ok(WriteAck.synced);
+      case Ok(:final _Revision value):
+        revision = value;
+    }
+    final plan = LedgerPlan(
+      writes: _revisionWrites(prev, revision, scope.uid),
+      effects: effectDelta(prev.line, revision.after),
+    );
+    final retried = staleRev != null;
+    final committed = await _store.commit(
+      plan,
+      onLateFailure: (f) {
+        if (!retried && f.kind == StoreFailureKind.denied) {
+          unawaited(_lateRetry(txnId, build, staleRev: prev.rev));
+        } else {
+          _reportLate([txnId], _fromStore(f));
+        }
+      },
+    );
+    switch (committed) {
+      case Ok(:final value):
+        return Ok(value);
+      case Err(:final failure)
+          when !retried && failure.kind == StoreFailureKind.denied:
+        return await _revise(txnId, build, fresh: true, staleRev: prev.rev);
+      case Err(:final failure) when retried:
+        return Err(
+          failure.kind == StoreFailureKind.denied
+              ? const TransactionConflict()
+              : _fromStore(failure),
+        );
+      case Err(:final failure):
+        return Err(_fromStore(failure));
+    }
+  }
+
+  /// Re-applies a queued change the server refused, on top of the server's
+  /// version, and reports it when that fails too.
+  Future<void> _lateRetry(String txnId, _Build build, {int? staleRev}) async {
+    final again = await _revise(
+      txnId,
+      build,
+      fresh: true,
+      staleRev: staleRev ?? -1,
+    );
+    switch (again) {
+      case Ok():
+      case Err(failure: TransactionDeleted() || TransactionNotDeleted()):
+        break;
+      case Err(:final failure):
+        _reportLate([txnId], failure);
+    }
+  }
+
+  List<DocWrite> _revisionWrites(
+    LedgerTransaction prev,
+    _Revision revision,
+    String uid,
+  ) {
+    final rev = prev.rev + 1;
+    return [
+      TxnUpdate(prev.id, {
+        ...revision.fields,
+        'rev': rev,
+        ..._updateStamps(uid),
+      }, rev: rev),
+      RevisionCreate(prev.id, _store.newId(), {
+        'rev': rev,
+        'before': revision.before,
+        'changedBy': uid,
+        'changedAt': serverTime,
+        'reason': revision.reason.name,
+      }),
+    ];
+  }
+
+  // ------------------------------------------------------- draft → entry
+
+  /// Checks [draft] against the household cache and turns it into the
+  /// transaction to store (DATA_MODEL 1, 2.5). [previous] is the stored
+  /// version when editing.
+  Future<Result<LedgerTransaction, TransactionsFailure>> _resolve(
+    EntryDraft draft, {
+    required LedgerScope scope,
+    required LedgerHousehold household,
+    required EntryExtras extras,
+    required EntrySource source,
+    required String? groupId,
+    LedgerTransaction? previous,
+  }) async {
+    final draftId = _draftId(draft);
+    Err<LedgerTransaction, TransactionsFailure> invalid(
+      String field,
+      EntryIssue issue,
+    ) => Err(EntryInvalid(draftId: draftId, field: field, issue: issue));
+
+    final json = draft.toJson();
+    final intent = CaptureIntent.tryParse('${json['intent']}');
+    if (intent != null && !intent.recordsMoney) {
+      return invalid('intent', EntryIssue.notMoney);
+    }
+    // Shape next: an EntryDraft's getters throw on a wrongly typed field.
+    final check = checkDraft(json, const HouseholdRefs());
+    final malformed = check.issues.whereType<MalformedField>().firstOrNull;
+    if (malformed != null) {
+      final field = malformed.field;
+      final tooLong =
+          (field == 'title' || field == 'note') && json[field] is String;
+      return invalid(
+        field,
+        tooLong ? EntryIssue.tooLong : EntryIssue.malformed,
+      );
+    }
+    final type = intent?.ledgerType;
+    if (type == null) return invalid('intent', EntryIssue.malformed);
+    // The currency and the day can be derived; everything else missing
+    // (or still unanswered) stops the save.
+    final missing = check.missing
+        .where((f) => f != 'currency' && f != 'occurredOn')
+        .firstOrNull;
+    if (missing != null) return invalid(missing, EntryIssue.missing);
+
+    final amount = draft.amountMinor!;
+    if (amount < 1 || amount > maxDraftAmountMinor) {
+      return invalid('amountMinor', EntryIssue.amountOutOfRange);
+    }
+    final account = await _store.account(draft.accountId!);
+    if (account == null) {
+      return invalid('accountId', EntryIssue.unknownReference);
+    }
+    final currency = draft.currency == null
+        ? account.currency
+        : Currency.tryParse(draft.currency!);
+    if (currency != account.currency) {
+      return invalid('currency', EntryIssue.currencyMismatch);
+    }
+
+    // A goal's account is the destination of a savings move.
+    String? goalAccount;
+    if (draft.goalId case final goalId?) {
+      goalAccount = await _store.goalAccount(goalId);
+      if (goalAccount == null) {
+        return invalid('goalId', EntryIssue.unknownReference);
+      }
+    }
+    LedgerAccount? to;
+    if (type == LedgerType.transfer) {
+      final toId = draft.toAccountId ?? goalAccount;
+      if (toId == null) return invalid('toAccountId', EntryIssue.missing);
+      if (toId == account.id) {
+        return invalid('toAccountId', EntryIssue.sameAccount);
+      }
+      to = await _store.account(toId);
+      if (to == null) {
+        return invalid('toAccountId', EntryIssue.unknownReference);
+      }
+    }
+
+    if (draft.categoryId case final categoryId?) {
+      final category = await _store.category(categoryId);
+      if (category == null) {
+        return invalid('categoryId', EntryIssue.unknownReference);
+      }
+      final kind = category.kind;
+      if ((type == LedgerType.expense || type == LedgerType.income) &&
+          kind != null &&
+          kind != type.wire) {
+        return invalid('categoryId', EntryIssue.wrongCategoryKind);
+      }
+    }
+    if (draft.personId case final personId?) {
+      if (!await _store.hasPerson(personId)) {
+        return invalid('personId', EntryIssue.unknownReference);
+      }
+    }
+    if (draft.loanId case final loanId?) {
+      final loan = await _store.loan(loanId);
+      if (loan == null) return invalid('loanId', EntryIssue.unknownReference);
+      if (loan.currency != currency) {
+        return invalid('loanId', EntryIssue.currencyMismatch);
+      }
+    }
+
+    // Who: `me` is the writer; with no answer, a joint account's entry is
+    // joint and a personal one belongs to its owner.
+    final String? whoUid;
+    final WhoScope whoScope;
+    switch (draft.who) {
+      case 'joint':
+        (whoUid, whoScope) = (null, WhoScope.joint);
+      case 'partner':
+        final partner = household.memberIds
+            .where((m) => m != scope.uid)
+            .firstOrNull;
+        if (partner == null) return invalid('who', EntryIssue.noPartner);
+        (whoUid, whoScope) = (partner, WhoScope.member);
+      case 'me':
+        (whoUid, whoScope) = (scope.uid, WhoScope.member);
+      default:
+        (whoUid, whoScope) = account.joint
+            ? (null, WhoScope.joint)
+            : (account.ownerUid ?? scope.uid, WhoScope.member);
+    }
+
+    final now = _store.now();
+    final occurredOn = draft.occurredOn ?? householdDay(now);
+    final day = DateTime.tryParse(occurredOn);
+    if (day == null || householdDay(day) != occurredOn) {
+      return invalid('occurredOn', EntryIssue.malformed);
+    }
+    final time = switch (draft.occurredTime) {
+      null => null,
+      final hm => _parseTime(hm),
+    };
+    if (draft.occurredTime != null && time == null) {
+      return invalid('occurredTime', EntryIssue.malformed);
+    }
+    final DateTime occurredAt;
+    if (time != null) {
+      occurredAt = DateTime(day.year, day.month, day.day, time.$1, time.$2);
+    } else if (previous != null && previous.occurredOn == occurredOn) {
+      occurredAt = previous.occurredAt;
+    } else if (occurredOn == householdDay(now)) {
+      occurredAt = now;
+    } else {
+      occurredAt = DateTime(day.year, day.month, day.day, 12);
+    }
+
+    final title = (draft.title ?? draft.personName ?? '').trim();
+    if (title.length > maxTitleLength) {
+      return invalid('title', EntryIssue.tooLong);
+    }
+    final note = switch (draft.note?.trim()) {
+      null || '' => null,
+      final n => n,
+    };
+    if (note != null && note.length > maxNoteLength) {
+      return invalid('note', EntryIssue.tooLong);
+    }
+
+    // FX (DATA_MODEL 1): a rate is needed when the entry is not in the base
+    // currency, or when a transfer between currencies has no typed arriving
+    // amount. The base amount is rounded half-even, once, and stored.
+    final base = household.baseCurrency;
+    final toCurrency = to?.currency;
+    final crossTransfer = toCurrency != null && toCurrency != currency;
+    var toAmount = crossTransfer ? extras.toAmountMinor : null;
+    if (crossTransfer &&
+        toAmount == null &&
+        previous != null &&
+        previous.amountMinor == amount &&
+        previous.accountId == account.id &&
+        previous.toAccountId == to!.id) {
+      toAmount = previous.toAmountMinor;
+    }
+    final needsRate = currency != base || (crossTransfer && toAmount == null);
+    FxRate? rate;
+    StoredFx? fx;
+    if (needsRate) {
+      final priced = await _price(
+        draft,
+        occurredOn: occurredOn,
+        household: household,
+        previous: previous,
+      );
+      switch (priced) {
+        case null:
+          return Err(
+            EntryRateNeeded(
+              draftId: draftId,
+              from: currency!.code,
+              to: currency != base ? base.code : toCurrency!.code,
+            ),
+          );
+        case Err():
+          return invalid('fx', EntryIssue.malformed);
+        case Ok(:final value):
+          (rate, fx) = value;
+      }
+    }
+    final baseAmount = toBaseAmount(Money(amount, currency!), base, rate: rate);
+    final baseMinor = baseAmount.valueOrNull?.minorUnits;
+    if (baseMinor == null) {
+      return invalid(
+        'fx',
+        baseAmount.failureOrNull is AmountOutOfRange
+            ? EntryIssue.amountOutOfRange
+            : EntryIssue.malformed,
+      );
+    }
+    if (crossTransfer && toAmount == null) {
+      toAmount = rate!
+          .convert(Money(amount, currency), toCurrency)
+          .valueOrNull
+          ?.minorUnits;
+      if (toAmount == null) return invalid('fx', EntryIssue.malformed);
+    }
+    if (toAmount != null && (toAmount < 1 || toAmount > maxDraftAmountMinor)) {
+      return invalid('toAmountMinor', EntryIssue.amountOutOfRange);
+    }
+
+    final visibleTo = {...account.visibleTo, ...?to?.visibleTo}.toList()
+      ..sort();
+    if (!visibleTo.contains(scope.uid)) {
+      return const Err(TransactionsNotAllowed());
+    }
+
+    return Ok(
+      LedgerTransaction(
+        id: previous?.id ?? _store.newId(),
+        type: type,
+        amountMinor: amount,
+        currency: currency,
+        accountId: account.id,
+        toAccountId: to?.id,
+        toAmountMinor: toAmount,
+        baseAmountMinor: baseMinor,
+        fx: fx,
+        adjustmentSign: type == LedgerType.adjustment
+            ? switch (extras.adjustmentSign ?? previous?.adjustmentSign) {
+                final int sign when sign < 0 => -1,
+                _ => 1,
+              }
+            : null,
+        categoryId: draft.categoryId,
+        whoUid: whoUid,
+        whoScope: whoScope,
+        occurredAt: occurredAt,
+        occurredOn: occurredOn,
+        title: title,
+        note: note,
+        personId: draft.personId,
+        loanId: draft.loanId,
+        goalId: draft.goalId,
+        recurringId: previous?.recurringId,
+        groupId: groupId,
+        source: source,
+        ai: previous == null ? _aiOf(draft) : previous.ai,
+        visibleTo: visibleTo,
+        deletedAt: previous?.deletedAt,
+        rev: previous?.rev ?? 0,
+        createdBy: previous?.createdBy ?? scope.uid,
+      ),
+    );
+  }
+
+  /// The rate for a draft: the one it names, else (on an edit that keeps
+  /// the day) the stored one, else the household's for the day. Null when
+  /// there is none; an [Err] when the named one is malformed.
+  Future<Result<(FxRate, StoredFx), MoneyFailure>?> _price(
+    EntryDraft draft, {
+    required String occurredOn,
+    required LedgerHousehold household,
+    LedgerTransaction? previous,
+  }) async {
+    final named = draft.fx;
+    final stored = previous?.fx;
+    // A prefilled draft repeats the stored rate; that names nothing new.
+    final repeatsStored =
+        named != null &&
+        stored != null &&
+        named.pair == stored.pair &&
+        named.pairRate == stored.pairRate &&
+        (named.asOf ?? stored.asOf) == stored.asOf;
+    if (named != null && !repeatsStored) {
+      final parsed = FxRate.parse(named.pair, named.pairRate);
+      if (parsed case Err(:final failure)) return Err(failure);
+      final rate = parsed.valueOrNull!;
+      final asOf = named.asOf;
+      return Ok((
+        rate,
+        StoredFx(
+          pair: rate.pair.code,
+          pairRate: rate.rateString,
+          source: fxSourceValues.contains(named.source)
+              ? named.source!
+              : 'manual',
+          asOf: asOf != null && DateTime.tryParse(asOf) != null
+              ? asOf
+              : occurredOn,
+        ),
+      ));
+    }
+    final storedRate = stored?.rate;
+    if (stored != null &&
+        storedRate != null &&
+        previous!.occurredOn == occurredOn) {
+      return Ok((storedRate, stored));
+    }
+    final dayRate = await _store.rateOn(occurredOn);
+    if (dayRate == null) return null;
+    return Ok((
+      dayRate.rate,
+      StoredFx(
+        pair: dayRate.rate.pair.code,
+        pairRate: dayRate.rate.rateString,
+        source: household.rateKind,
+        asOf: dayRate.day,
+      ),
+    ));
+  }
+
+  // ------------------------------------------------------------- helpers
+
+  void _reportLate(List<String> ids, TransactionsFailure failure) {
+    if (!_late.isClosed) {
+      _late.add(LateWriteFailure(txnIds: ids, failure: failure));
+    }
+  }
+
+  static TransactionsFailure _fromStore(StoreFailure failure) =>
+      switch (failure.kind) {
+        StoreFailureKind.denied => const TransactionsNotAllowed(),
+        StoreFailureKind.unknown => TransactionsUnknown(failure.detail),
+      };
+
+  static Map<String, Object?> _createStamps(String uid) => {
+    'createdAt': serverTime,
+    'createdBy': uid,
+    'updatedAt': serverTime,
+    'updatedBy': uid,
+    'schemaVersion': 1,
+  };
+
+  static Map<String, Object?> _updateStamps(String uid) => {
+    'updatedAt': serverTime,
+    'updatedBy': uid,
+  };
+
+  static String _draftId(EntryDraft draft) => '${draft.toJson()['id']}';
+
+  static Map<String, Object?>? _aiOf(EntryDraft draft) {
+    final json = draft.toJson();
+    final origin = json['origin'];
+    if (origin is! String) return null;
+    return {
+      'path': origin,
+      'confidence': json['confidence'],
+      'guessedFields': json['guessed'] ?? const <String>[],
+    };
+  }
+
+  static (int, int)? _parseTime(String hm) {
+    final match = RegExp(r'^(\d{2}):(\d{2})$').firstMatch(hm);
+    if (match == null) return null;
+    final h = int.parse(match.group(1)!);
+    final m = int.parse(match.group(2)!);
+    return h < 24 && m < 60 ? (h, m) : null;
+  }
+}
+
+/// Longest `title`, in characters (DATA_MODEL 2.5).
+const int maxTitleLength = 80;
+
+/// Longest `note`, in characters (DATA_MODEL 2.5).
+const int maxNoteLength = 500;
+
+/// The household-local calendar day of [time], `YYYY-MM-DD` (DATA_MODEL 1).
+/// The phone's zone stands in for the household's: both partners live in
+/// the household's zone (`Asia/Baghdad` by default).
+String householdDay(DateTime time) {
+  final t = time.isUtc ? time.toLocal() : time;
+  String two(int v) => v.toString().padLeft(2, '0');
+  return '${t.year.toString().padLeft(4, '0')}-${two(t.month)}-${two(t.day)}';
+}
+
+/// `revisions/{id}.reason` (DATA_MODEL 2.5); `system` is the server's.
+enum RevisionReason {
+  /// An edit.
+  edit,
+
+  /// Undo right after a save.
+  undo,
+
+  /// A delete.
+  delete,
+
+  /// A restore of a deleted entry.
+  restore,
+}
+
+typedef _Build = Future<Result<_Revision?, TransactionsFailure>> Function(
+  LedgerTransaction prev,
+  LedgerScope scope,
+  LedgerHousehold household,
+);
+
+/// One change to a stored transaction.
+@immutable
+final class _Revision {
+  const new({
+    required this.fields,
+    required this.before,
+    required this.reason,
+    required this.after,
+  });
+
+  /// The fields written.
+  final Map<String, Object?> fields;
+
+  /// Their values before.
+  final Map<String, Object?> before;
+
+  /// Why.
+  final RevisionReason reason;
+
+  /// The transaction's balance fields afterwards.
+  final LedgerLine after;
+}
+
+bool _deepEquals(Object? a, Object? b) {
+  if (a is Map && b is Map) {
+    return a.length == b.length &&
+        a.keys.every((k) => b.containsKey(k) && _deepEquals(a[k], b[k]));
+  }
+  if (a is List && b is List) {
+    if (a.length != b.length) return false;
+    for (var i = 0; i < a.length; i++) {
+      if (!_deepEquals(a[i], b[i])) return false;
+    }
+    return true;
+  }
+  return a == b;
+}

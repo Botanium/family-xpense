@@ -155,7 +155,7 @@ Counterparties for loans and for "person → account" rules. `name`, `aliases[]`
 ### 2.12 `rules/{ruleId}`
 Learned from corrections, applied by the on-device fast parser.
 
-`kind` (`merchant` \| `keyword` \| `person`), `pattern` (normalised, lower-case), `sets` (`{categoryId?, accountId?, whoScope?, whoUid?, type?, currency?}`; `currency` is planned with BACKLOG S3.15), `ownerUid?` (personal rule) or household-wide, `hits`, `lastUsedAt`, `fromTxnId`, `visibleTo`.
+`kind` (`merchant` \| `keyword` \| `person`), `pattern` (normalised, lower-case), `sets` (`{categoryId?, accountId?, whoScope?, whoUid?, type?}`), `ownerUid?` (personal rule) or household-wide, `hits`, `lastUsedAt`, `fromTxnId`, `visibleTo`.
 
 ### 2.13 `fxRates/{yyyy-mm-dd}` (under the household)
 

@@ -83,7 +83,6 @@ MVP for the two partners is M0 to M4 plus loans from M5.
 | S3.12 | Questions | "how much…" answers with figures from tools and a breakdown surface | M | S3.6 | WP-32 |
 | S3.13 | Evaluation harness | flows, evaluators and CI job from AI_PIPELINE 11; dataset of at least 156 English utterances; thresholds tuned; measured cost table replaces estimates | L | S3.6, S3.7, S3.1 | WP-35 |
 | S3.14 | Duplicate hint | deterministic candidates plus the `duplicate` question; warning on the slip | S | S3.7 | WP-33 |
-| S3.15 | Currency learning | with no currency word and no named account, currency is settled in this order: a learned rule (`sets.currency`, written when a member answers a currency follow-up, e.g. "salary" → USD), then the category's amount history (the currency whose past amounts for that category this amount fits; "salary 3000" → USD when past salaries were about USD 3,000), then the account default and magnitude check; anything still ambiguous stays `guessed` and the slip asks; works for any currency pair; eval slice for bare amounts | M | S3.11, S2.1 | unassigned |
 
 ## E4. Voice and receipts (M4)
 
