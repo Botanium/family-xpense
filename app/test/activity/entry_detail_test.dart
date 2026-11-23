@@ -317,6 +317,100 @@ void main() {
     expect(find.text('USD 10.00'), findsOneWidget);
   });
 
+  group('editing a transfer between currencies (Codex review, PR #39)', () {
+    Future<String> seedTransfer(LedgerApp app, {int? arrives}) async {
+      final saved = await app.repository.saveEntries(
+        [
+          EntryDraft(
+            id: 'd1',
+            intent: 'transfer',
+            amountMinor: 10000,
+            currency: 'USD',
+            accountId: 'acc-checking',
+            toAccountId: 'acc-cash',
+            occurredOn: '2026-11-22',
+          ),
+        ],
+        extras: {'d1': EntryExtras(toAmountMinor: arrives)},
+      );
+      return saved.valueOrNull!.txnIds.single;
+    }
+
+    Future<void> changeAmount(
+      WidgetTester tester,
+      LedgerApp app,
+      String id,
+    ) async {
+      final container = await app.pump(tester);
+      await pushTo(tester, container, AppRoutes.editEntry(id, field: 'amount'));
+      expect(find.text('Edit entry'), findsOneWidget);
+      await tester.enterText(
+        find
+            .descendant(
+              of: find.byType(AmountField),
+              matching: find.byType(EditableText),
+            )
+            .first,
+        '120',
+      );
+      await tester.pump();
+      await _tap(tester, find.text('Save changes'));
+      expect(find.text('Edit entry'), findsNothing);
+    }
+
+    String arrivesText(WidgetTester tester) => tester
+        .widget<EditableText>(
+          find
+              .descendant(
+                of: find.byType(AmountField),
+                matching: find.byType(EditableText),
+              )
+              .last,
+        )
+        .controller
+        .text;
+
+    testWidgets('a typed arriving amount is kept when the amount changes', (
+      tester,
+    ) async {
+      final app = LedgerApp();
+      final id = await seedTransfer(app, arrives: 150000);
+      expect(_stored(app, id)['toAmountSource'], 'entered');
+      final container = await app.pump(tester);
+      await pushTo(tester, container, AppRoutes.editEntry(id, field: 'amount'));
+      expect(arrivesText(tester), '150000');
+      await tester.enterText(
+        find
+            .descendant(
+              of: find.byType(AmountField),
+              matching: find.byType(EditableText),
+            )
+            .first,
+        '120',
+      );
+      await tester.pump();
+      await _tap(tester, find.text('Save changes'));
+
+      expect(_stored(app, id)['amountMinor'], 12000);
+      expect(_stored(app, id)['toAmountMinor'], 150000);
+      expect(_stored(app, id)['toAmountSource'], 'entered');
+    });
+
+    testWidgets('a converted arriving amount is converted again', (
+      tester,
+    ) async {
+      final app = LedgerApp();
+      final id = await seedTransfer(app);
+      expect(_stored(app, id)['toAmountSource'], 'rate');
+      expect(_stored(app, id)['toAmountMinor'], 170500);
+      await changeAmount(tester, app, id);
+
+      expect(_stored(app, id)['amountMinor'], 12000);
+      expect(_stored(app, id)['toAmountMinor'], 204600);
+      expect(_stored(app, id)['toAmountSource'], 'rate');
+    });
+  });
+
   testWidgets('delete asks first, then offers Undo', (tester) async {
     final app = LedgerApp();
     final id = await seedEntry(app);

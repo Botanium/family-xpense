@@ -172,7 +172,7 @@ final class ManualEntryValues {
       loanDirection:
           LoanDirection.fromIntent(draft.intent) ?? LoanDirection.lent,
       amountText: switch ((draft.amountMinor, currency)) {
-        (final int minor, final Currency c) => _plainAmount(minor, c.exponent),
+        (final int minor, final Currency c) => plainAmount(minor, c.exponent),
         _ => '',
       },
       accountId: draft.accountId,
@@ -339,7 +339,9 @@ final class ManualEntryValues {
     rateAsked,
   );
 
-  static String _plainAmount(int minor, int exponent) {
+  /// [minor] as the form types it: digits and the currency's decimals,
+  /// no grouping, such as `42.80` or `10000`.
+  static String plainAmount(int minor, int exponent) {
     final figure = MoneyFormat.figure(minor, exponent: exponent);
     return '${figure.whole.replaceAll(',', '')}${figure.fraction}';
   }

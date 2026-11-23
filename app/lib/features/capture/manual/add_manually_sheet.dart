@@ -41,6 +41,7 @@ Future<ManualSheetOutcome?> showAddManuallySheet(
   EntryDraft? draft,
   String? editTxnId,
   ManualField? focus,
+  int? arrivesMinor,
 }) {
   // The root navigator, so the sheet covers the floating tab bar.
   final root = Navigator.of(context, rootNavigator: true);
@@ -61,6 +62,7 @@ Future<ManualSheetOutcome?> showAddManuallySheet(
       initial: draft,
       editTxnId: editTxnId,
       focus: focus,
+      arrivesMinor: arrivesMinor,
     ),
   );
 }
@@ -118,7 +120,13 @@ Future<ManualSheetOutcome?> _showFormSheet({
 class AddManuallyForm extends ConsumerStatefulWidget {
   /// Creates the form, prefilled from [initial]; with [editTxnId] it edits
   /// that entry.
-  const new({this.initial, this.editTxnId, this.focus, super.key});
+  const new({
+    this.initial,
+    this.editTxnId,
+    this.focus,
+    this.arrivesMinor,
+    super.key,
+  });
 
   /// The prefilled draft.
   final EntryDraft? initial;
@@ -128,6 +136,13 @@ class AddManuallyForm extends ConsumerStatefulWidget {
 
   /// The field to bring into view first.
   final ManualField? focus;
+
+  /// What a cross-currency transfer being edited says arrives, when the
+  /// member typed it (`toAmountSource: entered`), in the destination's
+  /// minor units. It prefills Arrives, so it is sent again and kept
+  /// unless changed or cleared; a converted amount is left empty and
+  /// converted again (Codex review, PR #39).
+  final int? arrivesMinor;
 
   @override
   ConsumerState<AddManuallyForm> createState() => AddManuallyFormState();
@@ -162,6 +177,19 @@ class AddManuallyFormState extends ConsumerState<AddManuallyForm> {
     _values = initial == null
         ? ManualEntryValues(kind: ManualKind.expense, occurredOn: today)
         : ManualEntryValues.fromDraft(initial, today: today);
+    final arrives = widget.arrivesMinor;
+    final destination = (ref.read(accountsProvider).value ?? const [])
+        .where((a) => a.id == initial?.toAccountId)
+        .firstOrNull;
+    if (arrives != null && destination != null) {
+      _values = _values.copyWith(
+        toAmountText: ManualEntryValues.plainAmount(
+          arrives,
+          destination.currency.exponent,
+        ),
+      );
+      _toAmount.text = _values.toAmountText;
+    }
     _start = _values;
     _amount.text = _values.amountText;
     _note.text = _values.note;

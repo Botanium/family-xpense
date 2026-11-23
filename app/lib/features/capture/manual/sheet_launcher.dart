@@ -7,6 +7,7 @@ import 'package:xpense_app/core/routing/routing.dart';
 import 'package:xpense_app/data/accounts_repository.dart';
 import 'package:xpense_app/data/mappers/transaction_mapper.dart';
 import 'package:xpense_app/data/read/entry_reader.dart';
+import 'package:xpense_app/data/transactions_repository.dart';
 import 'package:xpense_app/features/capture/manual/add_manually_sheet.dart';
 import 'package:xpense_app/features/capture/manual/manual_entry.dart';
 import 'package:xpense_shared/xpense_shared.dart';
@@ -82,6 +83,8 @@ class _EditEntryLauncherState extends ConsumerState<EditEntryLauncher> {
         .watchEntry(widget.txnId)
         .first;
     final viewer = ref.read(accountsRepositoryProvider).viewerUid;
+    // The form formats a typed arriving amount in its account's currency.
+    await ref.read(accountsProvider.future);
     if (!mounted) return;
     if (record == null || viewer == null || record.txn.deleted) {
       _close(context);
@@ -91,6 +94,9 @@ class _EditEntryLauncherState extends ConsumerState<EditEntryLauncher> {
       context,
       draft: draftFromTransaction(record.txn, viewerUid: viewer),
       editTxnId: widget.txnId,
+      arrivesMinor: record.txn.toAmountSource == ToAmountSource.entered
+          ? record.txn.toAmountMinor
+          : null,
       focus: ManualField.values
           .where((f) => f.name == widget.field)
           .firstOrNull,
@@ -99,7 +105,12 @@ class _EditEntryLauncherState extends ConsumerState<EditEntryLauncher> {
   }
 
   @override
-  Widget build(BuildContext context) => const SizedBox.shrink();
+  Widget build(BuildContext context) {
+    // Watched so the accounts stay live (Riverpod pauses a provider no
+    // one watches) while [_open] waits for them.
+    ref.watch(accountsProvider);
+    return const SizedBox.shrink();
+  }
 }
 
 void _close(BuildContext context) {
