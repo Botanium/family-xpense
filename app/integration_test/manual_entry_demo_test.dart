@@ -3,7 +3,8 @@
 // - "walk-through" saves an expense, an income, a transfer and a loan
 //   through Add manually, then opens an entry's detail, edits it from a
 //   row and restores the old value from its history.
-// - "demo" is the same, paced and shorter, for the PR recording:
+// - "demo" is the same without income and transfer, paced, for the PR
+//   recording:
 //
 //   tools/pr_demo.sh start <device>
 //   cd app && flutter test integration_test/manual_entry_demo_test.dart \
@@ -52,7 +53,11 @@ void main() {
     return container;
   }
 
-  Future<void> run(WidgetTester tester, {required int pace}) async {
+  Future<void> run(
+    WidgetTester tester, {
+    required int pace,
+    bool everyType = true,
+  }) async {
     Future<void> tap(Finder target) async {
       await tester.ensureVisible(target);
       await tester.pumpAndSettle();
@@ -92,26 +97,35 @@ void main() {
     await tap(find.text('Save'));
     await saved();
 
-    // Income in dinars: the currency follows the account.
-    await open();
-    await tap(find.text('Income'));
-    await tap(find.widgetWithText(XpDisclosure, 'Account'));
-    await tap(find.text('Cash (IQD)').last);
-    expect(find.text('IQD'), findsOneWidget);
-    await type(_amount(), '250000');
-    await tap(find.text('Received'));
-    await tap(find.text('Gift received'));
-    await tap(find.text('Save'));
-    await saved();
+    if (everyType) {
+      // Income in dinars: the currency follows the account.
+      await open();
+      await tap(find.text('Income'));
+      await tap(find.widgetWithText(XpDisclosure, 'Account'));
+      await tap(find.text('Cash (IQD)').last);
+      expect(find.text('IQD'), findsOneWidget);
+      await type(_amount(), '250000');
+      await tap(find.text('Received'));
+      await tap(find.text('Gifts received'));
+      await tap(find.text('Save'));
+      // The fakes ledger has no dollar rate yet: the sheet asks inline.
+      expect(
+        find.text("There's no dollar rate for this day yet. Enter it to save."),
+        findsOneWidget,
+      );
+      await type(_field('Dollar rate, dinars per dollar'), '1705');
+      await tap(find.text('Save'));
+      await saved();
 
-    // Transfer to the savings account.
-    await open();
-    await tap(find.text('Transfer'));
-    await type(_amount(), '100');
-    await tap(find.widgetWithText(XpDisclosure, 'To'));
-    await tap(find.text('Summer trip').last);
-    await tap(find.text('Save'));
-    await saved();
+      // Transfer to the savings account.
+      await open();
+      await tap(find.text('Transfer'));
+      await type(_amount(), '100');
+      await tap(find.widgetWithText(XpDisclosure, 'To'));
+      await tap(find.text('Summer trip').last);
+      await tap(find.text('Save'));
+      await saved();
+    }
 
     // Loan: a missing person is named next to the field.
     await open();
@@ -137,6 +151,7 @@ void main() {
             categoryId: 'dining',
             who: 'me',
             note: 'Lunch with the kids',
+            fx: FxQuote(pair: 'USD/IQD', pairRate: '1705', source: 'market'),
           ),
         ], source: EntrySource.voice);
     final id = seeded.valueOrNull!.txnIds.single;
@@ -159,5 +174,5 @@ void main() {
 
   testWidgets('walk-through', (tester) => run(tester, pace: 0));
 
-  testWidgets('demo', (tester) => run(tester, pace: 4));
+  testWidgets('demo', (tester) => run(tester, pace: 3, everyType: false));
 }
