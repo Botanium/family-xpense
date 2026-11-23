@@ -562,6 +562,81 @@ void main() {
     });
   });
 
+  testWidgets("a linked loan's person is read-only in the edit sheet", (
+    tester,
+  ) async {
+    final app = LedgerApp();
+    app.memory.people.add('p_alex');
+    final saved = await app.repository.saveEntries([
+      EntryDraft(
+        id: 'd1',
+        intent: 'loan_given',
+        amountMinor: 30000,
+        currency: 'USD',
+        accountId: 'acc-checking',
+        personId: 'p_alex',
+        personName: 'Alex',
+        occurredOn: '2026-11-22',
+      ),
+    ]);
+    final id = saved.valueOrNull!.txnIds.single;
+    final container = await app.pump(tester);
+    await pushTo(tester, container, AppRoutes.entry(id));
+
+    await _tap(tester, find.widgetWithText(XpDisclosure, 'Person'));
+    expect(find.text('Edit entry'), findsOneWidget);
+    expect(
+      tester.widget<XpTextField>(find.widgetWithText(XpTextField, 'Person')),
+      isA<XpTextField>().having((f) => f.enabled, 'enabled', isFalse),
+    );
+    expect(
+      find.text('This person is part of a loan. Change them from the loan.'),
+      findsOneWidget,
+    );
+
+    // Other fields still save; the counterparty is untouched.
+    await tester.enterText(
+      find.descendant(
+        of: find.widgetWithText(XpTextField, 'Note'),
+        matching: find.byType(EditableText),
+      ),
+      'Back next week',
+    );
+    await _tap(tester, find.text('Save changes'));
+    expect(_stored(app, id)['note'], 'Back next week');
+    expect(_stored(app, id)['personId'], 'p_alex');
+    expect(_stored(app, id)['personName'], 'Alex');
+  });
+
+  testWidgets("a name-only loan's person can still be renamed", (tester) async {
+    final app = LedgerApp();
+    final saved = await app.repository.saveEntries([
+      EntryDraft(
+        id: 'd1',
+        intent: 'loan_given',
+        amountMinor: 30000,
+        currency: 'USD',
+        accountId: 'acc-checking',
+        personName: 'Alex',
+        occurredOn: '2026-11-22',
+      ),
+    ]);
+    final id = saved.valueOrNull!.txnIds.single;
+    final container = await app.pump(tester);
+    await pushTo(tester, container, AppRoutes.entry(id));
+    await _tap(tester, find.widgetWithText(XpDisclosure, 'Person'));
+    expect(
+      tester
+          .widget<XpTextField>(find.widgetWithText(XpTextField, 'Person'))
+          .enabled,
+      isTrue,
+    );
+    expect(
+      find.text('This person is part of a loan. Change them from the loan.'),
+      findsNothing,
+    );
+  });
+
   testWidgets('delete asks first, then offers Undo', (tester) async {
     final app = LedgerApp();
     final id = await seedEntry(app);

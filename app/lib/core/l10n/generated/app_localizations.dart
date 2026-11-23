@@ -3689,6 +3689,12 @@ abstract class AppLocalizations {
   /// **'Who it\'s with'**
   String get captureManualPersonHint;
 
+  /// Line under the read-only person field when an entry belongs to a saved person or loan.
+  ///
+  /// In en, this message translates to:
+  /// **'This person is part of a loan. Change them from the loan.'**
+  String get captureManualPersonLinked;
+
   /// Loan tab chip: the member lent money.
   ///
   /// In en, this message translates to:

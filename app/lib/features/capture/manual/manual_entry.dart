@@ -469,7 +469,12 @@ ManualEntryCheck checkManualEntry(
   }
 
   final loan = ManualKind.fromIntent(intent) == ManualKind.loan;
-  final person = values.personName.trim();
+  // A loan event linked to a person or a loan keeps its counterparty: the
+  // name and the ids must agree, and they are changed from the loan
+  // (WP-50), never here (Codex review, PR #39).
+  final person = personLinked(initial)
+      ? (initial?.personName ?? '').trim()
+      : values.personName.trim();
   if (loan && initial?.personId == null && person.isEmpty) {
     errors[ManualField.person] = ManualIssue.missing;
   } else if (person.length > manualPersonMaxLength) {
@@ -646,3 +651,10 @@ String defaultWho({
   if (joint) return 'joint';
   return ownerUid == null || ownerUid == viewerUid ? 'me' : 'partner';
 }
+
+/// Whether the counterparty of [initial] is linked to a stored person or
+/// loan (`personId`, `loanId`): the sheet then shows it read-only, since
+/// changing the name alone would leave the ids naming someone else. Only a
+/// loan event saved with just a name can be renamed here.
+bool personLinked(EntryDraft? initial) =>
+    initial?.personId != null || initial?.loanId != null;

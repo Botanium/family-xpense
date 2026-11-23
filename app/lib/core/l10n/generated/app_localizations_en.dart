@@ -2029,6 +2029,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get captureManualPersonHint => 'Who it\'s with';
 
   @override
+  String get captureManualPersonLinked =>
+      'This person is part of a loan. Change them from the loan.';
+
+  @override
   String get captureManualLoanLent => 'I lent';
 
   @override

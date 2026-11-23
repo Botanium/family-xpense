@@ -653,7 +653,7 @@ class AddManuallyFormState extends ConsumerState<AddManuallyForm> {
                   label: l10n.captureManualPerson,
                   hint: l10n.captureManualPersonHint,
                   controller: _person,
-                  enabled: !_saving,
+                  enabled: !_saving && !personLinked(widget.initial),
                   textInputAction: TextInputAction.next,
                   error: error(ManualField.person),
                   onChanged: (text) => _edit(
@@ -662,6 +662,14 @@ class AddManuallyFormState extends ConsumerState<AddManuallyForm> {
                   ),
                 ),
               ),
+              if (personLinked(widget.initial))
+                Padding(
+                  padding: const EdgeInsetsDirectional.only(top: XpSpace.s4),
+                  child: Text(
+                    l10n.captureManualPersonLinked,
+                    style: type.meta.copyWith(color: colors.inkSecondary),
+                  ),
+                ),
             ],
             if (categoryKind != null) ...[
               const SizedBox(height: XpSpace.s20),

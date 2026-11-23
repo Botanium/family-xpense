@@ -2900,6 +2900,10 @@
   "@captureManualPersonHint": {
     "description": "Placeholder of the counterparty field."
   },
+  "captureManualPersonLinked": "This person is part of a loan. Change them from the loan.",
+  "@captureManualPersonLinked": {
+    "description": "Line under the read-only person field when an entry belongs to a saved person or loan."
+  },
   "captureManualLoanLent": "I lent",
   "@captureManualLoanLent": {
     "description": "Loan tab chip: the member lent money."

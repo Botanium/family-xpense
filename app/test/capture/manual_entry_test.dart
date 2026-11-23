@@ -355,6 +355,42 @@ void main() {
       expect(kept.title, 'Dinner money');
     });
 
+    test("a linked loan's person is not renamed here", () {
+      // Codex review, PR #39: a new name with the old personId and loanId
+      // would name one person and point at another.
+      final initial = EntryDraft(
+        id: 'x',
+        intent: 'repayment_received',
+        amountMinor: 5000,
+        currency: 'USD',
+        accountId: 'usd',
+        personId: 'p_alex',
+        personName: 'Alex',
+        loanId: 'loan_alex',
+      );
+      expect(personLinked(initial), isTrue);
+      final draft = _check(
+        ManualEntryValues.fromDraft(
+          initial,
+          today: _day,
+        ).copyWith(personName: 'Sam'),
+        initial: initial,
+      ).draft!;
+      expect(draft.personName, 'Alex');
+      expect(draft.personId, 'p_alex');
+      expect(draft.loanId, 'loan_alex');
+
+      final nameOnly = EntryDraft(
+        id: 'y',
+        intent: 'loan_given',
+        amountMinor: 5000,
+        currency: 'USD',
+        accountId: 'usd',
+        personName: 'Alex',
+      );
+      expect(personLinked(nameOnly), isFalse);
+    });
+
     test('an adjustment keeps its intent and hides the tabs', () {
       final values = ManualEntryValues.fromDraft(
         EntryDraft(
