@@ -452,15 +452,6 @@ abstract interface class AccountsRepository {
   /// The household's members.
   Stream<List<HouseholdMember>> watchMembers();
 
-  /// The most recent USD/IQD rate the household entered (DATA_MODEL 2.13),
-  /// or null when it has none.
-  Stream<FxRate?> watchLatestRate();
-
-  /// Saves [rate] as today's USD/IQD rate (`fxRates/{yyyy-mm-dd}`, labelled
-  /// with the household's `rateKind`, `market` by default), as a member
-  /// answering the daily rate prompt (ARCHITECTURE 3.5).
-  Future<Result<void, AccountsFailure>> setDailyRate(FxRate rate);
-
   /// The newest entries on account [accountId] the member can see, newest
   /// first.
   Stream<List<AccountEntry>> watchEntries(String accountId);
@@ -511,12 +502,6 @@ final accountsProvider = StreamProvider<List<Account>>(
 final householdMembersProvider = StreamProvider<List<HouseholdMember>>(
   (ref) => ref.watch(accountsRepositoryProvider).watchMembers(),
   name: 'householdMembersProvider',
-);
-
-/// The household's latest USD/IQD rate, as a stream.
-final latestRateProvider = StreamProvider<FxRate?>(
-  (ref) => ref.watch(accountsRepositoryProvider).watchLatestRate(),
-  name: 'latestRateProvider',
 );
 
 /// The entries of one account, as a stream.

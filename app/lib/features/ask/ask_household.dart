@@ -1,7 +1,9 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:xpense_app/a2ui/xpense_surface_host.dart';
 import 'package:xpense_app/data/accounts_repository.dart';
+import 'package:xpense_app/data/fx_repository.dart';
 import 'package:xpense_app/data/household_repository.dart';
+import 'package:xpense_app/services/clock.dart';
 import 'package:xpense_shared/xpense_shared.dart';
 
 /// The household the Ask cards and the parser use, from the same sources
@@ -19,6 +21,7 @@ final askHouseholdProvider = Provider<XpenseHousehold>(
     members: ref.watch(householdMembersProvider).value ?? const [],
     viewerUid: ref.watch(accountsRepositoryProvider).viewerUid,
     latestRate: ref.watch(latestRateProvider).value,
+    rateEnteredToday: _rateEnteredToday(ref),
   ),
   name: 'askHouseholdProvider',
 );
@@ -30,6 +33,7 @@ XpenseHousehold xpenseHouseholdFrom({
   required List<HouseholdMember> members,
   required String? viewerUid,
   required FxRate? latestRate,
+  bool rateEnteredToday = false,
 }) => XpenseHousehold(
   baseCurrency: switch (membership) {
     InHousehold(:final household) => household.baseCurrency.code,
@@ -49,4 +53,13 @@ XpenseHousehold xpenseHouseholdFrom({
       .map((m) => m.displayName)
       .firstOrNull,
   latestRate: latestRate?.pair == FxPair.usdIqd ? latestRate?.rateString : null,
+  rateEnteredToday: rateEnteredToday,
 );
+
+/// Whether someone in the household (this member or the partner) already
+/// entered today's rate: then a slip does not ask for it (D-16).
+bool _rateEnteredToday(Ref ref) {
+  final today = rateDayOf(ref.watch(clockProvider).now());
+  final rates = ref.watch(fxRatesProvider).value ?? const <DailyRate>[];
+  return rates.any((r) => r.day == today);
+}

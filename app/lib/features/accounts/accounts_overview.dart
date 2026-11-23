@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:xpense_app/data/accounts_repository.dart';
+import 'package:xpense_app/data/fx_repository.dart';
 import 'package:xpense_app/data/household_repository.dart';
 import 'package:xpense_shared/xpense_shared.dart';
 

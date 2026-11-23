@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:xpense_app/data/accounts_repository.dart';
 import 'package:xpense_app/data/accounts_repository_fake.dart';
 import 'package:xpense_app/data/accounts_repository_firebase.dart';
+import 'package:xpense_app/data/fx_repository_firebase.dart';
 import 'package:xpense_app/features/accounts/account_form.dart';
 import 'package:xpense_app/features/accounts/accounts_overview.dart';
 import 'package:xpense_shared/xpense_shared.dart';
@@ -372,8 +373,13 @@ void main() {
     });
 
     test("a day's rate", () {
-      expect(rateFromFirestore({'usdIqd': '1705'})?.rateString, '1705');
-      expect(rateFromFirestore({'usdIqd': 1705}), isNull);
+      expect(
+        dailyRateFromFirestore('2026-11-22', {
+          'usdIqd': '1705',
+        })?.rate.rateString,
+        '1705',
+      );
+      expect(dailyRateFromFirestore('2026-11-22', {'usdIqd': 1705}), isNull);
     });
   });
 }

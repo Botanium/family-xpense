@@ -10,6 +10,7 @@ import 'package:clock/clock.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
+import 'package:xpense_app/data/fx_repository_firebase.dart';
 import 'package:xpense_app/data/household_repository.dart';
 import 'package:xpense_app/data/mappers/transaction_mapper.dart';
 import 'package:xpense_app/data/transactions_repository.dart';
@@ -165,18 +166,9 @@ final class FirestoreLedgerStore implements LedgerStore {
     );
     if (snapshot == null) return null;
     for (final doc in snapshot.docs.reversed) {
-      final value = doc.data()['usdIqd'];
-      if (value is! String) continue;
-      final rate = FxRate.forPair(FxPair.usdIqd, value).valueOrNull;
-      if (rate == null) continue;
-      return DayRate(
-        day: doc.id,
-        rate: rate,
-        kind: switch (doc.data()['kind']) {
-          final String kind => kind,
-          _ => null,
-        },
-      );
+      final stored = dailyRateFromFirestore(doc.id, doc.data());
+      if (stored == null) continue;
+      return DayRate(day: doc.id, rate: stored.rate, kind: stored.kind.wire);
     }
     return null;
   }

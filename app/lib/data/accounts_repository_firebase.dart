@@ -9,6 +9,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 
 import 'package:xpense_app/data/accounts_repository.dart';
+import 'package:xpense_app/data/fx_repository.dart';
+import 'package:xpense_app/data/fx_repository_firebase.dart';
 import 'package:xpense_app/data/household_repository.dart';
 import 'package:xpense_app/data/transactions_repository.dart';
 import 'package:xpense_app/data/write/firestore_ledger_store.dart';
@@ -248,30 +250,6 @@ final class FirebaseAccountsRepository implements AccountsRepository {
       ],
     ),
   );
-
-  @override
-  Stream<FxRate?> watchLatestRate() =>
-      _scoped(null, (hid, _) => _recentRates(hid).snapshots().map(_newestRate));
-
-  /// How far back the latest rate is looked for. Older rates are stale
-  /// enough that the form asks for today's instead.
-  static const Duration rateWindow = Duration(days: 120);
-
-  /// The day documents of the last [rateWindow], oldest first. Firestore
-  /// (and its emulator) cannot scan document ids newest first, so the
-  /// window is read ascending and the newest taken.
-  Query<Map<String, dynamic>> _recentRates(String hid) =>
-      _collection(hid, 'fxRates')
-          .where(
-            FieldPath.documentId,
-            isGreaterThanOrEqualTo: localDay(_clock.now().subtract(rateWindow)),
-          )
-          .orderBy(FieldPath.documentId);
-
-  static FxRate? _newestRate(QuerySnapshot<Map<String, dynamic>> snapshot) =>
-      snapshot.docs.isEmpty
-      ? null
-      : rateFromFirestore(snapshot.docs.last.data());
 
   @override
   Stream<List<AccountEntry>> watchEntries(String accountId) =>
@@ -532,32 +510,6 @@ final class FirebaseAccountsRepository implements AccountsRepository {
     }
   }
 
-  @override
-  Future<Result<void, AccountsFailure>> setDailyRate(FxRate rate) async {
-    final hid = _hid;
-    final uid = _uid;
-    if (hid == null || uid == null) return const Err(AccountsNotAllowed());
-    const what = "saving today's rate";
-    try {
-      final household = await _collectionDoc(hid).get();
-      final rateKind = switch (household.data()?['rateKind']) {
-        'official' => 'official',
-        _ => 'market',
-      };
-      final batch = _firestore.batch()
-        ..set(_collection(hid, 'fxRates').doc(householdDay(_clock.now())), {
-          'usdIqd': rate.rateString,
-          'kind': rateKind,
-          'enteredBy': uid,
-          'enteredAt': FieldValue.serverTimestamp(),
-        });
-      await _commit(batch, what);
-      return const Ok(null);
-    } on FirebaseException catch (e, s) {
-      return Err(_failure(e, s, what));
-    }
-  }
-
   /// Keeps `members/{uid}.hasPrivateAccounts` in step with [accounts], the
   /// member's accounts after the write.
   void _flagPrivate(
@@ -590,9 +542,20 @@ final class FirebaseAccountsRepository implements AccountsRepository {
     }
   }
 
+  /// The newest rate of the last [latestRateWindow], for an opening
+  /// balance in the other currency.
   Future<FxRate?> _latestRate(String hid) async {
     try {
-      return _newestRate(await _recentRates(hid).get());
+      final snapshot = await ratesSince(
+        _collection(hid, 'fxRates'),
+        localDay(_clock.now().subtract(latestRateWindow)),
+      ).get();
+      for (final doc in snapshot.docs.reversed) {
+        if (dailyRateFromFirestore(doc.id, doc.data()) case final r?) {
+          return r.rate;
+        }
+      }
+      return null;
     } on FirebaseException {
       return null;
     }
@@ -778,11 +741,3 @@ AccountEntry? entryFromFirestore(
     occurredAt: occurredAt,
   );
 }
-
-/// Reads a stored day's rate (DATA_MODEL 2.13).
-@visibleForTesting
-FxRate? rateFromFirestore(Map<String, dynamic> data) =>
-    switch (data['usdIqd']) {
-      final String rate => FxRate.forPair(FxPair.usdIqd, rate).valueOrNull,
-      _ => null,
-    };

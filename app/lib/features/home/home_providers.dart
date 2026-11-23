@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:xpense_app/data/accounts_repository.dart';
+import 'package:xpense_app/data/fx_repository.dart';
 import 'package:xpense_app/data/household_repository.dart';
 import 'package:xpense_app/data/read/home_reader.dart';
 import 'package:xpense_app/data/transactions_repository.dart';

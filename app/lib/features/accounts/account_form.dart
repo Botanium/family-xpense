@@ -6,6 +6,7 @@ import 'package:xpense_app/core/l10n/l10n.dart';
 import 'package:xpense_app/core/theme/theme.dart';
 import 'package:xpense_app/core/ui/ui.dart';
 import 'package:xpense_app/data/accounts_repository.dart';
+import 'package:xpense_app/data/fx_repository.dart';
 import 'package:xpense_app/features/accounts/account_labels.dart';
 import 'package:xpense_app/features/accounts/accounts_overview.dart';
 import 'package:xpense_shared/xpense_shared.dart';

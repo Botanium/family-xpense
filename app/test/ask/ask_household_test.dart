@@ -115,10 +115,10 @@ void _firstRateTest() {
     final store = sampleLedgerStore(clock: services.clock.clock)..rates.clear();
     // One fxRates collection in Firestore: what the member enters is what
     // the write path reads.
-    final linked = accounts.watchLatestRate().listen((rate) {
-      if (rate == null) return;
-      final day = householdDay(services.clock.clock.now());
-      store.rates[day] = DayRate(day: day, rate: rate, kind: 'market');
+    final linked = accounts.fx.watchRates().listen((rates) {
+      for (final r in rates) {
+        store.rates[r.day] = DayRate(day: r.day, rate: r.rate, kind: 'market');
+      }
     });
     // Not awaited: cancelling the fake's async* stream mid-wait never
     // completes.
@@ -128,7 +128,7 @@ void _firstRateTest() {
       return LedgerXpenseActions(
         inner: services.actions,
         transactions: LedgerTransactionsRepository(store),
-        accounts: accounts,
+        fx: accounts.fx,
         readHousehold: () => ref.read(askHouseholdProvider),
         clock: services.clock.clock,
       );
@@ -168,7 +168,7 @@ void _firstRateTest() {
     for (var i = 0; i < 20; i++) {
       await tester.pump(const Duration(milliseconds: 100));
     }
-    expect([for (final r in accounts.dailyRates) r.rateString], ['1500']);
+    expect([for (final r in accounts.fx.written) r.rate.rateString], ['1500']);
     expect(find.text('Enter rate'), findsNothing);
 
     await tester.tap(find.text('Save'));
@@ -187,7 +187,8 @@ void _fakesShareTheLedgerTests() {
     final clock = Clock.fixed(DateTime(2026, 11, 22, 9));
     final store = sampleLedgerStore(clock: clock);
     final accounts = FakeAccountsRepository.sample(ledger: store, clock: clock);
-    await accounts.setDailyRate(
+    await accounts.fx.setRate(
+      '2026-11-22',
       FxRate.forPair(FxPair.usdIqd, '1800').valueOrNull!,
     );
     expect(store.rates['2026-11-22']?.rate.rateString, '1800');
@@ -233,7 +234,7 @@ void _fakesShareTheLedgerTests() {
       return LedgerXpenseActions(
         inner: services.actions,
         transactions: LedgerTransactionsRepository(store),
-        accounts: accounts,
+        fx: accounts.fx,
         readHousehold: () => ref.read(askHouseholdProvider),
         clock: services.clock.clock,
       );

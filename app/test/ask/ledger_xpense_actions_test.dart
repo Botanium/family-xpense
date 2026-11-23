@@ -40,7 +40,7 @@ void main() {
     actions = LedgerXpenseActions(
       inner: inner,
       transactions: LedgerTransactionsRepository(store),
-      accounts: accounts,
+      fx: accounts.fx,
       readHousehold: () => inner.household,
       clock: _clock,
     );
@@ -117,7 +117,7 @@ void main() {
 
   test("a rate answer is saved as today's rate, not in the fake", () async {
     await actions.setDailyRate('1500');
-    expect([for (final r in accounts.dailyRates) r.rateString], ['1500']);
+    expect([for (final r in accounts.fx.written) r.rate.rateString], ['1500']);
     expect(inner.calls.where((c) => c.method == 'setDailyRate'), isEmpty);
     expect(actions.household.latestRate, '1500');
     expect(actions.household.rateEnteredToday, isTrue, reason: 'no prompt');
