@@ -190,6 +190,22 @@ describe('transactions', () => {
     await assertSucceeds(tx(BOB).doc('tJoint').update({ type: 'income', baseAmountMinor: 9000, rev: 4, ...updatedBy(BOB) }));
   });
 
+  it('an edit must name the version it was built on (prevRevId, Codex review PR #35)', async () => {
+    // Legacy entry without revId: the first chained edit names none.
+    await assertFails(tx(ALICE).doc('tJoint').update({ title: 'A', rev: 4, revId: 'r4', prevRevId: 'r3', ...updatedBy(ALICE) }));
+    await assertSucceeds(tx(ALICE).doc('tJoint').update({ title: 'A', rev: 4, revId: 'r4', prevRevId: null, ...updatedBy(ALICE) }));
+    // Bob's write lands first (rev 5 on r4).
+    await assertSucceeds(tx(BOB).doc('tJoint').update({ note: 'B', rev: 5, revId: 'b5', prevRevId: 'r4', ...updatedBy(BOB) }));
+    // Alice's queued edit built on r4 is refused; so is her queued delete
+    // built on that edit, although its rev number lines up.
+    await assertFails(tx(ALICE).doc('tJoint').update({ amountMinor: 200, rev: 5, revId: 'a5', prevRevId: 'r4', ...updatedBy(ALICE) }));
+    await assertFails(tx(ALICE).doc('tJoint').update({ deletedAt: serverTime(), rev: 6, revId: 'a6', prevRevId: 'a5', ...updatedBy(ALICE) }));
+    // Leaving the chain fields as they are names the wrong predecessor.
+    await assertFails(tx(ALICE).doc('tJoint').update({ title: 'C', rev: 6, ...updatedBy(ALICE) }));
+    // Built on Bob's version it is accepted.
+    await assertSucceeds(tx(ALICE).doc('tJoint').update({ amountMinor: 200, rev: 6, revId: 'a6', prevRevId: 'b5', ...updatedBy(ALICE) }));
+  });
+
   it('a partner cannot edit or soft-delete a private transaction', async () => {
     await assertFails(tx(BOB).doc('tPriv').update({ deletedAt: new Date(), rev: 1, ...updatedBy(BOB) }));
   });

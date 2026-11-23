@@ -119,6 +119,7 @@ One document per money event. A transfer is one document with both accounts (D-1
 | `visibleTo` | string[] | union of the `visibleTo` of `accountId` and `toAccountId` |
 | `deletedAt` | timestamp? | soft delete; hidden from lists, kept for undo and audit |
 | `rev` | int | increments on every edit |
+| `revId`, `prevRevId` | string? | id of this version (also its revision's id) and of the version the write was built on; the rules accept an update only when `prevRevId` equals the stored `revId`, so a queued write whose predecessor was refused is refused too (PR #35) |
 
 `revisions/{revId}`: append-only. `{rev, before (map of changed fields), changedBy, changedAt, reason: edit | undo | delete | restore | system}`.
 

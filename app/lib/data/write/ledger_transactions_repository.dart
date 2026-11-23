@@ -73,6 +73,8 @@ final class LedgerTransactionsRepository implements TransactionsRepository {
             ...transactionContent(t),
             'deletedAt': null,
             'rev': 0,
+            'revId': _store.newId(),
+            'prevRevId': null,
             ..._createStamps(scope.uid),
           }),
       ],
@@ -258,7 +260,7 @@ final class LedgerTransactionsRepository implements TransactionsRepository {
     String txnId,
     _Build build, {
     bool fresh = false,
-    int? staleRev,
+    String? staleVersion,
   }) async {
     final scope = _store.scope;
     if (scope == null) return const Err(TransactionsNotAllowed());
@@ -266,7 +268,7 @@ final class LedgerTransactionsRepository implements TransactionsRepository {
     if (prev == null) return const Err(TransactionNotFound());
     final household = await _store.household();
     if (household == null) return const Err(TransactionsNotAllowed());
-    if (staleRev != null && prev.rev == staleRev) {
+    if (staleVersion != null && _version(prev) == staleVersion) {
       // The server has the version this write was built on, so the refusal
       // was not a conflict.
       return const Err(TransactionsNotAllowed());
@@ -285,12 +287,12 @@ final class LedgerTransactionsRepository implements TransactionsRepository {
       writes: _revisionWrites(prev, revision, scope.uid),
       effects: effectDelta(prev.line, revision.after),
     );
-    final retried = staleRev != null;
+    final retried = staleVersion != null;
     final committed = await _store.commit(
       plan,
       onLateFailure: (f) {
         if (!retried && f.kind == StoreFailureKind.denied) {
-          unawaited(_lateRetry(txnId, build, staleRev: prev.rev));
+          unawaited(_lateRetry(txnId, build, staleVersion: _version(prev)));
         } else {
           _reportLate([txnId], _fromStore(f));
         }
@@ -301,7 +303,12 @@ final class LedgerTransactionsRepository implements TransactionsRepository {
         return Ok(value);
       case Err(:final failure)
           when !retried && failure.kind == StoreFailureKind.denied:
-        return await _revise(txnId, build, fresh: true, staleRev: prev.rev);
+        return await _revise(
+          txnId,
+          build,
+          fresh: true,
+          staleVersion: _version(prev),
+        );
       case Err(:final failure) when retried:
         return Err(
           failure.kind == StoreFailureKind.denied
@@ -315,12 +322,40 @@ final class LedgerTransactionsRepository implements TransactionsRepository {
 
   /// Re-applies a queued change the server refused, on top of the server's
   /// version, and reports it when that fails too.
-  Future<void> _lateRetry(String txnId, _Build build, {int? staleRev}) async {
+  ///
+  /// Re-applies of one entry run one after another, in the order the queue
+  /// was refused: an edit then a delete queued offline are both refused
+  /// when the partner wrote first (each names its predecessor), and the
+  /// delete must be rebuilt on top of the re-applied edit.
+  Future<void> _lateRetry(
+    String txnId,
+    _Build build, {
+    String? staleVersion,
+  }) async {
+    final before = _lateRetries[txnId]?.future;
+    final done = Completer<void>();
+    _lateRetries[txnId] = done;
+    try {
+      await before;
+      await _reapply(txnId, build, staleVersion: staleVersion ?? '');
+    } finally {
+      done.complete();
+      if (identical(_lateRetries[txnId], done)) _lateRetries.remove(txnId);
+    }
+  }
+
+  final Map<String, Completer<void>> _lateRetries = {};
+
+  Future<void> _reapply(
+    String txnId,
+    _Build build, {
+    required String staleVersion,
+  }) async {
     final again = await _revise(
       txnId,
       build,
       fresh: true,
-      staleRev: staleRev ?? -1,
+      staleVersion: staleVersion,
     );
     switch (again) {
       case Ok():
@@ -337,13 +372,23 @@ final class LedgerTransactionsRepository implements TransactionsRepository {
     String uid,
   ) {
     final rev = prev.rev + 1;
+    // The new version's id; the rules accept the write only on top of the
+    // version it names as `prevRevId` (DATA_MODEL 7).
+    final revId = _store.newId();
     return [
-      TxnUpdate(prev.id, {
-        ...revision.fields,
-        'rev': rev,
-        ..._updateStamps(uid),
-      }, rev: rev),
-      RevisionCreate(prev.id, _store.newId(), {
+      TxnUpdate(
+        prev.id,
+        {
+          ...revision.fields,
+          'rev': rev,
+          'revId': revId,
+          'prevRevId': prev.revId,
+          ..._updateStamps(uid),
+        },
+        rev: rev,
+        prevRevId: prev.revId,
+      ),
+      RevisionCreate(prev.id, revId, {
         'rev': rev,
         'before': revision.before,
         'changedBy': uid,
@@ -523,14 +568,20 @@ final class LedgerTransactionsRepository implements TransactionsRepository {
     final base = household.baseCurrency;
     final toCurrency = to?.currency;
     final crossTransfer = toCurrency != null && toCurrency != currency;
+    // An arriving amount the caller types overrides; otherwise an edit that
+    // keeps the amount, the accounts and the rate keeps the stored arriving
+    // amount and the quote it was converted with (Codex review, PR #35).
     var toAmount = crossTransfer ? extras.toAmountMinor : null;
+    StoredFx? retainedFx;
     if (crossTransfer &&
         toAmount == null &&
         previous != null &&
         previous.amountMinor == amount &&
         previous.accountId == account.id &&
-        previous.toAccountId == to!.id) {
+        previous.toAccountId == to!.id &&
+        !_namesNewRate(draft.fx, previous.fx)) {
       toAmount = previous.toAmountMinor;
+      retainedFx = previous.fx;
     }
     final needsRate = currency != base || (crossTransfer && toAmount == null);
     FxRate? rate;
@@ -556,6 +607,8 @@ final class LedgerTransactionsRepository implements TransactionsRepository {
         case Ok(:final value):
           (rate, fx) = value;
       }
+    } else {
+      fx = retainedFx;
     }
     final baseAmount = toBaseAmount(Money(amount, currency!), base, rate: rate);
     final baseMinor = baseAmount.valueOrNull?.minorUnits;
@@ -634,14 +687,7 @@ final class LedgerTransactionsRepository implements TransactionsRepository {
   }) async {
     final named = draft.fx;
     final stored = previous?.fx;
-    // A prefilled draft repeats the stored rate; that names nothing new.
-    final repeatsStored =
-        named != null &&
-        stored != null &&
-        named.pair == stored.pair &&
-        named.pairRate == stored.pairRate &&
-        (named.asOf ?? stored.asOf) == stored.asOf;
-    if (named != null && !repeatsStored) {
+    if (named != null && _namesNewRate(named, stored)) {
       final parsed = FxRate.parse(named.pair, named.pairRate);
       if (parsed case Err(:final failure)) return Err(failure);
       final rate = parsed.valueOrNull!;
@@ -705,6 +751,19 @@ final class LedgerTransactionsRepository implements TransactionsRepository {
     'updatedAt': serverTime,
     'updatedBy': uid,
   };
+
+  /// Whether [named] (a draft's `fx`) asks for a rate other than [stored].
+  /// A prefilled draft repeats the stored rate; that names nothing new.
+  static bool _namesNewRate(FxQuote? named, StoredFx? stored) =>
+      named != null &&
+      !(stored != null &&
+          named.pair == stored.pair &&
+          named.pairRate == stored.pairRate &&
+          (named.asOf ?? stored.asOf) == stored.asOf);
+
+  /// Which stored version [t] is: its `revId`, or its `rev` for an entry
+  /// written before `revId` existed.
+  static String _version(LedgerTransaction t) => t.revId ?? 'rev:${t.rev}';
 
   static String _draftId(EntryDraft draft) => '${draft.toJson()['id']}';
 

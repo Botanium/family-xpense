@@ -146,10 +146,11 @@ final class TxnCreate extends DocWrite {
   final Map<String, Object?> fields;
 }
 
-/// Updates transaction [id] with [fields], which advance `rev` to [rev].
+/// Updates transaction [id] with [fields], which advance `rev` to [rev]
+/// on top of the version [prevRevId].
 final class TxnUpdate extends DocWrite {
   /// Creates the write.
-  const new(this.id, this.fields, {required this.rev});
+  const new(this.id, this.fields, {required this.rev, this.prevRevId});
 
   /// The transaction id.
   final String id;
@@ -160,6 +161,12 @@ final class TxnUpdate extends DocWrite {
   /// The new `rev`. The store may refuse the write unless the stored one
   /// is `rev - 1`, as the rules do.
   final int rev;
+
+  /// The stored `revId` this write was built on (null for an entry written
+  /// before `revId` existed). The rules refuse the write unless the stored
+  /// `revId` still equals it, so a queued write whose predecessor was
+  /// refused is refused too.
+  final String? prevRevId;
 }
 
 /// Appends revision [id] under transaction [txnId] (DATA_MODEL 2.5).

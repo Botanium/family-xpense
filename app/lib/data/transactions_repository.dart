@@ -151,6 +151,7 @@ final class LedgerTransaction {
     this.deletedAt,
     this.deletePending = false,
     this.rev = 0,
+    this.revId,
     this.createdBy,
   });
 
@@ -240,6 +241,11 @@ final class LedgerTransaction {
   /// Increments on every edit, delete and restore.
   final int rev;
 
+  /// The id of this version (also its revision's id); every write names the
+  /// version it was built on as `prevRevId` (DATA_MODEL 7). Null for an
+  /// entry written before `revId` existed.
+  final String? revId;
+
   /// Who first saved it.
   final String? createdBy;
 
@@ -289,6 +295,7 @@ final class LedgerTransaction {
       other.deletedAt == deletedAt &&
       other.deletePending == deletePending &&
       other.rev == rev &&
+      other.revId == revId &&
       other.createdBy == createdBy;
 
   @override
@@ -320,6 +327,7 @@ final class LedgerTransaction {
     deletedAt,
     deletePending,
     rev,
+    revId,
     createdBy,
   ]);
 

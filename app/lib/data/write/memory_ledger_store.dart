@@ -181,11 +181,17 @@ final class MemoryLedgerStore implements LedgerStore {
     }
   }
 
-  /// Writes [fields] over transaction [id] on the server, advancing `rev`,
-  /// as the partner's phone would.
+  /// Writes [fields] over transaction [id] on the server, advancing `rev`
+  /// and `revId`, as the partner's phone would.
   void remoteEdit(String id, Map<String, Object?> fields) {
     final doc = _server.txns[id]!;
-    _server.txns[id] = {...doc, ...fields, 'rev': (doc['rev']! as int) + 1};
+    _server.txns[id] = {
+      ...doc,
+      ...fields,
+      'rev': (doc['rev']! as int) + 1,
+      'revId': newId(),
+      'prevRevId': doc['revId'],
+    };
   }
 
   /// Sets account [id]'s balance on the server, as a drifted aggregate.
@@ -217,9 +223,13 @@ final class MemoryLedgerStore implements LedgerStore {
             return denied;
           }
           txns[id] = fields;
-        case TxnUpdate(:final id, :final fields, :final rev):
+        case TxnUpdate(:final id, :final fields, :final rev, :final prevRevId):
           final doc = txns[id];
-          if (doc == null || doc['rev'] != rev - 1) return denied;
+          if (doc == null ||
+              doc['rev'] != rev - 1 ||
+              doc['revId'] != prevRevId) {
+            return denied;
+          }
           txns[id] = {...doc, ...fields};
         case RevisionCreate():
           break;

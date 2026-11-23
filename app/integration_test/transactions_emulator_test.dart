@@ -186,6 +186,10 @@ void main() {
     expect(ledger, hasLength(5), reason: '2 opening + 3 saved');
     expect(ledger[groceries]!['rev'], 1);
     expect(ledger[groceries]!['amountMinor'], 3000);
+    // The edit names the version it was built on; the delete after it
+    // named the edit's (rules: prevRevId == stored revId).
+    expect(ledger[groceries]!['prevRevId'], isA<String>());
+    expect(ledger[dinner]!['prevRevId'], isA<String>());
     expect(ledger[dinner]!['deletedAt'], isA<Timestamp>());
     expect(ledger[dinner]!['fx'], {
       'pair': 'USD/IQD',

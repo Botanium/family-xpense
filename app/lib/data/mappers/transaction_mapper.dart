@@ -137,6 +137,7 @@ LedgerTransaction? transactionFromFields(String id, Map<String, Object?> data) {
     deletedAt: deletedAt is DateTime ? deletedAt : null,
     deletePending: deletedAt != null && deletedAt is! DateTime,
     rev: integer('rev') ?? 0,
+    revId: str('revId'),
     createdBy: str('createdBy'),
   );
 }

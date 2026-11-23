@@ -787,6 +787,64 @@ void main() {
       expect(store.transactions[id]!['rev'], 0);
     });
 
+    test("a note-only edit keeps a transfer's quote (Codex, PR #35)", () async {
+      final id = await saveOne(
+        repo,
+        draft(intent: 'transfer', account: 'mine-usd', to: 'cash-iqd'),
+      );
+      final quote = store.transactions[id]!['fx'];
+      expect(quote, isNotNull);
+      await repo.editEntry(
+        id,
+        draft(
+          intent: 'transfer',
+          account: 'mine-usd',
+          to: 'cash-iqd',
+          note: 'rent',
+        ),
+      );
+      final doc = store.transactions[id]!;
+      expect(doc['note'], 'rent');
+      expect(doc['fx'], quote);
+      expect(doc['toAmountMinor'], 21312);
+      expect(store.revisions[id]!.single['before'], {'note': null});
+    });
+
+    test('a new quote on a transfer edit converts again', () async {
+      final id = await saveOne(
+        repo,
+        draft(intent: 'transfer', account: 'mine-usd', to: 'cash-iqd'),
+      );
+      await repo.editEntry(
+        id,
+        draft(
+          intent: 'transfer',
+          account: 'mine-usd',
+          to: 'cash-iqd',
+          fx: FxQuote(pair: 'USD/IQD', pairRate: '1500'),
+        ),
+      );
+      final doc = store.transactions[id]!;
+      // 12.50 USD × 1500.
+      expect(doc['toAmountMinor'], 18750);
+      expect((doc['fx']! as Map)['pairRate'], '1500');
+      expect((doc['fx']! as Map)['source'], 'manual');
+      expect(store.balances['cash-iqd'], 18750);
+    });
+
+    test('each write names the version it was built on', () async {
+      final id = await saveOne(repo, draft());
+      final created = store.transactions[id]!;
+      expect(created['revId'], isA<String>());
+      expect(created.containsKey('prevRevId'), true);
+      expect(created['prevRevId'], isNull);
+      await repo.editEntry(id, draft(amount: 99));
+      final edited = store.transactions[id]!;
+      expect(edited['prevRevId'], created['revId']);
+      expect(edited['revId'], isNot(created['revId']));
+      expect(store.revisions[id]!.single['id'], edited['revId']);
+    });
+
     test('unknown and deleted entries', () async {
       expect(
         (await repo.editEntry('nope', draft())).failureOrNull,
@@ -931,6 +989,27 @@ void main() {
       expect(doc['rev'], 2, reason: 'partner 1, re-applied edit 2');
       expect(doc['amountMinor'], 4000);
       expect(store.serverBalances['joint-usd'], -4000);
+      expect(late, isEmpty);
+    });
+
+    test('a queued delete built on a refused edit is rebuilt too '
+        '(Codex, PR #35)', () async {
+      final id = await saveOne(repo, draft(amount: 100));
+      final late = <LateWriteFailure>[];
+      repo.lateFailures.listen(late.add);
+      store.goOnline(online: false);
+      await repo.editEntry(id, draft(amount: 200));
+      await repo.deleteEntry(id);
+      // The partner's note reaches the server first: the queued edit (rev 1)
+      // is refused, and the delete (rev 2) must not land on the partner's
+      // rev 1 with the edit's +200.
+      store
+        ..remoteEdit(id, {'note': 'partner'})
+        ..goOnline(online: true);
+      await pumpEventQueue();
+      final doc = store.serverTransactions[id]!;
+      expect(doc['deletedAt'], isNotNull);
+      expect(store.serverBalances['joint-usd'], 0);
       expect(late, isEmpty);
     });
 
