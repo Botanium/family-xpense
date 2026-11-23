@@ -291,6 +291,47 @@ void main() {
       expect(d.fx, isNull, reason: 'USD is the base currency');
     });
 
+    test('a question Decisions is unsure of is a provisional expense, '
+        'Guessed and asked', () {
+      final decide = DecideResponse(
+        intent: ChoiceAnswer(
+          choice: 'question',
+          confidence: 0.6,
+          probabilities: {'question': 0.6},
+        ),
+      );
+      const text = '42.80 dollars at Costco';
+      expect(nonEntryIntent(_parse(text), decide, _policy), isNull);
+      final d = _draft(text, decide: decide);
+      expect(d.intent, 'expense');
+      expect(d.guessed, contains('intent'));
+      expect(d.missing, contains('intent'));
+    });
+
+    test('a question Decisions is sure of is not an entry', () {
+      const text = '42.80 dollars at Costco';
+      final decide = DecideResponse(
+        intent: ChoiceAnswer(
+          choice: 'question',
+          confidence: 0.96,
+          probabilities: {'question': 0.96},
+        ),
+      );
+      expect(
+        nonEntryIntent(_parse(text), decide, _policy),
+        CaptureIntent.question,
+      );
+    });
+
+    test('an on-device "other" never becomes the slip\'s intent', () {
+      final d = _draft(
+        '42.80 at Costco',
+        extracted: EntryDraft(id: 'x', intent: 'other'),
+      );
+      expect(d.intent, 'expense');
+      expect(d.missing, contains('intent'));
+    });
+
     test('a transfer never goes to the account it leaves from', () {
       final d = _draft(
         'moved 200 dollars from checking',

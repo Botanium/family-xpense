@@ -218,6 +218,13 @@ final class AskController extends Notifier<AskState> {
       switch (result) {
         case Ok(:final value):
           state = state.copyWith(offline: false);
+          // A question, command or other is not an entry: the agent
+          // answers it (path A), never a slip.
+          if (nonEntryIntent(parse, value, _policy) case final intent?) {
+            debugPrint('decide: ${intent.wire} -> agent');
+            await _agentTurn(AgentTurn(text: raw), raw: raw);
+            return;
+          }
           _local(raw, parse, decide: value, extracted: extracted);
         case Err(:final failure):
           // One path for every failure: the slip on the phone, with

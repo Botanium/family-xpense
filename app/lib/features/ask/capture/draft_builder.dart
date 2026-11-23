@@ -251,6 +251,26 @@ CaptureIntent? _settledIntent(FastParse parse) {
       : CaptureIntent.expense;
 }
 
+/// The intent Decisions settled for [parse] when it records no money (a
+/// question, a command, or other): such a message is not an entry, so the
+/// controller hands it to the agent instead of building a slip. Null when
+/// the parse settled the intent, or Decisions is not sure enough.
+CaptureIntent? nonEntryIntent(
+  FastParse parse,
+  DecideResponse decide,
+  ConfidencePolicy policy,
+) {
+  if (_settledIntent(parse) != null) return null;
+  final answer = decide.intent;
+  final choice = CaptureIntent.tryParse(answer?.choice ?? '');
+  if (answer == null || choice == null || choice.recordsMoney) return null;
+  final p = policy.cap(
+    (answer.probabilities?[choice.wire] ?? answer.confidence ?? 0).toDouble(),
+    calibrated: decide.calibrated ?? true,
+  );
+  return policy.intentSettled(p) ? choice : null;
+}
+
 /// Where a draft's classification came from.
 enum DraftSource {
   /// The fast parser and rules only (path L).
@@ -289,7 +309,7 @@ EntryDraft buildDraft({
   if (intent == null) {
     final answer = decide?.intent;
     final choice = CaptureIntent.tryParse(answer?.choice ?? '');
-    if (answer != null && choice != null) {
+    if (answer != null && choice != null && choice.recordsMoney) {
       final p = policy.cap(
         (answer.probabilities?[choice.wire] ?? answer.confidence ?? 0)
             .toDouble(),
@@ -298,8 +318,15 @@ EntryDraft buildDraft({
       confidence['intent'] = p;
       intent = choice;
       if (!policy.intentSettled(p)) listedMissing.add('intent');
+    } else if (answer != null && choice != null) {
+      // A question, command or other the controller did not hand to the
+      // agent (not sure enough): a slip only holds an entry, so it is a
+      // provisional expense, Guessed, and the slip asks.
+      intent = CaptureIntent.expense;
+      guessed.add('intent');
+      listedMissing.add('intent');
     } else if (CaptureIntent.tryParse(extracted?.intent ?? '')
-        case final fromModel?) {
+        case final fromModel? when fromModel.recordsMoney) {
       intent = fromModel;
       listedMissing.add('intent');
     } else {

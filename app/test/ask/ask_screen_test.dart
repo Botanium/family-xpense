@@ -231,6 +231,29 @@ void main() {
       expect(find.text('Make it repeat'), findsOneWidget);
     });
 
+    testWidgets('D: Decisions says it is a question; the agent answers, no '
+        'slip', (tester) async {
+      final services = TestServices();
+      services.decisions.result = Ok(
+        DecideResponse(
+          intent: ChoiceAnswer(
+            choice: 'question',
+            confidence: 0.96,
+            probabilities: {'question': 0.96},
+          ),
+        ),
+      );
+      services.agent.script = [const AgentReply('You spent 42.80 there.')];
+      final c = await _openAsk(tester, services);
+      await _send(tester, '42.80 dollars at Costco');
+
+      expect(services.decisions.requests, hasLength(1));
+      expect(services.agent.turns.single.text, '42.80 dollars at Costco');
+      expect(find.text('You spent 42.80 there.'), findsOneWidget);
+      expect(find.text('Save'), findsNothing);
+      expect(c.read(askControllerProvider).busy, isFalse);
+    });
+
     testWidgets('A: several entries go to the agent; its surface renders', (
       tester,
     ) async {
