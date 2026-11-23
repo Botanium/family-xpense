@@ -182,7 +182,7 @@ void main() {
     await _pickAccount(tester, 'Account', 'Cash (IQD)');
     expect(find.text('IQD'), findsOneWidget);
     final input = tester.widget<CupertinoTextField>(_amountInput());
-    expect(input.keyboardType, const TextInputType.numberWithOptions());
+    expect(input.keyboardType, TextInputType.number);
     // The cents are dropped with the currency, and a point cannot be typed.
     expect(input.controller!.text, '12');
     await tester.enterText(_amountInput(), '10000.5');
