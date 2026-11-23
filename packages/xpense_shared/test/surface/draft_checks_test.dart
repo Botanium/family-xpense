@@ -236,7 +236,7 @@ void main() {
       final next = followAccountCurrency(guessed, 'IQD');
       expect(next['currency'], 'IQD');
       expect(next['amountMinor'], 45);
-      expect(next['guessed'], ['accountId']);
+      expect(next['guessed'], ['accountId', 'currency']);
       expect(
         checkDraft(next, cash).issues.whereType<CurrencyMismatch>(),
         isEmpty,
@@ -258,8 +258,27 @@ void main() {
       }, 'IQD');
       expect(next['currency'], 'IQD');
       expect(next.containsKey('amountMinor'), isFalse);
-      expect(next.containsKey('guessed'), isFalse);
+      expect(next['guessed'], ['currency']);
       expect(checkDraft(next, cash).missing, contains('amountMinor'));
+    });
+
+    // PR #30 review: the member changes their pick, and back again.
+    test('a currency that followed an account follows later picks', () {
+      const refs = HouseholdRefs(
+        accountCurrencies: {'acc_cash': 'IQD', 'acc_chk': 'USD'},
+      );
+      var d = followAccountCurrency(guessed, 'IQD');
+      for (final (account, currency, amount) in [
+        ('acc_chk', 'USD', 4500),
+        ('acc_cash', 'IQD', 45),
+      ]) {
+        d = followAccountCurrency({...d, 'accountId': account}, currency);
+        expect((d['currency'], d['amountMinor']), (currency, amount));
+        expect(
+          checkDraft(d, refs).issues.whereType<CurrencyMismatch>(),
+          isEmpty,
+        );
+      }
     });
 
     test('dinars to dollars keep the written figure', () {

@@ -373,7 +373,8 @@ void main() {
       expect(_model(host, 'cap_g45', '/drafts/0/currency'), 'IQD');
       expect(_model(host, 'cap_g45', '/drafts/0/amountMinor'), 45);
       expect(_model(host, 'cap_g45', '/drafts/0/missing'), isEmpty);
-      expect(_model(host, 'cap_g45', '/drafts/0/guessed'), isEmpty);
+      // Still guessed: a later pick of another account moves it again.
+      expect(_model(host, 'cap_g45', '/drafts/0/guessed'), ['currency']);
       expect(_enabled(tester, 'Save'), isTrue);
       expect(sent, isEmpty);
     });

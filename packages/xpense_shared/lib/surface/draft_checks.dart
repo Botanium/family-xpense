@@ -223,7 +223,8 @@ List<String> missingFields(EntryDraft draft) {
 /// follows the account, and the amount the member wrote keeps its major
 /// units: "groceries 45" guessed as 45.00 USD is 45 IQD on a dinar account.
 /// An amount the new currency cannot hold ("12.50" in dinars) is removed, so
-/// the slip asks for it. A currency the member wrote is left alone; the
+/// the slip asks for it. The currency stays guessed, so picking another
+/// account moves it again. A currency the member wrote is left alone; the
 /// slip then reports [CurrencyMismatch] rather than change their words.
 Map<String, Object?> followAccountCurrency(
   Map<String, Object?> draft,
@@ -238,16 +239,9 @@ Map<String, Object?> followAccountCurrency(
       !guessed.contains('currency')) {
     return draft;
   }
+  // The currency stays in `guessed`: it came from the account, not the
+  // member's words, so a later pick moves it again.
   final next = Map<String, Object?>.of(draft)..['currency'] = to.code;
-  final rest = [
-    for (final g in guessed)
-      if (g != 'currency') g,
-  ];
-  if (rest.isEmpty) {
-    next.remove('guessed');
-  } else {
-    next['guessed'] = rest;
-  }
   final amount = draft['amountMinor'];
   if (amount is int) {
     final old = Currency.tryParse(from is String ? from : '');
