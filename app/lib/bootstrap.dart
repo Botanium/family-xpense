@@ -26,6 +26,9 @@ import 'package:xpense_app/data/auth_repository_firebase.dart';
 import 'package:xpense_app/data/household_repository.dart';
 import 'package:xpense_app/data/household_repository_fake.dart';
 import 'package:xpense_app/data/household_repository_firebase.dart';
+import 'package:xpense_app/data/read/activity_reader.dart';
+import 'package:xpense_app/data/read/activity_reader_firestore.dart';
+import 'package:xpense_app/data/read/activity_reader_memory.dart';
 import 'package:xpense_app/data/rules_repository.dart';
 import 'package:xpense_app/data/rules_repository_firestore.dart';
 import 'package:xpense_app/data/transactions_repository.dart';
@@ -367,9 +370,21 @@ Future<TransactionsRepository> connectTransactions(
 }
 
 /// A write path in memory over the sample household's accounts
-/// (`FakeAccountsRepository.sample`), for the fakes build and tests.
-TransactionsRepository memoryTransactions({Clock clock = const Clock()}) =>
-    LedgerTransactionsRepository(sampleLedgerStore(clock: clock));
+/// (`FakeAccountsRepository.sample`), for the fakes build and tests. It
+/// carries an Activity reader over the same store (WP-22), so Activity
+/// shows every save, delete and undo at once.
+NotifyingTransactionsRepository memoryTransactions({
+  Clock clock = const Clock(),
+}) {
+  final store = sampleLedgerStore(clock: clock);
+  return NotifyingTransactionsRepository(
+    LedgerTransactionsRepository(store),
+    MemoryActivityReader(
+      read: () => store.transactions,
+      viewerUid: FakeAccountsRepository.sampleViewer,
+    ),
+  );
+}
 
 /// The in-memory ledger behind [memoryTransactions]: the sample accounts,
 /// the default categories, and the sample household's 1,705 dinars per
@@ -401,6 +416,15 @@ MemoryLedgerStore sampleLedgerStore({Clock clock = const Clock()}) {
   }
   return store;
 }
+
+/// The Activity reader in memory: the one the memory write path carries,
+/// else an empty one.
+ActivityReader memoryActivityReaderFor(TransactionsRepository transactions) =>
+    transactions is NotifyingTransactionsRepository
+    ? transactions.reader
+    : MemoryActivityReader.empty(
+        viewerUid: FakeAccountsRepository.sampleViewer,
+      );
 
 /// The crash sink the two error handlers write to.
 ///
@@ -528,6 +552,9 @@ Future<Bootstrapped> bootstrap({required AppEnvironment environment}) async {
       householdRepository: households,
       accountsRepository: accounts,
       transactionsRepository: transactions,
+      activityReader: environment == AppEnvironment.fakes
+          ? null
+          : FirestoreActivityReader.connect(households: households),
       featureFlags: flags,
       xpenseActions: connectXpenseActions,
       agentClient: capture?.agent,
@@ -552,6 +579,7 @@ List<Override> appOverrides({
   required HouseholdRepository householdRepository,
   required AccountsRepository accountsRepository,
   TransactionsRepository? transactionsRepository,
+  ActivityReader? activityReader,
   SecureStore? secureStore,
   FeatureFlagSource? featureFlags,
   AgentClient? agentClient,
@@ -571,6 +599,11 @@ List<Override> appOverrides({
   accountsRepositoryProvider.overrideWithValue(accountsRepository),
   transactionsRepositoryProvider.overrideWithValue(
     transactionsRepository ?? memoryTransactions(),
+  ),
+  activityReaderProvider.overrideWith(
+    (ref) =>
+        activityReader ??
+        memoryActivityReaderFor(ref.watch(transactionsRepositoryProvider)),
   ),
   secureStoreProvider.overrideWithValue(secureStore ?? MemorySecureStore()),
   featureFlagSourceProvider.overrideWithValue(
