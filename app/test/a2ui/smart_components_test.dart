@@ -360,6 +360,8 @@ void main() {
                   'occurredOn': '2026-11-22',
                   'missing': ['accountId'],
                   'guessed': ['accountId', 'currency'],
+                  // Worked out for USD 45; stale once the currency moves.
+                  'duplicate': {'txnId': 't_usd_45', 'probability': 0.9},
                 },
               ],
             },
@@ -372,6 +374,7 @@ void main() {
       expect(_model(host, 'cap_g45', '/drafts/0/accountId'), 'acc_cash');
       expect(_model(host, 'cap_g45', '/drafts/0/currency'), 'IQD');
       expect(_model(host, 'cap_g45', '/drafts/0/amountMinor'), 45);
+      expect(_model(host, 'cap_g45', '/drafts/0/duplicate'), isNull);
       expect(_model(host, 'cap_g45', '/drafts/0/missing'), isEmpty);
       // Still guessed: a later pick of another account moves it again.
       expect(_model(host, 'cap_g45', '/drafts/0/guessed'), ['currency']);

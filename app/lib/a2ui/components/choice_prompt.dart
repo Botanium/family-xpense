@@ -10,9 +10,6 @@ import 'package:xpense_shared/xpense_shared.dart';
 
 final RegExp _draftField = RegExp(r'^/drafts/(\d+)/(\w+)$');
 
-/// Draft keys a pick may change besides the bound field: the answered
-/// field leaves `missing` and `guessed`; an account settles a guessed
-/// currency and its amount; a person's id sets `personId` and the name.
 /// Draft fields that hold an id: a typed "Other…" answer would be a name
 /// the household does not know, so they take only the offered options (the
 /// slip's own picker lists every choice).
@@ -23,11 +20,17 @@ const Set<String> _idFields = {
   'personName',
 };
 
+/// Draft keys a pick may change besides the bound field: the answered
+/// field leaves `missing` and `guessed`; an account settles a guessed
+/// currency and its amount (dropping the duplicate hint and FX quote made
+/// for the old ones); a person's id sets `personId` and the name.
 const List<String> _derived = [
   'missing',
   'guessed',
   'currency',
   'amountMinor',
+  'duplicate',
+  'fx',
   'personId',
   'personName',
 ];

@@ -281,6 +281,19 @@ void main() {
       }
     });
 
+    // PR #30 review: a hint about the old figures is stale on the phone.
+    test('a moved currency drops the duplicate hint and FX quote', () {
+      final hinted = {
+        ...guessed,
+        'duplicate': {'txnId': 't_usd_45', 'probability': 0.9},
+        'fx': {'pair': 'USD/IQD', 'pairRate': '1520', 'baseAmountMinor': 4500},
+      };
+      final moved = followAccountCurrency(hinted, 'IQD');
+      expect(moved.containsKey('duplicate'), isFalse);
+      expect(moved.containsKey('fx'), isFalse);
+      expect(followAccountCurrency(hinted, 'USD'), same(hinted));
+    });
+
     test('dinars to dollars keep the written figure', () {
       final next = followAccountCurrency({
         ...guessed,
