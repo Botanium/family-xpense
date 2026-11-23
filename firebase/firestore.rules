@@ -216,7 +216,9 @@ service cloud.firestore {
           && validTxnFields()
           && request.resource.data.rev == 0
           && request.resource.data.get('deletedAt', null) == null
-          && exists(accountPath(request.resource.data.accountId))
+          // get() of a missing account fails the rule, so no exists() too:
+          // each would count against the 20 document reads a batch may make
+          // (Codex review, PR #35).
           && request.resource.data.currency
                == get(accountPath(request.resource.data.accountId)).data.currency
           && visibleToMatchesAccounts();

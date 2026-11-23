@@ -522,7 +522,9 @@ final class EntryRateNeeded extends TransactionsFailure {
   int get hashCode => Object.hash(EntryRateNeeded, draftId, from, to);
 }
 
-/// More drafts than one save takes ([maxEntriesPerSave]), or none.
+/// More drafts than one save takes ([maxEntriesPerSave]), drafts touching
+/// more accounts and loans than one batch can check
+/// ([maxAccountsPerSave]), or none.
 final class TooManyEntries extends TransactionsFailure {
   /// Creates the failure.
   const new();
@@ -610,6 +612,15 @@ final class LateWriteFailure {
 
 /// The most drafts one save takes: a surface's limit (A2UI_CATALOG 9).
 const int maxEntriesPerSave = maxDraftsPerSurface;
+
+/// The most distinct accounts and loans one save may touch.
+///
+/// The rules read every account a new entry names (the household once
+/// more), and a batch may read at most 20 documents; loans cost no read but
+/// are counted too, for headroom. Above this a save is refused with
+/// [TooManyEntries] rather than split, so it stays all or nothing
+/// (Codex review, PR #35).
+const int maxAccountsPerSave = 15;
 
 /// The single write path for money entries (D-10).
 ///

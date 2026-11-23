@@ -83,6 +83,12 @@ final class LedgerTransactionsRepository implements TransactionsRepository {
         (sum, t) => sum + effectDelta(null, t.line),
       ),
     );
+    final touched = {
+      for (final t in txns) ...[t.accountId, ?t.toAccountId, ?t.loanId],
+    };
+    if (touched.length > maxAccountsPerSave) {
+      return const Err(TooManyEntries());
+    }
     final ids = [for (final t in txns) t.id];
     final committed = await _store.commit(
       plan,
@@ -540,7 +546,16 @@ final class LedgerTransactionsRepository implements TransactionsRepository {
       return invalid('occurredTime', EntryIssue.malformed);
     }
     final DateTime occurredAt;
-    if (time != null) {
+    final kept = previous?.occurredAt.toLocal();
+    if (time != null &&
+        kept != null &&
+        previous!.occurredOn == occurredOn &&
+        kept.hour == time.$1 &&
+        kept.minute == time.$2) {
+      // A prefilled HH:mm that was not changed keeps the stored instant,
+      // seconds included (Codex review, PR #35).
+      occurredAt = previous.occurredAt;
+    } else if (time != null) {
       occurredAt = DateTime(day.year, day.month, day.day, time.$1, time.$2);
     } else if (previous != null && previous.occurredOn == occurredOn) {
       occurredAt = previous.occurredAt;

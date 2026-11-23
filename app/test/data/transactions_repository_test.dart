@@ -17,14 +17,14 @@ const partner = 'u-partner';
 const List<String> both = [me, partner];
 final DateTime now = DateTime(2026, 11, 23, 10, 30);
 
-MemoryLedgerStore newStore({List<String> members = both}) {
+MemoryLedgerStore newStore({List<String> members = both, DateTime? at}) {
   final store = MemoryLedgerStore(
     scope: const LedgerScope(householdId: 'h1', uid: me),
     householdInfo: LedgerHousehold(
       baseCurrency: Currency.usd,
       memberIds: members,
     ),
-    clock: Clock.fixed(now),
+    clock: Clock.fixed(at ?? now),
   );
   store.accounts.addAll({
     'joint-usd': const LedgerAccount(
@@ -630,6 +630,29 @@ void main() {
       );
     });
 
+    test('a save touching more than 15 accounts is refused '
+        '(Codex, PR #35)', () async {
+      for (var i = 0; i < 16; i++) {
+        store.accounts['x$i'] = LedgerAccount(
+          id: 'x$i',
+          currency: Currency.usd,
+          visibleTo: both,
+          joint: true,
+        );
+      }
+      expect(
+        await failureOf([
+          for (var i = 0; i < 16; i++) draft(id: 'd$i', account: 'x$i'),
+        ]),
+        const TooManyEntries(),
+      );
+      // 15 fit one batch's rule reads.
+      final saved = await repo.saveEntries([
+        for (var i = 0; i < 15; i++) draft(id: 'd$i', account: 'x$i'),
+      ]);
+      expect(saved.valueOrNull?.txnIds, hasLength(15));
+    });
+
     test('who: partner before the partner joins', () async {
       store = newStore(members: [me]);
       repo = LedgerTransactionsRepository(store);
@@ -830,6 +853,38 @@ void main() {
       expect((doc['fx']! as Map)['pairRate'], '1500');
       expect((doc['fx']! as Map)['source'], 'manual');
       expect(store.balances['cash-iqd'], 18750);
+    });
+
+    test('an unchanged prefilled time keeps the stored instant '
+        '(Codex, PR #35)', () async {
+      final at = DateTime(2026, 11, 23, 10, 30, 42, 123);
+      store = newStore(at: at);
+      repo = LedgerTransactionsRepository(store);
+      final id = await saveOne(repo, draft(title: 'Lulu'));
+      expect(store.transactions[id]!['occurredAt'], at.toUtc());
+      final prefilled = draftFromTransaction(
+        (await store.transaction(id))!,
+        viewerUid: me,
+      );
+      expect(prefilled.occurredTime, '10:30');
+      final batches = store.committedBatches;
+      expect((await repo.editEntry(id, prefilled)).isOk, true);
+      expect(store.committedBatches, batches, reason: 'nothing changed');
+      await repo.editEntry(
+        id,
+        EntryDraft.fromJson({...prefilled.toJson(), 'note': 'card'}),
+      );
+      expect(store.transactions[id]!['occurredAt'], at.toUtc());
+      expect(store.revisions[id]!.single['before'], {'note': null});
+      // A changed minute does move it.
+      await repo.editEntry(
+        id,
+        EntryDraft.fromJson({...prefilled.toJson(), 'occurredTime': '10:31'}),
+      );
+      expect(
+        store.transactions[id]!['occurredAt'],
+        DateTime(2026, 11, 23, 10, 31).toUtc(),
+      );
     });
 
     test('each write names the version it was built on', () async {

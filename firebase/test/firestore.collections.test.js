@@ -206,6 +206,28 @@ describe('transactions', () => {
     await assertSucceeds(tx(ALICE).doc('tJoint').update({ amountMinor: 200, rev: 6, revId: 'a6', prevRevId: 'b5', ...updatedBy(ALICE) }));
   });
 
+  it('a save batch fits the rules read budget up to 15 distinct accounts (Codex review PR #35)', async () => {
+    // The app's batch: one entry per account plus its balance increment.
+    // Each account is one rules read, the household one more, and a batch
+    // may read 20 documents; the app caps a save at 15 accounts and loans.
+    await env.withSecurityRulesDisabled(async (ctx) => {
+      const h = hh(ctx.firestore());
+      for (let i = 0; i < 20; i++) await h.collection('accounts').doc(`r${i}`).set(accountDoc({ order: i }));
+    });
+    const save = (count, prefix) => {
+      const d = db(ALICE);
+      const batch = d.batch();
+      for (let i = 0; i < count; i++) {
+        batch.set(hh(d).collection('transactions').doc(`${prefix}${i}`), txnDoc({ accountId: `r${i}`, revId: `${prefix}${i}`, prevRevId: null, ...createdBy(ALICE) }));
+        batch.update(hh(d).collection('accounts').doc(`r${i}`), { balanceMinor: firebase.firestore.FieldValue.increment(-10000), ...updatedBy(ALICE) });
+      }
+      return batch.commit();
+    };
+    await assertSucceeds(save(15, 'ok'));
+    // 20 accounts and the household are 21 distinct documents.
+    await assertFails(save(20, 'big'));
+  });
+
   it('a partner cannot edit or soft-delete a private transaction', async () => {
     await assertFails(tx(BOB).doc('tPriv').update({ deletedAt: new Date(), rev: 1, ...updatedBy(BOB) }));
   });
