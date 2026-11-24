@@ -4084,6 +4084,228 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Or skip: this entry then uses {rate} from {date}.'**
   String settingsFxInlineSkipHint(String rate, String date);
+
+  /// Settings section with the household's exchange rate and categories.
+  ///
+  /// In en, this message translates to:
+  /// **'Household'**
+  String get settingsHouseholdSection;
+
+  /// Settings row and screen title for the daily dollar rate.
+  ///
+  /// In en, this message translates to:
+  /// **'Exchange rate'**
+  String get settingsFxTitle;
+
+  /// The household's rate label: the official rate.
+  ///
+  /// In en, this message translates to:
+  /// **'Official'**
+  String get settingsFxKindOfficial;
+
+  /// The household's rate label: the market rate.
+  ///
+  /// In en, this message translates to:
+  /// **'Market'**
+  String get settingsFxKindMarket;
+
+  /// Section of the exchange rate screen where the household picks the label of its rate.
+  ///
+  /// In en, this message translates to:
+  /// **'Which rate you enter'**
+  String get settingsFxKindSection;
+
+  /// Under the official/market choice.
+  ///
+  /// In en, this message translates to:
+  /// **'Saved with each day\'s rate, so reports can say which one was used.'**
+  String get settingsFxKindHint;
+
+  /// Section listing the rates the household entered, newest first.
+  ///
+  /// In en, this message translates to:
+  /// **'Rate history'**
+  String get settingsFxHistorySection;
+
+  /// Shown when the household has never entered a rate.
+  ///
+  /// In en, this message translates to:
+  /// **'No rates yet. Home asks for today\'s rate each day.'**
+  String get settingsFxHistoryEmpty;
+
+  /// Row for today's rate in the rate history.
+  ///
+  /// In en, this message translates to:
+  /// **'Today'**
+  String get settingsFxToday;
+
+  /// Value of today's row when nobody has entered today's rate.
+  ///
+  /// In en, this message translates to:
+  /// **'Not entered yet'**
+  String get settingsFxNotEntered;
+
+  /// Subtitle of a rate history row: who entered it and its label.
+  ///
+  /// In en, this message translates to:
+  /// **'{who} · {kind}'**
+  String settingsFxEnteredBy(String who, String kind);
+
+  /// Who entered a rate: the viewer.
+  ///
+  /// In en, this message translates to:
+  /// **'You'**
+  String get settingsFxYou;
+
+  /// Who entered a rate: the other member, when their name is unknown.
+  ///
+  /// In en, this message translates to:
+  /// **'Partner'**
+  String get settingsFxPartner;
+
+  /// Note under the rate history.
+  ///
+  /// In en, this message translates to:
+  /// **'Tap a day to correct its rate. Entries already saved keep the rate they were saved with.'**
+  String get settingsFxEditNote;
+
+  /// Shown when a rate or label could not be saved.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t save. Try again.'**
+  String get settingsFxSaveFailed;
+
+  /// Settings row and screen title for the categories editor.
+  ///
+  /// In en, this message translates to:
+  /// **'Categories'**
+  String get settingsCategoriesTitle;
+
+  /// Tab of the categories editor with spending categories.
+  ///
+  /// In en, this message translates to:
+  /// **'Spending'**
+  String get settingsCategoriesExpense;
+
+  /// Tab of the categories editor with income categories.
+  ///
+  /// In en, this message translates to:
+  /// **'Income'**
+  String get settingsCategoriesIncome;
+
+  /// Button that adds a top-level category.
+  ///
+  /// In en, this message translates to:
+  /// **'Add category'**
+  String get settingsCategoriesAdd;
+
+  /// Action on a group that adds a sub-category.
+  ///
+  /// In en, this message translates to:
+  /// **'Add a category under it'**
+  String get settingsCategoriesAddSub;
+
+  /// Action that renames a category.
+  ///
+  /// In en, this message translates to:
+  /// **'Rename'**
+  String get settingsCategoriesRename;
+
+  /// Action that moves a category one place up among its siblings.
+  ///
+  /// In en, this message translates to:
+  /// **'Move up'**
+  String get settingsCategoriesMoveUp;
+
+  /// Action that moves a category one place down among its siblings.
+  ///
+  /// In en, this message translates to:
+  /// **'Move down'**
+  String get settingsCategoriesMoveDown;
+
+  /// Action that archives a category.
+  ///
+  /// In en, this message translates to:
+  /// **'Archive'**
+  String get settingsCategoriesArchive;
+
+  /// Action that brings an archived category back.
+  ///
+  /// In en, this message translates to:
+  /// **'Restore'**
+  String get settingsCategoriesRestore;
+
+  /// Cancel button of the category sheets and actions.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancel'**
+  String get settingsCategoriesCancel;
+
+  /// Save button of the category name sheet.
+  ///
+  /// In en, this message translates to:
+  /// **'Save'**
+  String get settingsCategoriesSave;
+
+  /// Section with the archived categories.
+  ///
+  /// In en, this message translates to:
+  /// **'Archived'**
+  String get settingsCategoriesArchivedSection;
+
+  /// Note in the archived section.
+  ///
+  /// In en, this message translates to:
+  /// **'Archived categories are not offered for new entries. Entries that use one keep it.'**
+  String get settingsCategoriesArchivedNote;
+
+  /// Label of the category name field.
+  ///
+  /// In en, this message translates to:
+  /// **'Name'**
+  String get settingsCategoriesNameLabel;
+
+  /// Hint of the category name field.
+  ///
+  /// In en, this message translates to:
+  /// **'Such as Pets'**
+  String get settingsCategoriesNameHint;
+
+  /// Title of the sheet that adds a category.
+  ///
+  /// In en, this message translates to:
+  /// **'New category'**
+  String get settingsCategoriesNewTitle;
+
+  /// Title of the sheet that adds a sub-category.
+  ///
+  /// In en, this message translates to:
+  /// **'New under {group}'**
+  String settingsCategoriesNewSubTitle(String group);
+
+  /// Title of the sheet that renames a category.
+  ///
+  /// In en, this message translates to:
+  /// **'Rename category'**
+  String get settingsCategoriesRenameTitle;
+
+  /// Error under the category name field.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter a name of up to 40 characters.'**
+  String get settingsCategoriesNameInvalid;
+
+  /// Shown when a category change could not be saved.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t save. Try again.'**
+  String get settingsCategoriesFailed;
+
+  /// VoiceOver label of a sub-category row.
+  ///
+  /// In en, this message translates to:
+  /// **'{name}, in {group}'**
+  String settingsCategoriesSubSpoken(String name, String group);
 }
 
 class _AppLocalizationsDelegate

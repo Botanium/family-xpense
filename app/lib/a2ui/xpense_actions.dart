@@ -28,10 +28,14 @@ final class HouseholdAccount {
 /// A category of the household.
 final class HouseholdCategory {
   /// Creates a category.
-  const new({required this.id, required this.name, this.colorKey});
+  const new({required this.id, required this.name, this.colorKey, this.kind});
 
   /// Category id.
   final String id;
+
+  /// `expense` or `income` (`categories.kind`); null when not known, then
+  /// the default tree decides.
+  final String? kind;
 
   /// Display name, such as "Dining out".
   final String name;

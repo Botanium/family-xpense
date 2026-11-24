@@ -2249,4 +2249,126 @@ class AppLocalizationsEn extends AppLocalizations {
   String settingsFxInlineSkipHint(String rate, String date) {
     return 'Or skip: this entry then uses $rate from $date.';
   }
+
+  @override
+  String get settingsHouseholdSection => 'Household';
+
+  @override
+  String get settingsFxTitle => 'Exchange rate';
+
+  @override
+  String get settingsFxKindOfficial => 'Official';
+
+  @override
+  String get settingsFxKindMarket => 'Market';
+
+  @override
+  String get settingsFxKindSection => 'Which rate you enter';
+
+  @override
+  String get settingsFxKindHint =>
+      'Saved with each day\'s rate, so reports can say which one was used.';
+
+  @override
+  String get settingsFxHistorySection => 'Rate history';
+
+  @override
+  String get settingsFxHistoryEmpty =>
+      'No rates yet. Home asks for today\'s rate each day.';
+
+  @override
+  String get settingsFxToday => 'Today';
+
+  @override
+  String get settingsFxNotEntered => 'Not entered yet';
+
+  @override
+  String settingsFxEnteredBy(String who, String kind) {
+    return '$who · $kind';
+  }
+
+  @override
+  String get settingsFxYou => 'You';
+
+  @override
+  String get settingsFxPartner => 'Partner';
+
+  @override
+  String get settingsFxEditNote =>
+      'Tap a day to correct its rate. Entries already saved keep the rate they were saved with.';
+
+  @override
+  String get settingsFxSaveFailed => 'Couldn\'t save. Try again.';
+
+  @override
+  String get settingsCategoriesTitle => 'Categories';
+
+  @override
+  String get settingsCategoriesExpense => 'Spending';
+
+  @override
+  String get settingsCategoriesIncome => 'Income';
+
+  @override
+  String get settingsCategoriesAdd => 'Add category';
+
+  @override
+  String get settingsCategoriesAddSub => 'Add a category under it';
+
+  @override
+  String get settingsCategoriesRename => 'Rename';
+
+  @override
+  String get settingsCategoriesMoveUp => 'Move up';
+
+  @override
+  String get settingsCategoriesMoveDown => 'Move down';
+
+  @override
+  String get settingsCategoriesArchive => 'Archive';
+
+  @override
+  String get settingsCategoriesRestore => 'Restore';
+
+  @override
+  String get settingsCategoriesCancel => 'Cancel';
+
+  @override
+  String get settingsCategoriesSave => 'Save';
+
+  @override
+  String get settingsCategoriesArchivedSection => 'Archived';
+
+  @override
+  String get settingsCategoriesArchivedNote =>
+      'Archived categories are not offered for new entries. Entries that use one keep it.';
+
+  @override
+  String get settingsCategoriesNameLabel => 'Name';
+
+  @override
+  String get settingsCategoriesNameHint => 'Such as Pets';
+
+  @override
+  String get settingsCategoriesNewTitle => 'New category';
+
+  @override
+  String settingsCategoriesNewSubTitle(String group) {
+    return 'New under $group';
+  }
+
+  @override
+  String get settingsCategoriesRenameTitle => 'Rename category';
+
+  @override
+  String get settingsCategoriesNameInvalid =>
+      'Enter a name of up to 40 characters.';
+
+  @override
+  String get settingsCategoriesFailed => 'Couldn\'t save. Try again.';
+
+  @override
+  String settingsCategoriesSubSpoken(String name, String group) {
+    return '$name, in $group';
+  }
 }

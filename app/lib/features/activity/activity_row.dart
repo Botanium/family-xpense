@@ -21,7 +21,11 @@ final class ActivityRowLabels {
     required this.accountNames,
     required this.baseCurrency,
     required this.people,
+    this.categoryNames = const {},
   });
+
+  /// The household's category names by id (WP-24).
+  final Map<String, String> categoryNames;
 
   /// Account names by id.
   final Map<String, String> accountNames;
@@ -43,7 +47,7 @@ final class ActivityRowLabels {
 
   /// The meta line: category or type, whose, account.
   String meta(AppLocalizations l10n, LedgerTransaction txn) {
-    final category = activityCategoryName(txn.categoryId);
+    final category = activityCategoryName(txn.categoryId, categoryNames);
     final kind = category ?? typeName(l10n, txn.type);
     // The title fell back to the type name: no merchant, no counterparty.
     final titleIsType =

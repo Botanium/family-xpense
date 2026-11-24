@@ -38,15 +38,18 @@ ParseContext parseContextFor(
       ParserCategory(
         id: c.id,
         names: {'en': c.name},
-        kind: categoryKindOf(c.id),
+        kind: categoryKindOf(c.id, household: household),
       ),
   ],
   rules: rules,
   defaultAccountId: defaultAccountId,
 );
 
-/// `income` or `expense` for category [id], from the default taxonomy.
-String categoryKindOf(String id) {
+/// `income` or `expense` for category [id]: the household's own kind for
+/// it when known (a category a member added, WP-24), else the default
+/// taxonomy's.
+String categoryKindOf(String id, {XpenseHousehold? household}) {
+  if (household?.category(id)?.kind case final kind?) return kind;
   for (final c in defaultCategories) {
     if (c.slug == id) return c.kind.wire;
   }
@@ -269,7 +272,7 @@ DecideRequest decideRequestFor(String raw, FastParse parse) {
 
 /// The intent the parse settles without a model: a rule, the member's
 /// own words, or the kind of a rule-set category.
-CaptureIntent? _settledIntent(FastParse parse) {
+CaptureIntent? _settledIntent(FastParse parse, {XpenseHousehold? household}) {
   String? rule(RuleField f) =>
       parse.ruleHits.where((r) => r.field == f).firstOrNull?.value;
   final fromRule = CaptureIntent.tryParse(rule(RuleField.intent) ?? '');
@@ -277,7 +280,8 @@ CaptureIntent? _settledIntent(FastParse parse) {
   if (parse.intentCue case final cue?) return cue;
   final category = rule(RuleField.categoryId);
   if (category == null) return null;
-  return categoryKindOf(category) == CategoryKind.income.wire
+  return categoryKindOf(category, household: household) ==
+          CategoryKind.income.wire
       ? CaptureIntent.income
       : CaptureIntent.expense;
 }
@@ -336,7 +340,7 @@ EntryDraft buildDraft({
       parse.ruleHits.where((r) => r.field == f).firstOrNull?.value;
 
   // Intent.
-  var intent = _settledIntent(parse);
+  var intent = _settledIntent(parse, household: household);
   if (intent == null) {
     final answer = decide?.intent;
     final choice = CaptureIntent.tryParse(answer?.choice ?? '');
@@ -486,7 +490,7 @@ EntryDraft buildDraft({
     bool fits(String? id) =>
         id != null &&
         household.category(id) != null &&
-        categoryKindOf(id) == kind;
+        categoryKindOf(id, household: household) == kind;
     categoryId = rule(RuleField.categoryId);
     if (categoryId != null) {
       confidence['category'] = ruleHitConfidence;

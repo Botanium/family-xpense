@@ -4,6 +4,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:xpense_app/data/accounts_repository.dart';
+import 'package:xpense_app/data/categories_repository.dart';
 import 'package:xpense_app/data/household_repository.dart';
 import 'package:xpense_app/data/read/activity_reader.dart';
 import 'package:xpense_app/features/activity/activity_model.dart';
@@ -152,10 +153,12 @@ final StreamProvider<ActivityWindow> activityWindowProvider =
       return ref.watch(activityReaderProvider).watch(query);
     }, name: 'activityWindowProvider');
 
-/// The name of category [id] (the household's seeded categories, which use
-/// their slug as id); null when unknown.
-String? activityCategoryName(String? id) =>
-    id == null ? null : defaultCategory(id)?.nameIn('en');
+/// The name of category [id]: from [names] (the household's categories,
+/// archived ones too, WP-24), else the default tree's; null when unknown.
+String? activityCategoryName(
+  String? id, [
+  Map<String, String> names = const {},
+]) => id == null ? null : names[id] ?? defaultCategory(id)?.nameIn('en');
 
 /// What the list draws.
 @immutable
@@ -195,6 +198,7 @@ final Provider<ActivityList?> activityListProvider =
         activityControllerProvider.select((s) => s.search.trim()),
       );
       if (w == null) return null;
+      final names = ref.watch(categoryNamesProvider);
       {
         final entries = search.isEmpty
             ? w.entries
@@ -203,7 +207,7 @@ final Provider<ActivityList?> activityListProvider =
                   if (searchMatches(
                     SearchText.of(
                       t,
-                      categoryName: activityCategoryName(t.categoryId),
+                      categoryName: activityCategoryName(t.categoryId, names),
                     ),
                     search,
                   ))

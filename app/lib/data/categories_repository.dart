@@ -286,3 +286,14 @@ String? categoryNameOf(
 }) => id == null
     ? null
     : all.where((c) => c.id == id).firstOrNull?.nameIn(language);
+
+/// The household's category names by id, archived ones too, so an entry
+/// always shows the name of the category it was saved with.
+final Provider<Map<String, String>> categoryNamesProvider =
+    Provider<Map<String, String>>(
+      (ref) => {
+        for (final c in ref.watch(householdCategoriesProvider))
+          c.id: c.nameIn(fallbackLanguage),
+      },
+      name: 'categoryNamesProvider',
+    );

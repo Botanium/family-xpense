@@ -7,6 +7,7 @@ import 'package:xpense_app/core/l10n/l10n.dart';
 import 'package:xpense_app/core/theme/theme.dart';
 import 'package:xpense_app/core/ui/ui.dart';
 import 'package:xpense_app/data/accounts_repository.dart';
+import 'package:xpense_app/data/categories_repository.dart';
 import 'package:xpense_app/data/fx_repository.dart';
 import 'package:xpense_app/data/household_repository.dart';
 import 'package:xpense_app/data/transactions_repository.dart';
@@ -261,6 +262,16 @@ class AddManuallyFormState extends ConsumerState<AddManuallyForm> {
       ..sort((a, b) => a.order.compareTo(b.order));
   }
 
+  /// The household's categories the chips offer (WP-24): the live ones,
+  /// plus the one the entry already has even when archived, so editing it
+  /// keeps it.
+  List<CategoryDef> _categories({bool watch = false}) => pickableCategories(
+    watch
+        ? ref.watch(householdCategoriesProvider)
+        : ref.read(householdCategoriesProvider),
+    keep: widget.initial?.categoryId,
+  );
+
   /// [initial] as the save sends it: a new entry's prefilled quote (from a
   /// slip) gives way to the household's rate for the entry's day once one
   /// is entered, by the inline ask or by the partner, so the entry is
@@ -369,6 +380,7 @@ class AddManuallyFormState extends ConsumerState<AddManuallyForm> {
       base: _base(),
       initial: _priced(widget.initial, values),
       arrivesWasTyped: _start.toAmountText.isNotEmpty,
+      categories: _categories(),
     );
     final draft = check.draft;
     if (draft == null) {
@@ -746,6 +758,7 @@ class AddManuallyFormState extends ConsumerState<AddManuallyForm> {
               ),
               const SizedBox(height: XpSpace.s8),
               CategoryChips(
+                categories: _categories(watch: true),
                 kind: categoryKind,
                 selected: values.categoryId,
                 onSelected: _saving

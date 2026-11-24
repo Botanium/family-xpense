@@ -9,6 +9,7 @@ import 'package:xpense_app/core/routing/routing.dart';
 import 'package:xpense_app/core/theme/theme.dart';
 import 'package:xpense_app/core/ui/ui.dart';
 import 'package:xpense_app/data/accounts_repository.dart';
+import 'package:xpense_app/data/categories_repository.dart';
 import 'package:xpense_app/data/household_repository.dart';
 import 'package:xpense_app/data/read/activity_reader.dart';
 import 'package:xpense_app/data/transactions_repository.dart';
@@ -397,6 +398,7 @@ class _ActivityScreenState extends ConsumerState<ActivityScreen> {
           ? membership.household.baseCurrency
           : Currency.usd,
       people: ref.watch(activityPeopleProvider),
+      categoryNames: ref.watch(categoryNamesProvider),
     );
     final today = ref.read(clockProvider).now().toLocal();
     final lead = question == null ? 0 : 1;
