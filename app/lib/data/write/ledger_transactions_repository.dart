@@ -795,8 +795,34 @@ final class LedgerTransactionsRepository implements TransactionsRepository {
         case Ok(:final value):
           (rate, fx) = value;
       }
-    } else {
+    } else if (retainedFx != null) {
       fx = retainedFx;
+    } else if (draft.fx case final named?
+        when named.baseAmountMinor == amount &&
+            FxRate.parse(named.pair, named.pairRate).isOk) {
+      // The same for the rate an edit or a restored version names, when
+      // it is the one this amount was converted with: in the base
+      // currency, the base amount is the amount itself.
+      fx = StoredFx(
+        pair: named.pair,
+        pairRate: named.pairRate,
+        source: fxSourceValues.contains(named.source)
+            ? named.source!
+            : 'manual',
+        asOf: named.asOf != null && DateTime.tryParse(named.asOf!) != null
+            ? named.asOf!
+            : occurredOn,
+      );
+    } else if (previous != null &&
+        previous.fx != null &&
+        previous.currency == currency &&
+        previous.amountMinor == amount &&
+        !_namesNewRate(draft.fx, previous.fx)) {
+      // An entry in the base currency whose amount was converted from the
+      // other one keeps the rate it was converted with while the amount
+      // stays: a note or a category edit does not erase it (Codex review,
+      // PR #46). A new amount was not converted, so it has no rate.
+      fx = previous.fx;
     }
     // The amount in the account's currency: as written, or converted.
     var stored = amount;

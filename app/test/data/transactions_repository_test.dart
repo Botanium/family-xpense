@@ -835,6 +835,55 @@ void main() {
       expect(doc['baseAmountMinor'], 2000);
     });
 
+    // Codex review, PR #46: 10,000 IQD paid from a dollar account in a
+    // dollar household is stored as USD 5.87 with the rate it was
+    // converted with; an edit that keeps the amount keeps that rate.
+    group('a converted entry in the base currency', () {
+      Future<(String, EntryDraft)> converted() async {
+        final id = await saveOne(
+          repo,
+          draft(account: 'mine-usd', amount: 10000, currency: 'IQD'),
+        );
+        final stored = transactionFromFields(id, store.transactions[id]!)!;
+        return (id, draftFromTransaction(stored, viewerUid: me));
+      }
+
+      Map<String, Object?>? fxOf(String id) =>
+          store.transactions[id]!['fx'] as Map<String, Object?>?;
+
+      test('keeps its rate through a note edit and a day move', () async {
+        final (id, edit) = await converted();
+        store.rates['2026-11-22'] = DayRate(
+          day: '2026-11-22',
+          rate: FxRate.forPair(FxPair.usdIqd, '1500').valueOrNull!,
+        );
+        final noted = EntryDraft.fromJson({
+          ...edit.toJson(),
+          'note': 'with the kids',
+          'occurredOn': '2026-11-22',
+        });
+        expect((await repo.editEntry(id, noted)).isOk, isTrue);
+        expect(store.transactions[id]!['amountMinor'], 587);
+        expect(fxOf(id)?['pairRate'], '1705');
+        expect(fxOf(id)?['asOf'], '2026-11-20');
+      });
+
+      test('a new amount was not converted, so it has no rate', () async {
+        final (id, edit) = await converted();
+        final changed = EntryDraft.fromJson({
+          ...edit.toJson(),
+          'amountMinor': 600,
+        });
+        expect((await repo.editEntry(id, changed)).isOk, isTrue);
+        expect(fxOf(id), isNull);
+
+        // Restoring the converted version brings its rate back.
+        expect((await repo.editEntry(id, edit)).isOk, isTrue);
+        expect(store.transactions[id]!['amountMinor'], 587);
+        expect(fxOf(id)?['pairRate'], '1705');
+      });
+    });
+
     test("a new day takes that day's rate", () async {
       final id = await saveOne(repo, draft(account: 'cash-iqd', amount: 15000));
       store.rates['2026-11-22'] = DayRate(
