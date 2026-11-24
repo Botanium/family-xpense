@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:xpense_app/data/accounts_repository.dart';
+import 'package:xpense_app/data/fx_repository.dart';
 import 'package:xpense_app/data/household_repository.dart';
 import 'package:xpense_app/data/read/home_reader.dart';
 import 'package:xpense_app/data/transactions_repository.dart';
@@ -108,12 +109,14 @@ final Provider<AsyncValue<HomeSummary>> homeSummaryProvider =
 /// What the nudge row on Home says (DESIGN_SYSTEM 8.2 `NudgeRow`).
 enum HomeNudge {
   /// "Spent something? Just say it." with Ask: the placeholder until the
-  /// nudge jobs (WP-60) and the daily rate prompt (WP-24) fill the slot.
+  /// nudge jobs (WP-60) fill the slot. The daily rate prompt (WP-24,
+  /// `homeRateAskProvider`) takes the slot while it asks.
   tryAsk,
 }
 
-/// The nudge row's content, or null to hide the row. Static for now: the
-/// daily rate prompt (WP-24) and server nudges (WP-60) replace it.
+/// The nudge row's content, or null to hide the row. Static for now:
+/// server nudges (WP-60) replace it; the daily rate prompt (WP-24) shows
+/// instead while it asks.
 final homeNudgeProvider = Provider<HomeNudge?>(
   (ref) => HomeNudge.tryAsk,
   name: 'homeNudgeProvider',

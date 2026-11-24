@@ -4,6 +4,8 @@ import 'dart:async';
 
 import 'package:clock/clock.dart';
 import 'package:xpense_app/data/accounts_repository.dart';
+import 'package:xpense_app/data/fx_repository.dart';
+import 'package:xpense_app/data/fx_repository_fake.dart';
 import 'package:xpense_app/data/write/ledger_store.dart';
 import 'package:xpense_app/data/write/ledger_transactions_repository.dart';
 import 'package:xpense_app/data/write/memory_ledger_store.dart';
@@ -29,11 +31,18 @@ final class FakeAccountsRepository implements AccountsRepository {
     ],
     List<Account> accounts = const [],
     this.baseCurrency = Currency.usd,
-    this._rate,
+    FxRate? rate,
     this.sharingDelay = Duration.zero,
     this.ledger,
     Clock? clock,
-  }) : _clock = clock ?? const Clock() {
+  }) : _clock = clock ?? const Clock(),
+       fx = MemoryFxRepository(
+         viewerUid: viewerUid,
+         ledger: ledger,
+         clock: clock,
+         // Entered before today: today's rate is still to be asked for.
+         standing: rate,
+       ) {
     for (final a in accounts) {
       _all[a.id] = a;
     }
@@ -187,7 +196,6 @@ final class FakeAccountsRepository implements AccountsRepository {
   final Clock _clock;
   final Map<String, Account> _all = {};
   List<HouseholdMember> _members;
-  FxRate? _rate;
   final Map<String, List<AccountEntry>> _entries = {};
   final _changes = StreamController<void>.broadcast(sync: true);
   var _nextId = 0;
@@ -204,20 +212,10 @@ final class FakeAccountsRepository implements AccountsRepository {
   /// Every account, including ones the viewer cannot see.
   List<Account> get allAccounts => _sorted(_all.values);
 
-  /// Replaces the rate, as a member answering the rate prompt would: it
-  /// is today's rate in the [ledger] too.
-  void setRate(FxRate? rate) {
-    _putRate(rate);
-    _changed();
-  }
-
-  void _putRate(FxRate? rate) {
-    _rate = rate;
-    if (ledger case final store? when rate != null) {
-      final day = householdDay(_clock.now());
-      store.rates[day] = DayRate(day: day, rate: rate, kind: 'market');
-    }
-  }
+  /// The household's daily rates (`fxRates`), which an opening balance in
+  /// the other currency converts with. The composition root serves it as
+  /// the app's `FxRepository` when this fake is the accounts repository.
+  final MemoryFxRepository fx;
 
   void _changed() {
     _syncLedger();
@@ -240,17 +238,8 @@ final class FakeAccountsRepository implements AccountsRepository {
     store.householdInfo = LedgerHousehold(
       baseCurrency: baseCurrency,
       memberIds: [for (final m in _members) m.uid],
+      rateKind: fx.kind.wire,
     );
-  }
-
-  /// The rates saved through [setDailyRate], in order.
-  final List<FxRate> dailyRates = [];
-
-  @override
-  Future<Result<void, AccountsFailure>> setDailyRate(FxRate rate) async {
-    dailyRates.add(rate);
-    setRate(rate);
-    return const Ok(null);
   }
 
   /// Replaces the members, as a partner joining would.
@@ -315,9 +304,6 @@ final class FakeAccountsRepository implements AccountsRepository {
   });
 
   @override
-  Stream<FxRate?> watchLatestRate() => _watch(() => _rate);
-
-  @override
   Stream<List<AccountEntry>> watchEntries(String accountId) => _watch(
     () => _all[accountId]?.visibleTo.contains(viewerUid) ?? false
         ? _entries[accountId] ?? const []
@@ -341,10 +327,20 @@ final class FakeAccountsRepository implements AccountsRepository {
       amountMinor: opening,
       currency: draft.currency,
       base: baseCurrency,
-      rate: draft.openingRate ?? _rate,
+      rate: draft.openingRate ?? fx.latest?.rate,
     );
     if (needed == null) return const Err(AccountsRateNeeded());
-    if (opening != 0 && draft.openingRate != null) _putRate(draft.openingRate);
+    if (draft.openingRate case final typed? when opening != 0) {
+      // A typed rate is saved as today's, as the Firestore adapter does.
+      fx.put(
+        DailyRate(
+          day: householdDay(_clock.now()),
+          rate: typed,
+          kind: fx.kind,
+          enteredBy: viewerUid,
+        ),
+      );
+    }
     created.add(draft);
     final id = 'acc-new-${_nextId++}';
     final ownerUid = draft.scope == AccountScope.personal ? viewerUid : null;

@@ -23,6 +23,9 @@ import 'package:xpense_app/data/accounts_repository_firebase.dart';
 import 'package:xpense_app/data/auth_repository.dart';
 import 'package:xpense_app/data/auth_repository_fake.dart';
 import 'package:xpense_app/data/auth_repository_firebase.dart';
+import 'package:xpense_app/data/fx_repository.dart';
+import 'package:xpense_app/data/fx_repository_fake.dart';
+import 'package:xpense_app/data/fx_repository_firebase.dart';
 import 'package:xpense_app/data/household_repository.dart';
 import 'package:xpense_app/data/household_repository_fake.dart';
 import 'package:xpense_app/data/household_repository_firebase.dart';
@@ -320,7 +323,7 @@ HouseholdRepository connectHouseholds(
 /// The Ask cards' household and write path: the household from
 /// [askHouseholdProvider] (the same accounts the save path writes to),
 /// saves and Undo through the transaction write path (WP-20), the daily
-/// rate through the accounts repository. The inner in-memory actions keep
+/// rate through the FX repository. The inner in-memory actions keep
 /// navigation for now.
 XpenseActions connectXpenseActions(Ref ref) {
   // Keeps the household's streams running while the actions are in use;
@@ -329,7 +332,7 @@ XpenseActions connectXpenseActions(Ref ref) {
   return LedgerXpenseActions(
     inner: FakeXpenseActions(),
     transactions: ref.watch(transactionsRepositoryProvider),
-    accounts: ref.watch(accountsRepositoryProvider),
+    fx: ref.watch(fxRepositoryProvider),
     readHousehold: () => ref.read(askHouseholdProvider),
     clock: ref.read(clockProvider),
   );
@@ -659,6 +662,9 @@ Future<Bootstrapped> bootstrap({required AppEnvironment environment}) async {
       authRepository: auth,
       householdRepository: households,
       accountsRepository: accounts,
+      fxRepository: environment == AppEnvironment.fakes
+          ? null
+          : FirebaseFxRepository.connect(households: households),
       transactionsRepository: transactions,
       entryReader: environment == AppEnvironment.fakes
           ? null
@@ -696,6 +702,7 @@ List<Override> appOverrides({
   required AuthRepository authRepository,
   required HouseholdRepository householdRepository,
   required AccountsRepository accountsRepository,
+  FxRepository? fxRepository,
   TransactionsRepository? transactionsRepository,
   EntryReader? entryReader,
   ActivityReader? activityReader,
@@ -717,6 +724,15 @@ List<Override> appOverrides({
   authRepositoryProvider.overrideWithValue(authRepository),
   householdRepositoryProvider.overrideWithValue(householdRepository),
   accountsRepositoryProvider.overrideWithValue(accountsRepository),
+  // The fake accounts repository holds the fakes' rates (an opening balance
+  // converts with them), so it serves them as the FX repository too.
+  fxRepositoryProvider.overrideWithValue(
+    fxRepository ??
+        switch (accountsRepository) {
+          final FakeAccountsRepository fake => fake.fx..clock = clock,
+          _ => MemoryFxRepository(clock: clock),
+        },
+  ),
   transactionsRepositoryProvider.overrideWithValue(
     transactionsRepository ?? memoryTransactions(),
   ),

@@ -1,6 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:xpense_app/a2ui/xpense_surface_host.dart';
-import 'package:xpense_app/data/accounts_repository.dart';
+import 'package:xpense_app/data/fx_repository.dart';
 import 'package:xpense_app/data/transactions_repository.dart';
 import 'package:xpense_app/services/clock.dart';
 import 'package:xpense_shared/xpense_shared.dart';
@@ -8,14 +8,14 @@ import 'package:xpense_shared/xpense_shared.dart';
 /// [XpenseActions] whose saves go through the transaction write path
 /// (WP-20, `TransactionsRepository.saveEntries`): one batch per card, all
 /// or nothing. The household comes from [readHousehold]; the daily rate is
-/// written through [accounts] (`fxRates/{day}`); navigation is [inner]'s.
+/// written through [fx] (`fxRates/{day}`); navigation is [inner]'s.
 final class LedgerXpenseActions implements XpenseActions {
   /// Saves through [transactions]; reads the household with
   /// [readHousehold] each time; the rest goes to [inner].
   new({
     required this.inner,
     required this.transactions,
-    required this.accounts,
+    required this.fx,
     required this.readHousehold,
     this.clock = const Clock(),
   });
@@ -24,7 +24,7 @@ final class LedgerXpenseActions implements XpenseActions {
   final XpenseActions inner;
 
   /// Where the daily rate is saved.
-  final AccountsRepository accounts;
+  final FxRepository fx;
 
   /// Today, for the rate answered today.
   final Clock clock;
@@ -76,14 +76,23 @@ final class LedgerXpenseActions implements XpenseActions {
   ) async {
     // After a rate answer, a quote made with an older rate is dropped, so
     // the write path prices the entry with the household's rate for its
-    // date (the one just saved, for today).
-    final base = readHousehold().baseCurrency;
-    final priced = _answeredToday == null
-        ? drafts
-        : [
-            for (final d in drafts)
-              if (d.fx != null && d.currency != base) withoutFx(d) else d,
-          ];
+    // date. Answered here, every quote goes: a draft dated before the
+    // household's first rate then takes the answer (below). Answered
+    // elsewhere (on Home, or by the partner), only today's quotes are
+    // superseded; a backdated quote stays, since an entry dated before
+    // any rate has nothing else to price it with (review on PR #42).
+    final household = readHousehold();
+    final base = household.baseCurrency;
+    final today = rateDayOf(clock.now());
+    bool superseded(EntryDraft d) =>
+        d.fx != null &&
+        d.currency != base &&
+        (_answeredToday != null ||
+            (household.rateEnteredToday && (d.occurredOn ?? today) == today));
+    final priced = [
+      for (final d in drafts)
+        if (superseded(d)) withoutFx(d) else d,
+    ];
     var batch = priced;
     var result = await transactions.saveEntries(batch);
     // The household's first rate covers today on: an entry dated before it
@@ -138,7 +147,7 @@ final class LedgerXpenseActions implements XpenseActions {
       debugPrint('rate not saved: malformed');
       return;
     }
-    final result = await accounts.setDailyRate(rate);
+    final result = await fx.setRate(rateDayOf(clock.now()), rate);
     switch (result) {
       case Ok():
         _answered = (rate: rate.rateString, at: clock.now());

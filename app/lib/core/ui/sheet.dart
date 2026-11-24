@@ -132,18 +132,23 @@ class GlassSheet extends StatelessWidget {
 }
 
 /// Presents [builder]'s content in a [GlassSheet] at [detent].
+///
+/// With [useRootNavigator], the sheet covers the whole app, the tab bar
+/// too, when shown from a tab (WP-24).
 Future<T?> showGlassSheet<T>({
   required BuildContext context,
   required WidgetBuilder builder,
   SheetDetent detent = SheetDetent.medium,
   SheetHeader? header,
   bool overMedia = false,
+  bool useRootNavigator = false,
 }) {
   final colors = XpColors.of(context);
   final motion = XpMotion.of(context);
   return showModalBottomSheet<T>(
     context: context,
     isScrollControlled: true,
+    useRootNavigator: useRootNavigator,
     useSafeArea: true,
     backgroundColor: colors.canvas.withValues(alpha: 0),
     elevation: 0,

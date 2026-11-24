@@ -40,7 +40,7 @@ void main() {
     actions = LedgerXpenseActions(
       inner: inner,
       transactions: LedgerTransactionsRepository(store),
-      accounts: accounts,
+      fx: accounts.fx,
       readHousehold: () => inner.household,
       clock: _clock,
     );
@@ -117,7 +117,7 @@ void main() {
 
   test("a rate answer is saved as today's rate, not in the fake", () async {
     await actions.setDailyRate('1500');
-    expect([for (final r in accounts.dailyRates) r.rateString], ['1500']);
+    expect([for (final r in accounts.fx.written) r.rate.rateString], ['1500']);
     expect(inner.calls.where((c) => c.method == 'setDailyRate'), isEmpty);
     expect(actions.household.latestRate, '1500');
     expect(actions.household.rateEnteredToday, isTrue, reason: 'no prompt');
@@ -150,5 +150,78 @@ void main() {
     final stored = store.transactions[outcome.txnIds.single]!;
     expect((stored['fx']! as Map)['pairRate'], '1500');
     expect(stored['baseAmountMinor'], 1000);
+  });
+
+  test("the partner's answer for today replaces a slip's older quote "
+      '(Codex review, PR #42)', () async {
+    store.rates['2026-11-23'] = DayRate(
+      day: '2026-11-23',
+      rate: FxRate.forPair(FxPair.usdIqd, '1750').valueOrNull!,
+      kind: 'market',
+    );
+    final household = inner.household;
+    final partnerAnswered = LedgerXpenseActions(
+      inner: inner,
+      transactions: LedgerTransactionsRepository(store),
+      fx: accounts.fx,
+      readHousehold: () => XpenseHousehold(
+        baseCurrency: household.baseCurrency,
+        accounts: household.accounts,
+        categories: household.categories,
+        latestRate: '1750',
+        rateEnteredToday: true,
+      ),
+      clock: _clock,
+    );
+    final quoted = EntryDraft.fromJson({
+      ..._draft(accountId: 'acc-cash').toJson(),
+      'amountMinor': 17050,
+      'currency': 'IQD',
+      'occurredOn': '2026-11-23',
+      'fx': FxQuote(
+        pair: 'USD/IQD',
+        pairRate: '1705',
+        baseAmountMinor: 1000,
+      ).toJson(),
+    });
+    final outcome = await partnerAnswered.saveDrafts('s1', [quoted]);
+    expect(outcome, isA<DraftsSaved>());
+    final txn = store.transactions.values.single;
+    expect((txn['fx']! as Map)['pairRate'], '1750');
+    expect((txn['fx']! as Map)['asOf'], '2026-11-23');
+  });
+
+  test('a backdated quote stays when today was answered elsewhere '
+      '(review on PR #42)', () async {
+    final household = inner.household;
+    final partnerAnswered = LedgerXpenseActions(
+      inner: inner,
+      transactions: LedgerTransactionsRepository(store),
+      fx: accounts.fx,
+      readHousehold: () => XpenseHousehold(
+        baseCurrency: household.baseCurrency,
+        accounts: household.accounts,
+        categories: household.categories,
+        latestRate: '1750',
+        rateEnteredToday: true,
+      ),
+      clock: _clock,
+    );
+    // Before the household's first rate: only the quote can price it.
+    final quoted = EntryDraft.fromJson({
+      ..._draft(accountId: 'acc-cash').toJson(),
+      'amountMinor': 17050,
+      'currency': 'IQD',
+      'occurredOn': '2026-09-01',
+      'fx': FxQuote(
+        pair: 'USD/IQD',
+        pairRate: '1705',
+        baseAmountMinor: 1000,
+      ).toJson(),
+    });
+    final outcome = await partnerAnswered.saveDrafts('s1', [quoted]);
+    expect(outcome, isA<DraftsSaved>());
+    final txn = store.transactions.values.single;
+    expect((txn['fx']! as Map)['pairRate'], '1705');
   });
 }

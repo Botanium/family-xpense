@@ -3982,6 +3982,108 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Add an account first.'**
   String get captureManualNoAccounts;
+
+  /// The daily question on Home and in forms when nobody in the household has entered today's USD/IQD rate. Followed by the previous rate.
+  ///
+  /// In en, this message translates to:
+  /// **'Today\'s dollar rate?'**
+  String get settingsFxPromptQuestion;
+
+  /// Text action on the daily rate prompt that keeps the previous rate for today.
+  ///
+  /// In en, this message translates to:
+  /// **'Same'**
+  String get settingsFxPromptSame;
+
+  /// Text action on the daily rate prompt that opens the number pad.
+  ///
+  /// In en, this message translates to:
+  /// **'Change'**
+  String get settingsFxPromptChange;
+
+  /// VoiceOver label of the daily rate prompt.
+  ///
+  /// In en, this message translates to:
+  /// **'Today\'s dollar rate? The last one was {rate} dinars.'**
+  String settingsFxPromptSpoken(String rate);
+
+  /// Home's daily rate question when the household has never entered a rate.
+  ///
+  /// In en, this message translates to:
+  /// **'What\'s today\'s dollar rate?'**
+  String get settingsFxPromptFirst;
+
+  /// Text action that opens the rate number pad when there is no previous rate to keep.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter'**
+  String get settingsFxPromptEnter;
+
+  /// Shown under the rate prompt when saving the rate failed.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t save the rate. Try again.'**
+  String get settingsFxPromptFailed;
+
+  /// Title of the number pad sheet for today's rate.
+  ///
+  /// In en, this message translates to:
+  /// **'Today\'s dollar rate'**
+  String get settingsFxRateTitle;
+
+  /// Title of the number pad sheet when editing a past day's rate.
+  ///
+  /// In en, this message translates to:
+  /// **'Dollar rate on {day}'**
+  String settingsFxRateTitleDay(String day);
+
+  /// Unit under the typed exchange rate.
+  ///
+  /// In en, this message translates to:
+  /// **'IQD per USD'**
+  String get settingsFxRateUnit;
+
+  /// Button that saves the typed exchange rate.
+  ///
+  /// In en, this message translates to:
+  /// **'Save'**
+  String get settingsFxRateSave;
+
+  /// VoiceOver label of the backspace key on the rate number pad.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete'**
+  String get settingsFxRateBackspace;
+
+  /// Asked before saving a typed rate far from the previous one, to catch typos.
+  ///
+  /// In en, this message translates to:
+  /// **'{typed} is more than 5% away from {previous}. Is it right?'**
+  String settingsFxRateConfirmTitle(String typed, String previous);
+
+  /// Action that saves the far-away rate anyway.
+  ///
+  /// In en, this message translates to:
+  /// **'Save {typed}'**
+  String settingsFxRateConfirmSave(String typed);
+
+  /// Action that goes back to the number pad to fix the rate.
+  ///
+  /// In en, this message translates to:
+  /// **'Change it'**
+  String get settingsFxRateConfirmChange;
+
+  /// Text action on the inline rate ask in a form: today's rate is the previous one.
+  ///
+  /// In en, this message translates to:
+  /// **'Use it'**
+  String get settingsFxInlineUse;
+
+  /// Under the inline rate ask in a form: what happens when the person does not answer.
+  ///
+  /// In en, this message translates to:
+  /// **'Or skip: this entry then uses {rate} from {date}.'**
+  String settingsFxInlineSkipHint(String rate, String date);
 }
 
 class _AppLocalizationsDelegate

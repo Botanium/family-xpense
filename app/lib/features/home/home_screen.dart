@@ -11,6 +11,7 @@ import 'package:xpense_app/core/ui/ui.dart';
 import 'package:xpense_app/data/accounts_repository.dart';
 import 'package:xpense_app/data/household_repository.dart';
 import 'package:xpense_app/features/home/home_providers.dart';
+import 'package:xpense_app/features/home/home_rate_prompt.dart';
 import 'package:xpense_app/features/home/home_summary.dart';
 import 'package:xpense_shared/xpense_shared.dart';
 
@@ -106,6 +107,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final other = s.otherCurrency;
     final otherMinor = s.otherBalanceMinor;
     final nudge = ref.watch(homeNudgeProvider);
+    // WP-24: today's rate, while nobody has entered it, takes the slot.
+    final rateAsk = ref.watch(homeRateAskProvider);
     return [
       HeroBalance(
         label: s.balanceComplete
@@ -169,7 +172,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         value: amount(s.savedMinor),
         dotColor: colors.saved,
       ),
-      if (nudge != null) ...[
+      if (rateAsk != null) ...[
+        const SizedBox(height: XpSpace.s12),
+        HomeRatePrompt(ask: rateAsk),
+      ] else if (nudge != null) ...[
         const SizedBox(height: XpSpace.s12),
         switch (nudge) {
           HomeNudge.tryAsk => NudgeRow(

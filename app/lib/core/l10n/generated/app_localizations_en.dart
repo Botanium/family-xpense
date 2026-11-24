@@ -2188,4 +2188,65 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get captureManualNoAccounts => 'Add an account first.';
+
+  @override
+  String get settingsFxPromptQuestion => 'Today\'s dollar rate?';
+
+  @override
+  String get settingsFxPromptSame => 'Same';
+
+  @override
+  String get settingsFxPromptChange => 'Change';
+
+  @override
+  String settingsFxPromptSpoken(String rate) {
+    return 'Today\'s dollar rate? The last one was $rate dinars.';
+  }
+
+  @override
+  String get settingsFxPromptFirst => 'What\'s today\'s dollar rate?';
+
+  @override
+  String get settingsFxPromptEnter => 'Enter';
+
+  @override
+  String get settingsFxPromptFailed => 'Couldn\'t save the rate. Try again.';
+
+  @override
+  String get settingsFxRateTitle => 'Today\'s dollar rate';
+
+  @override
+  String settingsFxRateTitleDay(String day) {
+    return 'Dollar rate on $day';
+  }
+
+  @override
+  String get settingsFxRateUnit => 'IQD per USD';
+
+  @override
+  String get settingsFxRateSave => 'Save';
+
+  @override
+  String get settingsFxRateBackspace => 'Delete';
+
+  @override
+  String settingsFxRateConfirmTitle(String typed, String previous) {
+    return '$typed is more than 5% away from $previous. Is it right?';
+  }
+
+  @override
+  String settingsFxRateConfirmSave(String typed) {
+    return 'Save $typed';
+  }
+
+  @override
+  String get settingsFxRateConfirmChange => 'Change it';
+
+  @override
+  String get settingsFxInlineUse => 'Use it';
+
+  @override
+  String settingsFxInlineSkipHint(String rate, String date) {
+    return 'Or skip: this entry then uses $rate from $date.';
+  }
 }

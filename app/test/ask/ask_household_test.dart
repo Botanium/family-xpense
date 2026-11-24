@@ -11,6 +11,7 @@ import 'package:xpense_app/bootstrap.dart';
 import 'package:xpense_app/core/routing/routing.dart';
 import 'package:xpense_app/data/accounts_repository.dart';
 import 'package:xpense_app/data/accounts_repository_fake.dart';
+import 'package:xpense_app/data/fx_repository.dart';
 import 'package:xpense_app/data/household_repository.dart';
 import 'package:xpense_app/data/household_repository_fake.dart';
 import 'package:xpense_app/data/rules_repository.dart';
@@ -25,6 +26,7 @@ import '../support/test_app.dart';
 void main() {
   _firstRateTest();
   _fakesShareTheLedgerTests();
+  _rateEnteredTodayTests();
 
   test('accounts, partner, base currency and rate come from the app', () {
     final h = xpenseHouseholdFrom(
@@ -115,10 +117,10 @@ void _firstRateTest() {
     final store = sampleLedgerStore(clock: services.clock.clock)..rates.clear();
     // One fxRates collection in Firestore: what the member enters is what
     // the write path reads.
-    final linked = accounts.watchLatestRate().listen((rate) {
-      if (rate == null) return;
-      final day = householdDay(services.clock.clock.now());
-      store.rates[day] = DayRate(day: day, rate: rate, kind: 'market');
+    final linked = accounts.fx.watchRates().listen((rates) {
+      for (final r in rates) {
+        store.rates[r.day] = DayRate(day: r.day, rate: r.rate, kind: 'market');
+      }
     });
     // Not awaited: cancelling the fake's async* stream mid-wait never
     // completes.
@@ -128,7 +130,7 @@ void _firstRateTest() {
       return LedgerXpenseActions(
         inner: services.actions,
         transactions: LedgerTransactionsRepository(store),
-        accounts: accounts,
+        fx: accounts.fx,
         readHousehold: () => ref.read(askHouseholdProvider),
         clock: services.clock.clock,
       );
@@ -168,7 +170,7 @@ void _firstRateTest() {
     for (var i = 0; i < 20; i++) {
       await tester.pump(const Duration(milliseconds: 100));
     }
-    expect([for (final r in accounts.dailyRates) r.rateString], ['1500']);
+    expect([for (final r in accounts.fx.written) r.rate.rateString], ['1500']);
     expect(find.text('Enter rate'), findsNothing);
 
     await tester.tap(find.text('Save'));
@@ -187,7 +189,8 @@ void _fakesShareTheLedgerTests() {
     final clock = Clock.fixed(DateTime(2026, 11, 22, 9));
     final store = sampleLedgerStore(clock: clock);
     final accounts = FakeAccountsRepository.sample(ledger: store, clock: clock);
-    await accounts.setDailyRate(
+    await accounts.fx.setRate(
+      '2026-11-22',
       FxRate.forPair(FxPair.usdIqd, '1800').valueOrNull!,
     );
     expect(store.rates['2026-11-22']?.rate.rateString, '1800');
@@ -233,7 +236,7 @@ void _fakesShareTheLedgerTests() {
       return LedgerXpenseActions(
         inner: services.actions,
         transactions: LedgerTransactionsRepository(store),
-        accounts: accounts,
+        fx: accounts.fx,
         readHousehold: () => ref.read(askHouseholdProvider),
         clock: services.clock.clock,
       );
@@ -266,6 +269,15 @@ void _fakesShareTheLedgerTests() {
     for (var i = 0; i < 20; i++) {
       await tester.pump(const Duration(milliseconds: 100));
     }
+    // 1,800 is more than 5% from 1,705: confirmed first (WP-24).
+    expect(
+      find.text('1,800 is more than 5% away from 1,705. Is it right?'),
+      findsOneWidget,
+    );
+    await tester.tap(find.text('Save 1,800'));
+    for (var i = 0; i < 20; i++) {
+      await tester.pump(const Duration(milliseconds: 100));
+    }
     await tester.tap(find.text('Save'));
     for (var i = 0; i < 20; i++) {
       await tester.pump(const Duration(milliseconds: 100));
@@ -275,5 +287,71 @@ void _fakesShareTheLedgerTests() {
     final saved = store.transactions.values.single;
     expect((saved['fx']! as Map)['pairRate'], '1800');
     expect(saved['baseAmountMinor'], 1000);
+  });
+}
+
+void _rateEnteredTodayTests() {
+  test("a slip asks for today's rate until anyone in the household enters "
+      'it (WP-24)', () async {
+    final accounts = FakeAccountsRepository.sample();
+    final services = TestServices(accounts: accounts);
+    final container = services.container();
+    final household = container.listen(askHouseholdProvider, (_, _) {});
+    await container.read(fxRatesProvider.future);
+    await container.read(accountsProvider.future);
+    // The sample's rate is from yesterday: today's is still to be asked.
+    expect(household.read().rateEnteredToday, isFalse);
+    expect(household.read().latestRate, '1705');
+
+    // The partner answers on their phone.
+    accounts.fx.put(
+      DailyRate(
+        day: householdDay(services.clock.now),
+        rate: FxRate.forPair(FxPair.usdIqd, '1710').valueOrNull!,
+        enteredBy: FakeAccountsRepository.samplePartner,
+      ),
+    );
+    await Future<void>.delayed(Duration.zero);
+    expect(household.read().rateEnteredToday, isTrue);
+    expect(household.read().latestRate, '1710');
+  });
+
+  test('the next day, a slip asks again (Codex review, PR #42)', () async {
+    final accounts = FakeAccountsRepository.sample();
+    final services = TestServices(accounts: accounts);
+    final container = services.container();
+    final household = container.listen(askHouseholdProvider, (_, _) {});
+    await container.read(fxRatesProvider.future);
+    await accounts.fx.setRate(
+      householdDay(services.clock.now),
+      FxRate.forPair(FxPair.usdIqd, '1710').valueOrNull!,
+    );
+    await Future<void>.delayed(Duration.zero);
+    expect(household.read().rateEnteredToday, isTrue);
+
+    services.clock.advance(const Duration(days: 1));
+    container.read(rateTodayProvider.notifier).refresh();
+    expect(household.read().rateEnteredToday, isFalse);
+    expect(household.read().latestRate, '1710');
+  });
+
+  testWidgets('back from the background on a new day, the rate day moves '
+      '(review on PR #42)', (tester) async {
+    final services = TestServices(accounts: FakeAccountsRepository.sample());
+    final container = await pumpXpenseApp(tester, services);
+    final before = container.read(rateTodayProvider);
+
+    services.clock.advance(const Duration(days: 1));
+    tester.binding
+      ..handleAppLifecycleStateChanged(AppLifecycleState.inactive)
+      ..handleAppLifecycleStateChanged(AppLifecycleState.hidden)
+      ..handleAppLifecycleStateChanged(AppLifecycleState.paused)
+      ..handleAppLifecycleStateChanged(AppLifecycleState.hidden)
+      ..handleAppLifecycleStateChanged(AppLifecycleState.inactive)
+      ..handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+    await tester.pumpAndSettle();
+
+    expect(container.read(rateTodayProvider), isNot(before));
+    expect(container.read(rateTodayProvider), householdDay(services.clock.now));
   });
 }

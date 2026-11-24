@@ -7,9 +7,11 @@ import 'package:xpense_app/core/l10n/l10n.dart';
 import 'package:xpense_app/core/theme/theme.dart';
 import 'package:xpense_app/core/ui/ui.dart';
 import 'package:xpense_app/data/accounts_repository.dart';
+import 'package:xpense_app/data/fx_repository.dart';
 import 'package:xpense_app/data/household_repository.dart';
 import 'package:xpense_app/data/transactions_repository.dart';
 import 'package:xpense_app/features/capture/manual/category_chips.dart';
+import 'package:xpense_app/features/capture/manual/inline_rate_ask.dart';
 import 'package:xpense_app/features/capture/manual/manual_entry.dart';
 import 'package:xpense_app/features/capture/manual/manual_labels.dart';
 import 'package:xpense_app/services/clock.dart';
@@ -259,6 +261,42 @@ class AddManuallyFormState extends ConsumerState<AddManuallyForm> {
       ..sort((a, b) => a.order.compareTo(b.order));
   }
 
+  /// [initial] as the save sends it: a new entry's prefilled quote (from a
+  /// slip) gives way to the household's rate for the entry's day once one
+  /// is entered, by the inline ask or by the partner, so the entry is
+  /// priced as the ask said (WP-24, Codex review PR #42). A rate typed for
+  /// this entry (`manual`) and an edit's stored rate stay.
+  EntryDraft? _priced(EntryDraft? initial, ManualEntryValues values) {
+    final quote = initial?.fx;
+    if (_editing || initial == null || quote == null) return initial;
+    if (quote.source == 'manual') return initial;
+    final rates = ref.read(fxRatesProvider).value ?? const <DailyRate>[];
+    final day = rates.where((r) => r.day == values.occurredOn).firstOrNull;
+    if (day == null) return initial;
+    if (quote.asOf == day.day && quote.pairRate == day.rate.rateString) {
+      return initial;
+    }
+    return EntryDraft.fromJson({...initial.toJson()}..remove('fx'));
+  }
+
+  /// The day whose rate the form asks for inline (WP-24): today, for a
+  /// new entry dated today that converts between currencies. An edit keeps
+  /// the rate it was saved with; the write path's own rate field covers a
+  /// household with no rate at all.
+  String? _rateAskDay(
+    ManualEntryValues values,
+    Currency currency,
+    bool crossCurrency,
+  ) {
+    if (_editing || _values.rateAsked) return null;
+    final today = manualDay(ref.read(clockProvider).now());
+    if (values.occurredOn != today) return null;
+    final converts =
+        currency != _base() ||
+        (crossCurrency && values.toAmountText.trim().isEmpty);
+    return converts ? today : null;
+  }
+
   Currency _base() => switch (ref.read(membershipProvider).value) {
     InHousehold(:final household) => household.baseCurrency,
     _ => Currency.usd,
@@ -329,7 +367,7 @@ class AddManuallyFormState extends ConsumerState<AddManuallyForm> {
       currencyOf: (id) =>
           accounts.where((a) => a.id == id).firstOrNull?.currency,
       base: _base(),
-      initial: widget.initial,
+      initial: _priced(widget.initial, values),
       arrivesWasTyped: _start.toAmountText.isNotEmpty,
     );
     final draft = check.draft;
@@ -636,6 +674,13 @@ class AddManuallyFormState extends ConsumerState<AddManuallyForm> {
               ),
             ),
             _FieldError(error(ManualField.amount)),
+            // WP-24: today's rate, asked inline while nobody has entered
+            // it; skippable.
+            if (_rateAskDay(values, currency, crossCurrency) case final day?)
+              if (inlineRateAskFor(ref, day) case final latest?) ...[
+                const SizedBox(height: XpSpace.s12),
+                InlineRateAsk(day: day, latest: latest),
+              ],
             if (_values.rateAsked) ...[
               const SizedBox(height: XpSpace.s16),
               anchor(
