@@ -822,12 +822,22 @@ final class LedgerTransactionsRepository implements TransactionsRepository {
       );
     }
     if (crossTransfer && toAmount == null) {
-      toAmount = rate!
-          .convert(Money(stored, currency), toCurrency)
-          .valueOrNull
-          ?.minorUnits;
-      if (toAmount == null) return invalid('fx', EntryIssue.malformed);
-      toSource = ToAmountSource.rate;
+      if (spoken == toCurrency) {
+        // The member's figure is what arrives: "move 10,000 dinars from
+        // the dollar account to the wallet" credits exactly 10,000; only
+        // the debit is converted (Codex review, PR #46).
+        toAmount = amount;
+        toSource = ToAmountSource.entered;
+      } else {
+        // From the amount as written, so rounding the debit does not
+        // change the credit too.
+        toAmount = rate!
+            .convert(Money(amount, spoken), toCurrency)
+            .valueOrNull
+            ?.minorUnits;
+        if (toAmount == null) return invalid('fx', EntryIssue.malformed);
+        toSource = ToAmountSource.rate;
+      }
     }
     if (toAmount != null && (toAmount < 1 || toAmount > maxDraftAmountMinor)) {
       return invalid('toAmountMinor', EntryIssue.amountOutOfRange);

@@ -282,6 +282,73 @@ void main() {
     await _toastGone(tester);
   });
 
+  // Codex review, PR #46: a slip's 10,000 IQD on a dollar account opened
+  // as 10,000 USD. The form keeps the amount's own currency and the save
+  // converts it.
+  testWidgets('a slip draft in the other currency stays in it and converts', (
+    tester,
+  ) async {
+    final app = LedgerApp();
+    await _openSheet(
+      tester,
+      app,
+      extra: EntryDraft(
+        id: 'slip-2',
+        intent: 'expense',
+        amountMinor: 10000,
+        currency: 'IQD',
+        accountId: 'acc-checking',
+        categoryId: 'groceries',
+        origin: 'agent',
+      ),
+    );
+    expect(find.text('IQD'), findsOneWidget);
+    expect(
+      find.text(
+        "This account is in USD: saving converts the amount at the day's "
+        'rate.',
+      ),
+      findsOneWidget,
+    );
+    final input = tester.widget<CupertinoTextField>(_amountInput());
+    expect(input.controller!.text, '10000');
+    await _tap(tester, find.text('Save expense'));
+
+    final [txn] = app.saved;
+    expect(txn['accountId'], 'acc-checking');
+    // 10,000 IQD at 1,705: USD 5.87, never USD 10,000.
+    expect((txn['currency'], txn['amountMinor']), ('USD', 587));
+    await _toastGone(tester);
+  });
+
+  testWidgets('a slip draft with no account takes one in its currency', (
+    tester,
+  ) async {
+    final app = LedgerApp();
+    await _openSheet(
+      tester,
+      app,
+      extra: EntryDraft(
+        id: 'slip-3',
+        intent: 'expense',
+        amountMinor: 10000,
+        currency: 'IQD',
+        categoryId: 'groceries',
+        origin: 'agent',
+      ),
+    );
+    expect(find.text('Cash (IQD)'), findsOneWidget);
+    expect(find.textContaining('saving converts'), findsNothing);
+    await _tap(tester, find.text('Save expense'));
+
+    final [txn] = app.saved;
+    expect(
+      (txn['accountId'], txn['currency'], txn['amountMinor']),
+      ('acc-cash', 'IQD', 10000),
+    );
+    await _toastGone(tester);
+  });
+
   testWidgets('Cancel with changes asks before discarding', (tester) async {
     final app = LedgerApp();
     await _openSheet(tester, app);

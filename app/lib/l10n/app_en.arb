@@ -2940,6 +2940,16 @@
   "@captureManualArrives": {
     "description": "Caption of the optional amount that arrives when a transfer crosses currencies."
   },
+  "captureManualConverted": "This account is in {currency}: saving converts the amount at the day's rate.",
+  "@captureManualConverted": {
+    "description": "Note under the amount when it is in one currency and the account in the other.",
+    "placeholders": {
+      "currency": {
+        "type": "String",
+        "example": "USD"
+      }
+    }
+  },
   "captureManualArrivesHint": "At the day's rate",
   "@captureManualArrivesHint": {
     "description": "Placeholder of the arriving amount: empty converts at the day's rate."

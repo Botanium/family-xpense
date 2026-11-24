@@ -2063,6 +2063,11 @@ class AppLocalizationsEn extends AppLocalizations {
   String get captureManualArrives => 'Arrives';
 
   @override
+  String captureManualConverted(String currency) {
+    return 'This account is in $currency: saving converts the amount at the day\'s rate.';
+  }
+
+  @override
   String get captureManualArrivesHint => 'At the day\'s rate';
 
   @override

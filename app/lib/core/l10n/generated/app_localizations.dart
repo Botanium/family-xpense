@@ -3749,6 +3749,12 @@ abstract class AppLocalizations {
   /// **'Arrives'**
   String get captureManualArrives;
 
+  /// Note under the amount when it is in one currency and the account in the other.
+  ///
+  /// In en, this message translates to:
+  /// **'This account is in {currency}: saving converts the amount at the day\'s rate.'**
+  String captureManualConverted(String currency);
+
   /// Placeholder of the arriving amount: empty converts at the day's rate.
   ///
   /// In en, this message translates to:

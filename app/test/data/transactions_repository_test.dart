@@ -428,6 +428,44 @@ void main() {
       expect(store.balances['cash-iqd'], -21312);
     });
 
+    // Codex review, PR #46: the credit is the member's figure, not the
+    // rounded debit converted back (10,008).
+    test('dinars moved from a dollar account to a dinar account arrive '
+        'exactly', () async {
+      final id = await saveOne(
+        repo,
+        draft(
+          intent: 'transfer',
+          account: 'mine-usd',
+          to: 'cash-iqd',
+          amount: 10000,
+          currency: 'IQD',
+        ),
+      );
+      final doc = store.transactions[id]!;
+      expect((doc['currency'], doc['amountMinor']), ('USD', 587));
+      expect(doc['toAmountMinor'], 10000);
+      expect(doc['toAmountSource'], 'entered');
+      expect(store.balances['mine-usd'], -587);
+      expect(store.balances['cash-iqd'], 10000);
+    });
+
+    test('dollars moved from a dinar account to a dollar account arrive '
+        'exactly', () async {
+      final id = await saveOne(
+        repo,
+        draft(
+          intent: 'transfer',
+          account: 'cash-iqd',
+          to: 'mine-usd',
+          currency: 'USD',
+        ),
+      );
+      final doc = store.transactions[id]!;
+      expect((doc['currency'], doc['amountMinor']), ('IQD', 21312));
+      expect(doc['toAmountMinor'], 1250);
+    });
+
     test('a conversion with no rate for the day asks for one', () async {
       final result = await repo.saveEntries([
         draft(
