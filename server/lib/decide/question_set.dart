@@ -18,6 +18,9 @@ final RegExp optionKeyPattern = RegExp(r'^[A-Za-z0-9_-]{1,128}$');
 /// The API allows 2 to 255 options per choice question.
 const int maxOptions = 255;
 
+/// The fewest options a choice question may carry.
+const int minOptions = 2;
+
 /// Catch-all key for `account`, `to_account` and `who`.
 const String unspecifiedKey = 'unspecified';
 
@@ -226,8 +229,11 @@ String displayAmount(int amountMinor, String currencyCode) {
 /// Builds the request plan for one message.
 ///
 /// [speakerUid] is the caller; [today] is the household-local date.
-/// `duplicate` is dropped when [candidates] is empty, and `person` when it
-/// would offer only its catch-alls and the household has nobody listed.
+/// `duplicate` is dropped when [candidates] is empty. A choice question
+/// left with fewer than two options (`account` or `to_account` in a
+/// household with no account whose id the API accepts) is dropped too: the
+/// API takes 2 to 255 options per choice and has no free-text question, so
+/// the field is left to the parser and the phone's pickers.
 DecideRequestPlan buildPlan({
   required HouseholdProfile profile,
   required String speakerUid,
@@ -237,21 +243,24 @@ DecideRequestPlan buildPlan({
   DecideParsed? parsed,
   List<DuplicateCandidate> candidates = const [],
 }) {
-  final asked = [
-    for (final q in DecideQuestion.values)
-      if (ask.contains(q))
-        if (q != .duplicate || candidates.isNotEmpty) q,
-  ];
   final speaker = profile.member(speakerUid);
   final partner = [
     for (final m in profile.members)
       if (m.uid != speakerUid) m,
   ].firstOrNull;
   final options = <DecideQuestion, Map<String, String>>{
-    for (final q in asked)
-      if (choiceQuestions.contains(q))
-        q: _criteria(q, profile, speaker: speaker, partner: partner),
+    for (final q in DecideQuestion.values)
+      if (ask.contains(q) && choiceQuestions.contains(q))
+        if (_criteria(q, profile, speaker: speaker, partner: partner)
+            case final criteria when criteria.length >= minOptions)
+          q: criteria,
   };
+  final asked = [
+    for (final q in DecideQuestion.values)
+      if (ask.contains(q))
+        if (q != .duplicate || candidates.isNotEmpty)
+          if (!choiceQuestions.contains(q) || options.containsKey(q)) q,
+  ];
   return DecideRequestPlan(
     input: sharedInput(
       profile: profile,

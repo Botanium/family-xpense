@@ -175,6 +175,52 @@ void main() {
       ]);
     });
 
+    test('a choice left with one option is dropped, not sent', () {
+      // No account at all, and one whose id the API refuses: `account` and
+      // `to_account` would offer only `unspecified` (the API takes 2-255).
+      final profile = HouseholdProfile(
+        baseCurrency: 'USD',
+        members: fixtureProfile.members,
+        accounts: [
+          for (final a in fixtureProfile.accounts.take(1))
+            ProfileAccount(
+              id: 'bad id!',
+              name: a.name,
+              currency: a.currency,
+              kind: a.kind,
+              joint: a.joint,
+              ownerUid: a.ownerUid,
+            ),
+        ],
+        people: const [],
+        categories: const [],
+      );
+      final p = plan({
+        .intent,
+        .account,
+        .toAccount,
+        .who,
+        .person,
+        .multiEntry,
+      }, profile: profile);
+      expect(p.questions.keys, ['intent', 'who', 'person', 'multi_entry']);
+      expect(p.options.keys, isNot(contains(DecideQuestion.account)));
+      expect(p.asked, isNot(contains(DecideQuestion.toAccount)));
+      expect(p.body('m')['questions'], p.questions);
+    });
+
+    test('a choice with two options is still asked', () {
+      final profile = HouseholdProfile(
+        baseCurrency: 'USD',
+        members: fixtureProfile.members,
+        accounts: fixtureProfile.accounts.take(1).toList(),
+        people: const [],
+        categories: const [],
+      );
+      final p = plan({.account}, profile: profile);
+      expect(criteriaOf(p, .account), hasLength(2));
+    });
+
     test('a choice never has more than 255 options', () {
       final profile = HouseholdProfile(
         baseCurrency: 'USD',
