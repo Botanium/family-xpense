@@ -12,17 +12,21 @@ import 'package:xpense_shared/xpense_shared.dart';
 ///
 /// `read` returns every stored transaction by id, as the phone sees it.
 /// Call [changed] after a write (or wrap the write path in
-/// [NotifyingTransactionsRepository]) to emit again.
+/// [NotifyingTransactionsRepository]) to emit again; with `changes` (the
+/// memory store's), every change to the store emits too, as a Firestore
+/// listener hears a partner's edit or a queued write reaching the server.
 final class MemoryActivityReader implements ActivityReader {
   /// Creates the reader for viewer [viewerUid]; null reads as "not in a
   /// household".
-  new({required this._read, required this.viewerUid});
+  new({required this._read, required this.viewerUid, Stream<void>? changes})
+    : _storeChanges = changes;
 
   /// A reader with nothing in it.
   factory empty({String? viewerUid}) =>
       MemoryActivityReader(read: () => const {}, viewerUid: viewerUid);
 
   final Map<String, Map<String, Object?>> Function() _read;
+  final Stream<void>? _storeChanges;
 
   /// Who is reading.
   String? viewerUid;
@@ -50,6 +54,7 @@ final class MemoryActivityReader implements ActivityReader {
   Stream<ActivityWindow> watch(ActivityQuery query) {
     opened.add(query);
     StreamSubscription<void>? changes;
+    StreamSubscription<void>? storeChanges;
     late final StreamController<ActivityWindow> out;
     void emit() {
       final failed = failure;
@@ -64,8 +69,12 @@ final class MemoryActivityReader implements ActivityReader {
       onListen: () {
         emit();
         changes = _changes.stream.listen((_) => emit());
+        storeChanges = _storeChanges?.listen((_) => emit());
       },
-      onCancel: () => changes?.cancel(),
+      onCancel: () {
+        unawaited(changes?.cancel());
+        unawaited(storeChanges?.cancel());
+      },
     );
     return out.stream;
   }

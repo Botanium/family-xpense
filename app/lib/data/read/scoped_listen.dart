@@ -132,9 +132,10 @@ Stream<T> scopedListen<S extends Object, T>({
       generation++;
       retry?.cancel();
       retry = null;
-      final pending = [scopeSub?.cancel(), inner?.cancel()];
+      final listener = inner;
       inner = null;
-      await Future.wait([for (final p in pending) ?p]);
+      await scopeSub?.cancel();
+      await listener?.cancel();
     },
   );
   return controller.stream;

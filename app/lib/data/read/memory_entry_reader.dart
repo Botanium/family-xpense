@@ -4,6 +4,8 @@
 // after every save, edit, delete and restore, as Firestore's listeners do.
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
+
 import 'package:xpense_app/data/mappers/transaction_mapper.dart';
 import 'package:xpense_app/data/read/entry_reader.dart';
 import 'package:xpense_app/data/transactions_repository.dart';
@@ -89,9 +91,31 @@ final class MemoryEntryReader implements EntryReader {
 
   final ObservedLedgerStore _store;
 
-  Stream<T> _watch<T>(T Function() read) async* {
-    yield read();
-    yield* _store.changes.map((_) => read());
+  /// [read] now and after every commit through [_store] or any other
+  /// change to its memory (a partner's edit, a queued write reaching the
+  /// server, an account's opening balance), as a Firestore listener hears
+  /// them all. It subscribes when listened to, so a change right after the
+  /// first value is not missed.
+  Stream<T> _watch<T>(T Function() read) {
+    late final StreamController<T> out;
+    final subs = <StreamSubscription<void>>[];
+    out = StreamController<T>(
+      onListen: () {
+        out.add(read());
+        void emit(void _) => out.add(read());
+        subs
+          ..add(_store.changes.listen(emit))
+          ..add(_store.memory.changes.listen(emit));
+      },
+      // Cancelled without waiting: a `Future.wait` returned here never
+      // completes under a widget test's fake clock, so `.first` would hang.
+      onCancel: () {
+        for (final s in subs) {
+          unawaited(s.cancel());
+        }
+      },
+    );
+    return out.stream;
   }
 
   @override
@@ -112,18 +136,19 @@ final class MemoryEntryReader implements EntryReader {
   }).distinct();
 
   @override
-  Stream<List<EntryRevision>> watchRevisions(String id) => _watch(() {
-    final uid = _store.scope?.uid;
-    final data = _store.memory.transactions[id];
-    final visible = switch (data?['visibleTo']) {
-      final List<Object?> list => list.contains(uid),
-      _ => false,
-    };
-    if (!visible) return const <EntryRevision>[];
-    return newestFirst([
-      for (final r
-          in _store.memory.revisions[id] ?? const <Map<String, Object?>>[])
-        ?revisionFromFields('${r['id']}', r),
-    ]);
-  });
+  Stream<List<EntryRevision>> watchRevisions(String id) =>
+      _watch<List<EntryRevision>>(() {
+        final uid = _store.scope?.uid;
+        final data = _store.memory.transactions[id];
+        final visible = switch (data?['visibleTo']) {
+          final List<Object?> list => list.contains(uid),
+          _ => false,
+        };
+        if (!visible) return const <EntryRevision>[];
+        return newestFirst([
+          for (final r
+              in _store.memory.revisions[id] ?? const <Map<String, Object?>>[])
+            ?revisionFromFields('${r['id']}', r),
+        ]);
+      }).distinct(listEquals);
 }
