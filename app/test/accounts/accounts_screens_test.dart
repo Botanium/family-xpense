@@ -355,6 +355,22 @@ void main() {
       );
       expect(find.text('Family Visa · Joint'), findsOneWidget);
     });
+    testWidgets('the edit sheet ignores a swipe; Cancel closes it', (
+      tester,
+    ) async {
+      await pumpAt(tester, AppRoutes.account('acc-visa'));
+      await tester.tap(find.bySemanticsLabel('More'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Edit'));
+      await tester.pumpAndSettle();
+      // A swipe would close it mid-save (cleanups, item 5).
+      await tester.drag(find.text('Edit account'), const Offset(0, 600));
+      await tester.pumpAndSettle();
+      expect(find.text('Edit account'), findsOneWidget);
+      await tester.tap(find.text('Cancel'));
+      await tester.pumpAndSettle();
+      expect(find.text('Edit account'), findsNothing);
+    });
   });
 
   group('Add accounts (screen 4)', () {

@@ -135,6 +135,12 @@ class GlassSheet extends StatelessWidget {
 ///
 /// With [useRootNavigator], the sheet covers the whole app, the tab bar
 /// too, when shown from a tab (WP-24).
+///
+/// [enableDrag] false stops a swipe down from closing the sheet: the drag
+/// pops the route with `Navigator.pop`, which a `PopScope` inside cannot
+/// stop, so a sheet that saves sets it false and guards Cancel and the
+/// dimmed screen with a `PopScope` while it saves. [isDismissible] false
+/// makes a tap on the dimmed screen do nothing at all.
 Future<T?> showGlassSheet<T>({
   required BuildContext context,
   required WidgetBuilder builder,
@@ -142,6 +148,8 @@ Future<T?> showGlassSheet<T>({
   SheetHeader? header,
   bool overMedia = false,
   bool useRootNavigator = false,
+  bool enableDrag = true,
+  bool isDismissible = true,
 }) {
   final colors = XpColors.of(context);
   final motion = XpMotion.of(context);
@@ -149,6 +157,8 @@ Future<T?> showGlassSheet<T>({
     context: context,
     isScrollControlled: true,
     useRootNavigator: useRootNavigator,
+    enableDrag: enableDrag,
+    isDismissible: isDismissible,
     useSafeArea: true,
     backgroundColor: colors.canvas.withValues(alpha: 0),
     elevation: 0,

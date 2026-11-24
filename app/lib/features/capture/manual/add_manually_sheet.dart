@@ -73,49 +73,21 @@ Future<ManualSheetOutcome?> showAddManuallySheet(
 /// [showGlassSheet] at the large detent, without drag-to-dismiss.
 ///
 /// The bottom sheet's drag closes its route with `Navigator.pop`, which a
-/// [PopScope] cannot stop, so a half-filled form could be lost to a swipe.
-/// Cancel and a tap on the dimmed screen both go through
-/// [AddManuallyFormState.cancel] instead (Codex review, PR #39). Same look
-/// as `showGlassSheet`; that helper has no `enableDrag` yet (design system
-/// follow-up).
+/// [PopScope] cannot stop, so a half-filled form, or one still saving,
+/// could be lost to a swipe. Cancel and a tap on the dimmed screen both go
+/// through [AddManuallyFormState.cancel] instead, which waits for a save in
+/// progress (Codex review, PR #39).
 Future<ManualSheetOutcome?> _showFormSheet({
   required BuildContext context,
   required SheetHeader header,
   required WidgetBuilder builder,
-}) {
-  final colors = XpColors.of(context);
-  final motion = XpMotion.of(context);
-  return showModalBottomSheet<ManualSheetOutcome>(
-    context: context,
-    isScrollControlled: true,
-    useSafeArea: true,
-    enableDrag: false,
-    backgroundColor: colors.canvas.withValues(alpha: 0),
-    elevation: 0,
-    barrierColor: colors.ink.withValues(alpha: XpOpacity.barrier),
-    sheetAnimationStyle: AnimationStyle(
-      duration: motion.slow,
-      reverseDuration: motion.base,
-      curve: XpMotion.slowCurve,
-    ),
-    builder: (context) => Padding(
-      padding: EdgeInsetsDirectional.only(
-        start: XpSpace.sheetMargin,
-        end: XpSpace.sheetMargin,
-        bottom: XpSpace.sheetMargin + MediaQuery.viewInsetsOf(context).bottom,
-      ),
-      child: ConstrainedBox(
-        constraints: BoxConstraints(
-          maxHeight: MediaQuery.sizeOf(context).height,
-        ),
-        child: GlassSheet(
-          header: header,
-          child: Builder(builder: builder),
-        ),
-      ),
-    ),
-  );
-}
+}) => showGlassSheet<ManualSheetOutcome>(
+  context: context,
+  detent: SheetDetent.large,
+  header: header,
+  enableDrag: false,
+  builder: builder,
+);
 
 /// The Add manually form: type bar, amount, the type's fields, account,
 /// date and note, and the bottom Save button. It saves through the write
