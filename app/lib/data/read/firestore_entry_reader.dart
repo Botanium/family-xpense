@@ -1,7 +1,7 @@
 // [EntryReader] over Firestore: snapshot listeners on one
 // transaction and its revisions. The cache answers first, so the screen
 // works offline; a server timestamp still pending reads as null. A
-// listener the rules refuse is started again (`listen_retry.dart`).
+// listener the rules refuse is started again (`scoped_listen.dart`).
 import 'dart:async';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -9,13 +9,14 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:xpense_app/data/household_repository.dart';
 import 'package:xpense_app/data/mappers/transaction_mapper.dart';
 import 'package:xpense_app/data/read/entry_reader.dart';
-import 'package:xpense_app/data/read/listen_retry.dart';
+import 'package:xpense_app/data/read/scoped_listen.dart';
 import 'package:xpense_app/data/write/ledger_store.dart';
 
 /// [EntryReader] over Firestore.
 final class FirestoreEntryReader implements EntryReader {
-  /// Creates the reader. [_scope] says who reads in which household.
-  new({required this._firestore, required this._scope});
+  /// Creates the reader. [_scopes] says who reads in which household: the
+  /// current scope now and on every change, null outside a household.
+  new({required this._firestore, required this._scopes});
 
   /// The reader for the signed-in member of [households]' current
   /// household.
@@ -25,20 +26,20 @@ final class FirestoreEntryReader implements EntryReader {
     required HouseholdRepository households,
   }) => FirestoreEntryReader(
     firestore: firestore,
-    scope: () {
+    scopes: () => households.watchMembership().map((membership) {
       final uid = auth.currentUser?.uid;
-      return switch (households.current) {
+      return switch (membership) {
         InHousehold(:final household) when uid != null => LedgerScope(
           householdId: household.id,
           uid: uid,
         ),
         _ => null,
       };
-    },
+    }),
   );
 
   final FirebaseFirestore _firestore;
-  final LedgerScope? Function() _scope;
+  final Stream<LedgerScope?> Function() _scopes;
 
   DocumentReference<Map<String, dynamic>> _doc(LedgerScope scope, String id) =>
       _firestore
@@ -49,16 +50,17 @@ final class FirestoreEntryReader implements EntryReader {
 
   /// A listener on the current scope that is started again while the
   /// rules refuse it (a household founded a moment ago; see
-  /// [listenWithRetry]); other Firestore errors read as [empty].
+  /// [scopedListen]), reading [empty] meanwhile; other Firestore errors,
+  /// and a refusal after the last retry, read as [empty].
   Stream<T> _watch<T>(
     T empty,
     Stream<T> Function(DocumentReference<Map<String, dynamic>> doc) build,
     String id,
-  ) => listenWithRetry<T, LedgerScope>(
-    scope: _scope,
-    listen: (scope) => build(_doc(scope, id)),
+  ) => scopedListen<LedgerScope, T>(
+    scopes: _scopes(),
+    build: (scope) => build(_doc(scope, id)),
     empty: empty,
-    refused: isPermissionDenied,
+    emptyWhileRetrying: true,
   ).transform(_refusedAs<T>(empty));
 
   @override

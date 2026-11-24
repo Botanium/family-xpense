@@ -9,6 +9,7 @@ import 'package:flutter/foundation.dart';
 import 'package:xpense_app/data/household_repository.dart';
 import 'package:xpense_app/data/mappers/transaction_mapper.dart';
 import 'package:xpense_app/data/read/activity_reader.dart';
+import 'package:xpense_app/data/read/scoped_listen.dart';
 import 'package:xpense_app/data/transactions_repository.dart';
 
 /// [ActivityReader] over `households/{hid}/transactions`.
@@ -39,13 +40,6 @@ final class FirestoreActivityReader implements ActivityReader {
   final HouseholdRepository _households;
   final String? Function() _uid;
 
-  /// How many times a refused listen is tried again for the same scope.
-  static const int listenRetries = 6;
-
-  /// The first wait before trying a refused listen again; it doubles each
-  /// time.
-  static const Duration listenRetryDelay = Duration(milliseconds: 500);
-
   @override
   Stream<ActivityWindow> watch(ActivityQuery query) => scoped(
     membership: _households.watchMembership(),
@@ -72,7 +66,8 @@ final class FirestoreActivityReader implements ActivityReader {
   );
 
   /// The window for [query], following [membership]: one listener from
-  /// [open] per household and member, restarted when they change.
+  /// [open] per household and member, restarted when they change
+  /// ([scopedListen]).
   ///
   /// - No index for a filter (`failed-precondition`): reads the "All"
   ///   window and filters on the phone.
@@ -80,9 +75,9 @@ final class FirestoreActivityReader implements ActivityReader {
   ///   the membership can arrive before the server has accepted it, so the
   ///   first listen is refused. It is tried again with backoff
   ///   ([retries] times from [retryDelay]) while the scope is unchanged
-  ///   (Codex review, PR #38; as `FirebaseAccountsRepository` does).
-  /// - Any other error ends the listener and is reported; the same scope
-  ///   emitted again listens anew.
+  ///   (Codex review, PR #38).
+  /// - Any other error ends the listener and is reported as an
+  ///   [ActivityReadFailure]; the same scope emitted again listens anew.
   @visibleForTesting
   static Stream<ActivityWindow> scoped({
     required Stream<Membership> membership,
@@ -94,99 +89,59 @@ final class FirestoreActivityReader implements ActivityReader {
       required bool serverFilter,
     })
     open,
-    int retries = listenRetries,
-    Duration retryDelay = listenRetryDelay,
-  }) {
-    StreamSubscription<Membership>? membershipSub;
-    StreamSubscription<ActivityWindow>? inner;
-    Timer? retry;
-    String? scope;
-    // Bumped on every scope change and on cancel; a retry from an older
-    // scope does nothing.
-    var generation = 0;
+    int retries = scopedListenRetries,
+    Duration retryDelay = scopedListenRetryDelay,
+  }) => scopedListen<({String hid, String uid}), ActivityWindow>(
+    scopes: membership.map((m) {
+      final hid = m is InHousehold ? m.household.id : null;
+      final member = hid == null ? null : uid();
+      return hid == null || member == null ? null : (hid: hid, uid: member);
+    }),
+    build: (scope) => _withIndexFallback(
+      query,
+      ({required serverFilter}) =>
+          open(scope.hid, scope.uid, serverFilter: serverFilter),
+    ),
+    empty: const ActivityWindow(entries: [], hasMore: false),
+    retries: retries,
+    retryDelay: retryDelay,
+  ).transform(
+    StreamTransformer.fromHandlers(
+      handleError: (error, stack, sink) {
+        _report(error, stack);
+        sink.addError(failureOf(error), stack);
+      },
+    ),
+  );
+
+  /// [open] with the type or member filter on the server, falling back to
+  /// filtering on the phone when Firestore has no index for it.
+  static Stream<ActivityWindow> _withIndexFallback(
+    ActivityQuery query,
+    Stream<ActivityWindow> Function({required bool serverFilter}) open,
+  ) {
+    if (!hasFilter(query)) return open(serverFilter: true);
     late final StreamController<ActivityWindow> out;
-
-    void stop() {
-      retry?.cancel();
-      retry = null;
-      unawaited(inner?.cancel());
-      inner = null;
-    }
-
-    void listen(
-      String hid,
-      String member, {
-      required bool serverFilter,
-      int attempt = 0,
-    }) {
-      stop();
-      final mine = generation;
-      inner = open(hid, member, serverFilter: serverFilter).listen(
-        (window) {
-          if (!out.isClosed) out.add(window);
-        },
+    StreamSubscription<ActivityWindow>? inner;
+    void listen({required bool serverFilter}) {
+      inner = open(serverFilter: serverFilter).listen(
+        out.add,
         onError: (Object e, StackTrace s) {
-          if (out.isClosed || mine != generation) return;
-          inner = null;
           if (serverFilter &&
-              hasFilter(query) &&
               e is FirebaseException &&
               e.code == 'failed-precondition') {
-            listen(hid, member, serverFilter: false);
+            unawaited(inner?.cancel());
+            listen(serverFilter: false);
             return;
           }
-          if (e is FirebaseException &&
-              e.code == 'permission-denied' &&
-              attempt < retries) {
-            retry = Timer(retryDelay * (1 << attempt), () {
-              retry = null;
-              if (mine != generation || out.isClosed) return;
-              listen(
-                hid,
-                member,
-                serverFilter: serverFilter,
-                attempt: attempt + 1,
-              );
-            });
-            return;
-          }
-          _report(e, s);
-          out.addError(failureOf(e), s);
+          out.addError(e, s);
         },
       );
     }
 
     out = StreamController<ActivityWindow>(
-      onListen: () {
-        membershipSub = membership.listen(
-          (m) {
-            final hid = m is InHousehold ? m.household.id : null;
-            final member = hid == null ? null : uid();
-            final next = hid == null || member == null ? null : '$hid/$member';
-            // Same scope and still listening (or about to try again):
-            // nothing to do.
-            if (next == scope && (inner != null || retry != null)) return;
-            scope = next;
-            generation++;
-            if (hid == null || member == null) {
-              stop();
-              out.add(const ActivityWindow(entries: [], hasMore: false));
-              return;
-            }
-            listen(hid, member, serverFilter: true);
-          },
-          onError: (Object e, StackTrace s) {
-            _report(e, s);
-            if (!out.isClosed) out.addError(failureOf(e), s);
-          },
-        );
-      },
-      onCancel: () async {
-        generation++;
-        retry?.cancel();
-        await inner?.cancel();
-        await membershipSub?.cancel();
-      },
+      onListen: () => listen(serverFilter: true),
+      onCancel: () => inner?.cancel(),
     );
     return out.stream;
   }
