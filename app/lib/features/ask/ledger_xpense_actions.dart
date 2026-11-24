@@ -74,18 +74,25 @@ final class LedgerXpenseActions implements XpenseActions {
     String surfaceId,
     List<EntryDraft> drafts,
   ) async {
-    // Once today's rate is entered (here, or by the partner on their
-    // phone), a quote made with an older rate is dropped, so the write
-    // path prices the entry with the household's rate for its date
-    // (WP-24, Codex review PR #42).
+    // After a rate answer, a quote made with an older rate is dropped, so
+    // the write path prices the entry with the household's rate for its
+    // date. Answered here, every quote goes: a draft dated before the
+    // household's first rate then takes the answer (below). Answered
+    // elsewhere (on Home, or by the partner), only today's quotes are
+    // superseded; a backdated quote stays, since an entry dated before
+    // any rate has nothing else to price it with (review on PR #42).
     final household = readHousehold();
     final base = household.baseCurrency;
-    final priced = _answeredToday == null && !household.rateEnteredToday
-        ? drafts
-        : [
-            for (final d in drafts)
-              if (d.fx != null && d.currency != base) withoutFx(d) else d,
-          ];
+    final today = rateDayOf(clock.now());
+    bool superseded(EntryDraft d) =>
+        d.fx != null &&
+        d.currency != base &&
+        (_answeredToday != null ||
+            (household.rateEnteredToday && (d.occurredOn ?? today) == today));
+    final priced = [
+      for (final d in drafts)
+        if (superseded(d)) withoutFx(d) else d,
+    ];
     var batch = priced;
     var result = await transactions.saveEntries(batch);
     // The household's first rate covers today on: an entry dated before it

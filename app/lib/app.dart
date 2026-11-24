@@ -9,6 +9,7 @@ import 'package:xpense_app/core/l10n/l10n.dart';
 import 'package:xpense_app/core/routing/routing.dart';
 import 'package:xpense_app/core/theme/theme.dart';
 import 'package:xpense_app/core/ui/ui.dart';
+import 'package:xpense_app/data/fx_repository.dart';
 import 'package:xpense_app/features/accounts/routes.dart';
 import 'package:xpense_app/features/activity/routes.dart';
 import 'package:xpense_app/features/ask/routes.dart';
@@ -115,8 +116,14 @@ class _XpenseAppState extends ConsumerState<XpenseApp> {
 
   // The one lifecycle observer. Packages that must flush state before the
   // app can be killed add their call here (app-startup rule 11).
-  void _onLifecycle(AppLifecycleState state) =>
-      ref.read(appLockControllerProvider.notifier).onLifecycle(state);
+  void _onLifecycle(AppLifecycleState state) {
+    ref.read(appLockControllerProvider.notifier).onLifecycle(state);
+    // Back from the background, perhaps on another day: the daily rate's
+    // day reads the clock again (WP-24, review on PR #42).
+    if (state == AppLifecycleState.resumed) {
+      ref.read(rateTodayProvider.notifier).refresh();
+    }
+  }
 
   // After the first frame, best effort, never awaited (ARCHITECTURE 3.3).
   // Remote Config fetch (WP-01) and the rule cache sync (WP-34) join here.

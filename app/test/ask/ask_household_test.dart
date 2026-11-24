@@ -334,4 +334,24 @@ void _rateEnteredTodayTests() {
     expect(household.read().rateEnteredToday, isFalse);
     expect(household.read().latestRate, '1710');
   });
+
+  testWidgets('back from the background on a new day, the rate day moves '
+      '(review on PR #42)', (tester) async {
+    final services = TestServices(accounts: FakeAccountsRepository.sample());
+    final container = await pumpXpenseApp(tester, services);
+    final before = container.read(rateTodayProvider);
+
+    services.clock.advance(const Duration(days: 1));
+    tester.binding
+      ..handleAppLifecycleStateChanged(AppLifecycleState.inactive)
+      ..handleAppLifecycleStateChanged(AppLifecycleState.hidden)
+      ..handleAppLifecycleStateChanged(AppLifecycleState.paused)
+      ..handleAppLifecycleStateChanged(AppLifecycleState.hidden)
+      ..handleAppLifecycleStateChanged(AppLifecycleState.inactive)
+      ..handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+    await tester.pumpAndSettle();
+
+    expect(container.read(rateTodayProvider), isNot(before));
+    expect(container.read(rateTodayProvider), householdDay(services.clock.now));
+  });
 }
