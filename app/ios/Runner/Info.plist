@@ -37,7 +37,8 @@
 			</array>
 		</dict>
 		<dict>
-			<!-- Firebase Auth web flow (Sign in with Google) returns here. The
+			<!-- Firebase Auth's web flows return here (Google now signs in
+			     natively, below; kept for Firebase's own callbacks). The
 			     scheme is the flavor's Firebase iOS app id with ':' as '-',
 			     set in Flutter/Flavors.xcconfig (docs/ENVIRONMENTS.md 3.7);
 			     without it the Firebase SDK stops the app on "Continue with
@@ -49,6 +50,20 @@
 			<key>CFBundleURLSchemes</key>
 			<array>
 				<string>$(XPENSE_GOOGLE_AUTH_SCHEME)</string>
+			</array>
+		</dict>
+		<dict>
+			<!-- Native Google Sign-In returns here. The scheme is the
+			     flavor's REVERSED_CLIENT_ID, set in Flutter/Flavors.xcconfig;
+			     without it the Google SDK stops the app on "Continue with
+			     Google". -->
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLName</key>
+			<string>google-sign-in</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>$(XPENSE_GOOGLE_REVERSED_CLIENT_ID)</string>
 			</array>
 		</dict>
 	</array>

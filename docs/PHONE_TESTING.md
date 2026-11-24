@@ -78,9 +78,10 @@ paste it into chat, issues or PRs. Production builds never use debug tokens.
 ## 5. Sign in and set up the household
 
 1. **Phone 1:** open Xpense Dev → **Get started** → **Continue with email**
-   → **Create account** with your email and a password. Use email, not
-   Google or Apple. If it offers "Tell me your last purchase", try it or tap
-   **Skip for now**.
+   → **Create account** with your email and a password, or **Continue with
+   Google** (iOS first asks whether the app may use "accounts.google.com" to
+   sign in: tap **Continue**). Not Apple yet. If it offers "Tell me your
+   last purchase", try it or tap **Skip for now**.
 2. Phone 1: enter the household name and the base currency (USD; it can't
    be changed later), then **Continue**.
 3. Phone 1: under **Invite your partner**, the code shows (like
@@ -97,7 +98,11 @@ email.
 
 Works now:
 
-- Email sign-in, creating the household, inviting and joining.
+- Email and Google sign-in, creating the household, inviting and joining.
+- Google sign-in: Google's own sign-in page opens (accounts.google.com,
+  not a page of JSON with "403"), and after you pick an account the app
+  goes on to the next step. Closing Google's sheet (✕) leaves you on the
+  sign-in screen with no error.
 - Accounts: add your own and joint accounts, and share one with your
   partner. ("Sharing…" can stay on a shared account's history for now; the
   background job that finishes it is not deployed yet.)
@@ -138,6 +143,7 @@ Your household lives in the cloud either way.
 | Signing errors ("No Account for Team", "requires a development team") | Xcode → Settings → Accounts, sign in with your Apple ID; then rerun. |
 | "maximum number of apps" or device limit | Free teams allow 3 devices and 10 app ids a week; remove an old test app or wait. |
 | Ask says the server is unavailable | Check the server: `curl https://xpense-agent-648682359990.me-central1.run.app/health` should print `{"status":"ok","role":"agent"}`. |
+| Build stops with "has no REVERSED_CLIENT_ID" or "registers … for dev" | The Firebase config is old or the Google client changed. Delete `app/ios/config/dev/GoogleService-Info.plist` and rerun the script; if the message names another value, it belongs in `XPENSE_GOOGLE_REVERSED_CLIENT_ID_dev` in `app/ios/Flutter/Flavors.xcconfig` (ask for a PR). |
 | Ask or invites fail with "app check" in the logs | The token is not registered. Delete `~/.config/xpense/appcheck-debug-token-dev` and rerun the script; it registers a new one. |
 
 **App Check token by hand** (only if the script cannot register it): Firebase

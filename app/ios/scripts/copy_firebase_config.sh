@@ -49,6 +49,18 @@ case "$env" in
       echo "error: XPENSE_ENV=${env} needs ${src}, which is not in git. See docs/ENVIRONMENTS.md 3.7."
       exit 1
     fi
+    # Native Google Sign-In returns through the config's REVERSED_CLIENT_ID,
+    # which Info.plist registers from Flutter/Flavors.xcconfig. A mismatch
+    # would stop the app on "Continue with Google", so it stops the build.
+    reversed=$(/usr/libexec/PlistBuddy -c 'Print :REVERSED_CLIENT_ID' "$src" 2>/dev/null || true)
+    if [ -z "$reversed" ]; then
+      echo "error: ${src} has no REVERSED_CLIENT_ID (no iOS OAuth client). Turn on Google sign-in in Firebase Auth and download the config again. See docs/PHONE_TESTING.md."
+      exit 1
+    fi
+    if [ "$reversed" != "${XPENSE_GOOGLE_REVERSED_CLIENT_ID:-}" ]; then
+      echo "error: ${src} has REVERSED_CLIENT_ID ${reversed}, but Flutter/Flavors.xcconfig registers '${XPENSE_GOOGLE_REVERSED_CLIENT_ID:-}' for ${flavor}. Set XPENSE_GOOGLE_REVERSED_CLIENT_ID_${flavor} to the config's value."
+      exit 1
+    fi
     cp "$src" "$dest"
     echo "Firebase config: ${flavor}"
     ;;

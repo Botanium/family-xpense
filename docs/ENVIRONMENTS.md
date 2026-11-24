@@ -208,12 +208,19 @@ The main checkout's `config/dev/` held the "Family Xpense" app's file before
 D-44; replace it with the command above (delete the old file first;
 `apps:sdkconfig` will not overwrite).
 
-**Google sign-in URL scheme.** Firebase Auth's web flow returns through a
-URL scheme made of the flavor's Firebase app id with `-` for `:`
-(`XPENSE_GOOGLE_AUTH_SCHEME` in `Flavors.xcconfig`, used in `Info.plist`).
-Without it the Firebase SDK stops the app on "Continue with Google". `prod`
-points at the "Family Xpense" app for now; change it to the production
-app's id when that project exists.
+**Google sign-in URL schemes.** Google sign-in uses native Google Sign-In
+(`google_sign_in`), which signs in with the flavor's iOS OAuth client
+(`CLIENT_ID` in its `GoogleService-Info.plist`, read by the app at start)
+and returns through that client id reversed (`REVERSED_CLIENT_ID`). The
+scheme is `XPENSE_GOOGLE_REVERSED_CLIENT_ID_<flavor>` in `Flavors.xcconfig`,
+used in `Info.plist`; `copy_firebase_config.sh` stops a Firebase build whose
+config file names another one. Firebase's own Google web flow is not used:
+its page on `firebaseapp.com` calls Identity Toolkit with the iOS API key,
+which only accepts calls naming an allowed bundle id, so it failed with 403
+"Requests from this iOS client application <empty> are blocked". The
+Firebase app-id scheme (`XPENSE_GOOGLE_AUTH_SCHEME`) stays registered for
+Firebase's own callbacks. `prod` points at the "Family Xpense" app for now;
+change both to the production app's values when that project exists.
 
 **API key.** The Firebase "iOS key (auto created by Firebase)"
 (`39858552-…`) is restricted to the bundle ids `com.bitrelia.familyxpense`
@@ -465,7 +472,8 @@ Repeat section 3 with these differences:
   the Team ID of the account that will sell the app (D-44); download its
   `GoogleService-Info.plist` to `app/ios/config/prod/` (ignored by git); set
   `XPENSE_GOOGLE_AUTH_SCHEME_prod` in `app/ios/Flutter/Flavors.xcconfig` to
-  its app id; add a prod entitlements file.
+  its app id and `XPENSE_GOOGLE_REVERSED_CLIENT_ID_prod` to its
+  `REVERSED_CLIENT_ID`; add a prod entitlements file.
 - App Check: App Attest only, **no debug tokens**, enforcement **on** for
   Firestore and Storage from day one.
 - Auth: Apple, Google, email and password, as in development.

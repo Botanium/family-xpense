@@ -28,6 +28,16 @@ XPENSE_GOOGLE_AUTH_SCHEME_dev = app-1-648682359990-ios-79390f4ac98029d8172a17
 XPENSE_GOOGLE_AUTH_SCHEME_prod = app-1-648682359990-ios-b2b46595d20bceaf172a17
 XPENSE_GOOGLE_AUTH_SCHEME = $(XPENSE_GOOGLE_AUTH_SCHEME_$(XPENSE_FLAVOR))
 
+// Native Google Sign-In (google_sign_in) returns through the flavor's iOS
+// OAuth client id, reversed: REVERSED_CLIENT_ID in that flavor's
+// GoogleService-Info.plist. Public values, as in every shipped app's
+// Info.plist. scripts/copy_firebase_config.sh stops a Firebase build whose
+// config file names another one, so a new OAuth client cannot go unnoticed.
+// dev: "Family Xpense Dev"; prod: "Family Xpense" (as above).
+XPENSE_GOOGLE_REVERSED_CLIENT_ID_dev = com.googleusercontent.apps.648682359990-k6mghasji6m21rt5ur78lc5fq7kvmdnd
+XPENSE_GOOGLE_REVERSED_CLIENT_ID_prod = com.googleusercontent.apps.648682359990-8fv2p7vjnkr8q5pb45qdj3vjghhn4efo
+XPENSE_GOOGLE_REVERSED_CLIENT_ID = $(XPENSE_GOOGLE_REVERSED_CLIENT_ID_$(XPENSE_FLAVOR))
+
 // No entitlements yet: Sign in with Apple and App Attest need the paid Apple
 // Developer Program, so both flavors build with a free Personal Team. They
 // come back after enrollment (DECISIONS D-39, D-44).
