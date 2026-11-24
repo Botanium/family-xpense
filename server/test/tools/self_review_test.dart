@@ -195,7 +195,8 @@ void main() {
       },
     );
 
-    test('a written currency is not moved by the classifier', () async {
+    test('a written currency is not moved by the classifier, and the '
+        'account it picks may be in the other currency', () async {
       final out = await prepare(
         ProposedEntry(
           intent: 'expense',
@@ -212,7 +213,10 @@ void main() {
       final d = out.drafts.single;
       expect(d.currency, 'IQD');
       expect(d.amountMinor, 25000);
-      expect(d.accountId, isNull);
+      // The save converts the dinars into the card's dollars at the day's
+      // rate (owner's phone test: "10000 iqd dinner" with only USD
+      // accounts asked "Which account?" with no answers).
+      expect(d.accountId, 'acc_visa');
     });
 
     test('date words the member did not write are ignored', () async {
@@ -270,7 +274,7 @@ void main() {
       expect(out.ask?.options?.first.value, 'acc_cash_iqd');
     });
 
-    test('a written currency still does', () async {
+    test('a written currency offers every account too', () async {
       final out = await prepare(
         ProposedEntry(
           intent: 'expense',
@@ -282,10 +286,9 @@ void main() {
         classifier: lean,
       );
       expect(out.ask?.field, 'accountId');
-      expect(
-        out.ask?.options?.map((o) => o.value),
-        isNot(contains('acc_cash_iqd')),
-      );
+      // The dinar wallet can pay dollars: the save converts them.
+      expect(out.ask?.options?.map((o) => o.value), contains('acc_cash_iqd'));
+      expect(out.drafts.single.currency, 'USD');
     });
   });
 

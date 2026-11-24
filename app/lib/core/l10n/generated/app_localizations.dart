@@ -1634,7 +1634,7 @@ abstract class AppLocalizations {
   /// Label of the account name field.
   ///
   /// In en, this message translates to:
-  /// **'Name'**
+  /// **'Account name'**
   String get accountsNameLabel;
 
   /// Placeholder of the account name field.
@@ -1642,6 +1642,24 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Cash wallet'**
   String get accountsNameHint;
+
+  /// Error under the account name when it holds only a number (owner typed balances into the name).
+  ///
+  /// In en, this message translates to:
+  /// **'That looks like an amount. Enter the balance below, and a name here.'**
+  String get accountsNameAmount;
+
+  /// Currency chip on the add-account form.
+  ///
+  /// In en, this message translates to:
+  /// **'Dollars · USD'**
+  String get accountsCurrencyUsd;
+
+  /// Currency chip on the add-account form.
+  ///
+  /// In en, this message translates to:
+  /// **'Dinars · IQD'**
+  String get accountsCurrencyIqd;
 
   /// Error under the account name when it is too long.
   ///
@@ -1778,7 +1796,7 @@ abstract class AppLocalizations {
   /// Paragraph under the headline of onboarding step 3.
   ///
   /// In en, this message translates to:
-  /// **'Add each account with today\'s balance. You can add more later.'**
+  /// **'Add each account in dollars or dinars, with today\'s balance. You can add more later.'**
   String get accountsSetupBody;
 
   /// Section label over the accounts added so far.
@@ -2411,11 +2429,11 @@ abstract class AppLocalizations {
   /// **'Check the amount; it looks too large or too small.'**
   String get a2uiAmountOutOfRange;
 
-  /// Problem line on an entry slip when the entry currency differs from its account.
+  /// Note on an entry slip when the entry is in one currency and its account in the other.
   ///
   /// In en, this message translates to:
-  /// **'This account is in {currency}.'**
-  String a2uiCurrencyMismatch(String currency);
+  /// **'This account is in {currency}: saving converts the amount at the day\'s rate.'**
+  String a2uiConvertedNote(String currency);
 
   /// Problem line on an entry slip when the account id is not known.
   ///
@@ -2620,6 +2638,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'This needs the full form.'**
   String get a2uiAskInForm;
+
+  /// Shown on an entry slip in place of the account question when the household has no accounts.
+  ///
+  /// In en, this message translates to:
+  /// **'There are no accounts yet. Add one to save this.'**
+  String get a2uiNoAccounts;
+
+  /// Text button on an entry slip that opens the new-account sheet.
+  ///
+  /// In en, this message translates to:
+  /// **'Add an account'**
+  String get a2uiAddAccount;
 
   /// Text button that opens the manual entry form, prefilled.
   ///

@@ -1,8 +1,10 @@
 import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:xpense_app/core/l10n/l10n.dart';
+import 'package:xpense_app/core/routing/routing.dart';
 import 'package:xpense_app/core/theme/theme.dart';
 import 'package:xpense_app/core/ui/ui.dart';
 import 'package:xpense_app/data/accounts_repository.dart';
@@ -19,6 +21,7 @@ final class AccountFormCheck {
   const new({
     this.draft,
     this.nameTooLong = false,
+    this.nameIsAmount = false,
     this.amountInvalid = false,
     this.rateInvalid = false,
   });
@@ -28,6 +31,9 @@ final class AccountFormCheck {
 
   /// The name is longer than [maxAccountNameLength].
   final bool nameTooLong;
+
+  /// The name is only a number: a balance typed in the wrong field.
+  final bool nameIsAmount;
 
   /// The amount is not a number in the currency's decimals.
   final bool amountInvalid;
@@ -54,6 +60,7 @@ AccountFormCheck checkAccountForm({
 }) {
   final trimmed = name.trim();
   final nameTooLong = trimmed.runes.length > maxAccountNameLength;
+  final nameIsAmount = _amountLike.hasMatch(trimmed);
   final amountBlank = amountText.trim().isEmpty;
   final amount = amountBlank
       ? 0
@@ -65,9 +72,10 @@ AccountFormCheck checkAccountForm({
     rate = FxRate.forPair(FxPair.usdIqd, cleaned).valueOrNull;
     rateInvalid = rate == null;
   }
-  if (nameTooLong || amount == null || rateInvalid) {
+  if (nameTooLong || nameIsAmount || amount == null || rateInvalid) {
     return AccountFormCheck(
       nameTooLong: nameTooLong,
+      nameIsAmount: nameIsAmount,
       amountInvalid: amount == null,
       rateInvalid: rateInvalid,
     );
@@ -84,6 +92,10 @@ AccountFormCheck checkAccountForm({
     ),
   );
 }
+
+/// A name made of figures only ("1000", "250,000"): the owner's first
+/// accounts were named "1000", "500" and "300", their balances.
+final RegExp _amountLike = RegExp(r'^[\d.,\s]*\d[\d.,\s]*$');
 
 /// The kinds the add form offers, in chip order (artboard 04).
 const List<AccountKind> formKinds = [
@@ -172,6 +184,16 @@ class _AccountFormState extends ConsumerState<AccountForm> {
 
   bool _needsRate(Currency base, FxRate? latest) =>
       _currencyOr(base) != base && latest == null && _amount.text.isNotEmpty;
+
+  /// Every account holds its own currency, whatever the household's base
+  /// (DATA_MODEL 1): the chips and the amount's toggle both set it. The
+  /// amount is cleared, as its decimals may not fit.
+  void _setCurrency(Currency currency) {
+    if (currency == _currency) return;
+    _currency = currency;
+    _amount.clear();
+    _edited();
+  }
 
   void _edited() => setState(() {
     _check = const AccountFormCheck();
@@ -296,11 +318,65 @@ class _AccountFormState extends ConsumerState<AccountForm> {
           controller: _name,
           hint: account == null ? l10n.accountKindName(_kind) : null,
           enabled: !_saving,
-          error: _check.nameTooLong ? l10n.accountsNameError : null,
+          error: _check.nameIsAmount
+              ? l10n.accountsNameAmount
+              : _check.nameTooLong
+              ? l10n.accountsNameError
+              : null,
           textInputAction: TextInputAction.next,
           onChanged: (_) => _edited(),
         ),
         if (_adding) ...[
+          const SizedBox(height: XpSpace.s16),
+          SectionLabel(l10n.accountsCurrencyLabel),
+          const SizedBox(height: XpSpace.s8),
+          ChoiceChips<Currency>(
+            options: [
+              ChoiceOption(
+                value: Currency.usd,
+                label: l10n.accountsCurrencyUsd,
+              ),
+              ChoiceOption(
+                value: Currency.iqd,
+                label: l10n.accountsCurrencyIqd,
+              ),
+            ],
+            selected: currency,
+            onSelected: _saving ? null : _setCurrency,
+          ),
+          const SizedBox(height: XpSpace.s16),
+          _Caption(amountLabel),
+          AmountField(
+            label: amountLabel,
+            currency: currency.code,
+            exponent: currency.exponent,
+            controller: _amount,
+            currencyLabel: '${l10n.accountsCurrencyLabel}, ${currency.code}',
+            onChanged: (_) => _edited(),
+            onCurrencyPressed: _saving
+                ? null
+                : () => _setCurrency(
+                    currency == Currency.usd ? Currency.iqd : Currency.usd,
+                  ),
+          ),
+          if (_check.amountInvalid) ...[
+            const SizedBox(height: XpSpace.s4),
+            _Caption('', error: l10n.accountsAmountError),
+          ],
+          if (needsRate) ...[
+            const SizedBox(height: XpSpace.s16),
+            XpTextField(
+              label: l10n.accountsRateLabel,
+              controller: _rate,
+              hint: l10n.accountsRateHint,
+              keyboardType: const TextInputType.numberWithOptions(
+                decimal: true,
+              ),
+              enabled: !_saving,
+              error: _check.rateInvalid ? l10n.accountsRateError : null,
+              onChanged: (_) => _edited(),
+            ),
+          ],
           const SizedBox(height: XpSpace.s16),
           SectionLabel(l10n.accountsWhoseLabel),
           const SizedBox(height: XpSpace.s8),
@@ -336,43 +412,6 @@ class _AccountFormState extends ConsumerState<AccountForm> {
                       _shared = value;
                       _edited();
                     },
-            ),
-          ],
-          const SizedBox(height: XpSpace.s24),
-          _Caption(amountLabel),
-          AmountField(
-            label: amountLabel,
-            currency: currency.code,
-            exponent: currency.exponent,
-            controller: _amount,
-            currencyLabel: '${l10n.accountsCurrencyLabel}, ${currency.code}',
-            onChanged: (_) => _edited(),
-            onCurrencyPressed: _saving
-                ? null
-                : () {
-                    _currency = currency == Currency.usd
-                        ? Currency.iqd
-                        : Currency.usd;
-                    _amount.clear();
-                    _edited();
-                  },
-          ),
-          if (_check.amountInvalid) ...[
-            const SizedBox(height: XpSpace.s4),
-            _Caption('', error: l10n.accountsAmountError),
-          ],
-          if (needsRate) ...[
-            const SizedBox(height: XpSpace.s16),
-            XpTextField(
-              label: l10n.accountsRateLabel,
-              controller: _rate,
-              hint: l10n.accountsRateHint,
-              keyboardType: const TextInputType.numberWithOptions(
-                decimal: true,
-              ),
-              enabled: !_saving,
-              error: _check.rateInvalid ? l10n.accountsRateError : null,
-              onChanged: (_) => _edited(),
             ),
           ],
         ] else ...[
@@ -458,6 +497,41 @@ Future<void> showAddAccountSheet(BuildContext context) => _showAccountSheet(
   title: context.l10n.accountsNewTitle,
   form: (close) => AccountForm.add(onAdded: (_) => close()),
 );
+
+/// Presents the new-account sheet, then closes its own page: the
+/// [AppRoutes.addAccount] route, a transparent page, so what is behind it
+/// (an Ask slip) stays visible.
+class AddAccountLauncher extends StatefulWidget {
+  /// Creates the launcher.
+  const new({super.key});
+
+  @override
+  State<AddAccountLauncher> createState() => _AddAccountLauncherState();
+}
+
+class _AddAccountLauncherState extends State<AddAccountLauncher> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => unawaited(_open()));
+  }
+
+  Future<void> _open() async {
+    if (!mounted) return;
+    await showAddAccountSheet(context);
+    if (!mounted) return;
+    final router = GoRouter.of(context);
+    if (router.canPop()) {
+      router.pop();
+    } else {
+      // Opened cold from a link: nothing is under it.
+      router.go(AppRoutes.accounts);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => const SizedBox.shrink();
+}
 
 /// Opens the edit sheet for [account], above the tab bar.
 Future<void> showEditAccountSheet(BuildContext context, Account account) =>

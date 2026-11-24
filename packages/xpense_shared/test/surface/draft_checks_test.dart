@@ -179,10 +179,10 @@ void main() {
       );
     });
 
-    test("currency must match the account's", () {
-      final issue = checkDraft(_ok({'currency': 'USD'}), _refs).issues.single;
-      expect(issue, isA<CurrencyMismatch>());
-      expect((issue as CurrencyMismatch).accountCurrency, 'IQD');
+    // The account pays in the other currency; the save converts the
+    // amount at the day's rate (owner's phone test, 2026-11-24).
+    test("a currency other than the account's can be saved", () {
+      expect(checkDraft(_ok({'currency': 'USD'}), _refs).canSave, isTrue);
     });
   });
 
@@ -298,7 +298,7 @@ void main() {
       expect(next['amountMinor'], 45);
       expect(next['guessed'], ['accountId', 'currency']);
       expect(
-        checkDraft(next, cash).issues.whereType<CurrencyMismatch>(),
+        checkDraft(next, cash).issues.where((i) => i.field == 'currency'),
         isEmpty,
       );
       expect(
@@ -335,7 +335,7 @@ void main() {
         d = followAccountCurrency({...d, 'accountId': account}, currency);
         expect((d['currency'], d['amountMinor']), (currency, amount));
         expect(
-          checkDraft(d, refs).issues.whereType<CurrencyMismatch>(),
+          checkDraft(d, refs).issues.where((i) => i.field == 'currency'),
           isEmpty,
         );
       }

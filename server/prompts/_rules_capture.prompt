@@ -16,6 +16,8 @@ Then:
 - Your sentence introduces the slips, for example "Here's what I found; check and save:". Nothing is recorded until the member saves on the phone, so never say recorded, saved or added.
 - Render the drafts as returned. Never change, reorder, drop or add a draft or any of its fields.
 - If `notes` say an amount was not found in the message, say in your sentence that you need the amount; the slip lets the member type it.
+- If `notes` say an entry uses the only account, name that account in your sentence (and that the amount is converted when the note says so); do not ask which account.
+- If `notes` say the household has no accounts yet, say in your sentence that an account is needed before saving; the card offers to add one.
 - When the member corrects something on a later turn ("no, it was 1500", "the groceries were joint"), call `prepareEntries` again with the whole corrected set and render the same surface id again in full, with a `root`.
 - `[UI action "xp.saved" …]` means the member saved those drafts on the phone. Do not render them again. If text follows, handle the text.
 - `[UI action "xp.answer" …]` carries a typed answer to your question; call `prepareEntries` again with the answer applied and render again.

@@ -118,7 +118,7 @@ Future<PrepareEntriesOutput> prepareEntries(
   for (final b in builders) {
     b
       ..resolveAmount(pool, notes)
-      ..resolveWords();
+      ..resolveWords(notes);
   }
   // Duplicate candidates and FX need the ledger; classification needs the
   // classifier. Run each entry's work concurrently.
@@ -387,11 +387,14 @@ final class _DraftBuilder {
   }
 
   /// Moves a guessed currency to [account]'s, re-reading the written amount
-  /// in it. Returns false (and changes nothing) when the currency was
-  /// written or named, or the amount does not fit the account's currency.
+  /// in it. A currency the member wrote or named stays: an account may pay
+  /// in the other currency, and the save converts the amount into the
+  /// account's currency at the day's rate (DATA_MODEL 1). Returns false
+  /// (and changes nothing) only when a guessed amount does not fit the
+  /// account's currency.
   bool _followAccountCurrency(HouseholdAccount account) {
     if (account.currency == currency) return true;
-    if (currencyFromWords) return false;
+    if (currencyFromWords) return true;
     final to = Currency.tryParse(account.currency);
     final value = amountValue;
     if (to == null) return false;
@@ -408,14 +411,18 @@ final class _DraftBuilder {
     return true;
   }
 
-  void resolveWords() {
+  void resolveWords(List<String> notes) {
     // Account words. Like categories below, only words the member wrote
     // settle a field; a hint the model made up ("dollars", "checking" for
-    // "Groceries 45") is kept as a guess the classifier can override.
+    // "Groceries 45") is kept as a guess the classifier can override. An
+    // account in the entry's currency wins a tie; one in the other
+    // currency still pays (the save converts).
     final hint = entry.accountHint;
     if (hint != null && _wrote(hint)) {
-      final accounts = _matchAccounts(hint, currency);
-      if (accounts.length == 1) {
+      var accounts = _matchAccounts(hint, currency);
+      if (accounts.isEmpty) accounts = _matchAccounts(hint, null);
+      if (accounts.length == 1 &&
+          (currency == null || _followAccountCurrency(accounts.single))) {
         accountId = accounts.single.id;
         confidence['account'] = 1;
       }
@@ -450,8 +457,12 @@ final class _DraftBuilder {
       }
     }
     // Who: only when the words say so ("we", "my", the partner's name).
+    // A household of one has no one else to ask about.
     if (entry.who case final w? when _saysWho(w)) {
       who = w;
+      confidence['who'] = 1;
+    } else if (snap.members.length == 1) {
+      who = 'me';
       confidence['who'] = 1;
     }
     // Person: only a name the member wrote.
@@ -461,6 +472,37 @@ final class _DraftBuilder {
     }
     // Date.
     occurredOn = _resolveDate();
+    _onlyAccount(notes);
+  }
+
+  /// With a single account there is nothing to ask: the entry uses it,
+  /// and the note tells the model to say so. With none, the note tells the
+  /// model to say an account is needed (the slip offers to add one).
+  void _onlyAccount(List<String> notes) {
+    final accounts = snap.activeAccounts;
+    if (accounts.isEmpty) {
+      notes.add(
+        '$id: the household has no accounts yet; tell the member to add '
+        'one (the card offers "Add an account") before saving',
+      );
+      return;
+    }
+    if (accountId != null || accounts.length != 1) return;
+    final only = accounts.single;
+    if (only.id == toAccountId ||
+        (currency != null && !_followAccountCurrency(only))) {
+      return;
+    }
+    accountId = only.id;
+    confidence['account'] = 1;
+    // The account's id, not its name: names are member-written text.
+    final converted = only.currency == currency
+        ? ''
+        : ", converted into ${only.currency} at the day's rate when saved";
+    notes.add(
+      '$id: uses ${only.id}, the only account; name it in your '
+      'sentence$converted',
+    );
   }
 
   /// Whether the member's words contain every significant word of [hint].
@@ -685,8 +727,8 @@ final class _DraftBuilder {
       accountScored = answer.account?.choice != null;
       final id = pick(answer.account, 'accountId', 'account');
       final account = snap.activeAccount(id);
-      // An account holds only its own currency: a guessed currency follows
-      // the account; a written one rules the account out. A transfer never
+      // A guessed currency follows the account; a written one stays, and
+      // the save converts it into the account's currency. A transfer never
       // leaves from the account it goes to.
       if (account != null &&
           account.id != toAccountId &&
@@ -981,19 +1023,14 @@ FollowUp? _firstFollowUp(
     final ranked = [...snap.activeAccounts]
       ..sort((a, b) => order(a).compareTo(order(b)));
     final options = switch (field) {
-      // A written currency (a currency word or a named account) rules out
-      // accounts in other currencies. A guessed one does not: the account
-      // and currency are settled together (the slip then shows the
-      // currency to confirm, as `_followAccountCurrency` does for the
-      // classifier's choice).
-      // Never the transfer's destination.
+      // Every account the member can see, whatever the entry's currency:
+      // the save converts a written currency into the account's at the
+      // day's rate, and a guessed one follows the account (as
+      // `_followAccountCurrency` does for the classifier's choice). Never
+      // the transfer's destination.
       'accountId' => [
         for (final a in ranked)
-          if ((!builders[i].currencyFromWords ||
-                  d.currency == null ||
-                  a.currency == d.currency) &&
-              a.id != d.toAccountId)
-            FollowUpOption(label: a.name, value: a.id),
+          if (a.id != d.toAccountId) FollowUpOption(label: a.name, value: a.id),
       ],
       // A transfer may arrive in another currency (`toAmountMinor`,
       // DATA_MODEL 2.5); never offer the source account.

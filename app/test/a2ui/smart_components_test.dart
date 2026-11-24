@@ -250,10 +250,10 @@ void main() {
       await pumpThread(tester, host);
       expect(find.text('Which account?'), findsOneWidget);
       expect(_enabled(tester, 'Save'), isFalse);
-      // Only accounts in the draft's currency (IQD) are offered.
+      // Every account is offered: a dollar account can pay the dinars.
       expect(
         find.byKey(const ValueKey('pick_accountId_acc_chk')),
-        findsNothing,
+        findsOneWidget,
       );
       await tester.tap(find.byKey(const ValueKey('pick_accountId_acc_cash')));
       await tester.pump();
@@ -580,15 +580,25 @@ void main() {
       expect(_enabled(tester, 'Save both'), isTrue);
     });
 
-    _test("a currency that is not the account's blocks Save", (tester) async {
+    // Owner's phone test (2026-11-24): an account pays in the other
+    // currency; the save converts the amount at the day's rate.
+    _test("a currency that is not the account's is converted, not blocked", (
+      tester,
+    ) async {
       final messages = fixture('agent_two_entries');
       final create = messages.last['createSurface']! as Map<String, Object?>;
       final drafts = (create['dataModel']! as Map)['drafts']! as List;
       (drafts.first as Map)['accountId'] = 'acc_cash';
       final (:host, :actions, :sent) = hostWith(messages);
       await pumpThread(tester, host);
-      expect(find.text('This account is in IQD.'), findsOneWidget);
-      expect(_enabled(tester, 'Save both'), isFalse);
+      expect(
+        find.text(
+          "This account is in IQD: saving converts the amount at the day's "
+          'rate.',
+        ),
+        findsOneWidget,
+      );
+      expect(_enabled(tester, 'Save both'), isTrue);
     });
 
     _test('a possible duplicate blocks Save until "Save anyway"', (

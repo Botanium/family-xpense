@@ -864,10 +864,20 @@ class AppLocalizationsEn extends AppLocalizations {
   String get accountsEditTitle => 'Edit account';
 
   @override
-  String get accountsNameLabel => 'Name';
+  String get accountsNameLabel => 'Account name';
 
   @override
   String get accountsNameHint => 'Cash wallet';
+
+  @override
+  String get accountsNameAmount =>
+      'That looks like an amount. Enter the balance below, and a name here.';
+
+  @override
+  String get accountsCurrencyUsd => 'Dollars · USD';
+
+  @override
+  String get accountsCurrencyIqd => 'Dinars · IQD';
 
   @override
   String get accountsNameError => 'Use up to 40 characters.';
@@ -942,7 +952,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get accountsSetupBody =>
-      'Add each account with today\'s balance. You can add more later.';
+      'Add each account in dollars or dinars, with today\'s balance. You can add more later.';
 
   @override
   String get accountsSetupAdded => 'Added';
@@ -1295,8 +1305,8 @@ class AppLocalizationsEn extends AppLocalizations {
       'Check the amount; it looks too large or too small.';
 
   @override
-  String a2uiCurrencyMismatch(String currency) {
-    return 'This account is in $currency.';
+  String a2uiConvertedNote(String currency) {
+    return 'This account is in $currency: saving converts the amount at the day\'s rate.';
   }
 
   @override
@@ -1422,6 +1432,13 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get a2uiAskInForm => 'This needs the full form.';
+
+  @override
+  String get a2uiNoAccounts =>
+      'There are no accounts yet. Add one to save this.';
+
+  @override
+  String get a2uiAddAccount => 'Add an account';
 
   @override
   String get a2uiFixInForm => 'Fix it in the form';

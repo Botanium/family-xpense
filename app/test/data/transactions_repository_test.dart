@@ -394,6 +394,56 @@ void main() {
       });
     });
 
+    // Owner's phone test (2026-11-24): "10000 iqd dinner" with only
+    // dollar accounts. The entry is stored in the account's currency, the
+    // amount converted at the day's rate, which `fx` records.
+    test('dinars paid from a dollar account are converted', () async {
+      // 10,000 IQD at 1,705 = 5.865… USD → 5.87 (half-even).
+      final id = await saveOne(
+        repo,
+        draft(account: 'mine-usd', amount: 10000, currency: 'IQD'),
+      );
+      final doc = store.transactions[id]!;
+      expect(doc['currency'], 'USD');
+      expect(doc['amountMinor'], 587);
+      expect(doc['baseAmountMinor'], 587);
+      expect(doc['fx'], {
+        'pair': 'USD/IQD',
+        'pairRate': '1705',
+        'source': 'market',
+        'asOf': '2026-11-20',
+      });
+      expect(store.balances['mine-usd'], -587);
+    });
+
+    test('dollars paid from a dinar account are converted', () async {
+      // 12.50 USD at 1,705 = 21,312.5 IQD → 21,312 (half-even).
+      final id = await saveOne(
+        repo,
+        draft(account: 'cash-iqd', currency: 'USD'),
+      );
+      final doc = store.transactions[id]!;
+      expect((doc['currency'], doc['amountMinor']), ('IQD', 21312));
+      expect(doc['baseAmountMinor'], 1250);
+      expect(store.balances['cash-iqd'], -21312);
+    });
+
+    test('a conversion with no rate for the day asks for one', () async {
+      final result = await repo.saveEntries([
+        draft(
+          account: 'mine-usd',
+          amount: 10000,
+          currency: 'IQD',
+          on: '2026-11-19',
+        ),
+      ]);
+      expect(
+        result.failureOrNull,
+        const EntryRateNeeded(draftId: 'd1', from: 'IQD', to: 'USD'),
+      );
+      expect(store.transactions, isEmpty);
+    });
+
     test('no rate for the day or earlier asks for one', () async {
       final result = await repo.saveEntries([
         draft(account: 'cash-iqd', amount: 1000, on: '2026-11-19'),
@@ -573,10 +623,6 @@ void main() {
     });
 
     test('money rules', () async {
-      expect(
-        await failureOf([draft(currency: 'IQD')]),
-        issue('currency', EntryIssue.currencyMismatch),
-      );
       expect(
         await failureOf([draft(amount: 0)]),
         issue('amountMinor', EntryIssue.amountOutOfRange),

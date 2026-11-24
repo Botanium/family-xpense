@@ -152,6 +152,7 @@ class FakeXpenseActions implements XpenseActions {
       loans: household.loans,
       goals: household.goals,
       partnerName: household.partnerName,
+      soleMember: household.soleMember,
       latestRate: pairRate,
       rateEnteredToday: true,
     );
@@ -183,6 +184,10 @@ class FakeXpenseActions implements XpenseActions {
   @override
   void openManualForm(Map<String, Object?> draft) =>
       calls.add((method: 'openManualForm', argument: draft));
+
+  @override
+  Future<void> openAddAccount() async =>
+      calls.add((method: 'openAddAccount', argument: null));
 
   @override
   void retryQueued(String captureId) =>

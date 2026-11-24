@@ -82,6 +82,12 @@ class _ReceiptSummaryViewState extends State<ReceiptSummaryView>
     _scope = XpenseScope.of(context);
   }
 
+  /// Opens the new-account sheet, then reads the household again.
+  Future<void> _addAccount() async {
+    await _scope.actions.openAddAccount();
+    if (mounted) setState(() {});
+  }
+
   bool get _editable => widget.onDraftsChanged != null && !isSaved && !saving;
 
   void _toggleSplit(bool split) {
@@ -258,7 +264,19 @@ class _ReceiptSummaryViewState extends State<ReceiptSummaryView>
             ),
           ],
         const Hairline(),
-        if (needsAccount && _editable) ...[
+        if (needsAccount && _editable && household.accounts.isEmpty) ...[
+          // Nothing to pay from: say so and offer to add an account.
+          const SizedBox(height: XpSpace.s12),
+          Text(l10n.a2uiNoAccounts, style: type.subhead),
+          Align(
+            alignment: AlignmentDirectional.centerStart,
+            child: XpButton.text(
+              key: const ValueKey('add_account'),
+              label: l10n.a2uiAddAccount,
+              onPressed: () => unawaited(_addAccount()),
+            ),
+          ),
+        ] else if (needsAccount && _editable) ...[
           const SizedBox(height: XpSpace.s12),
           Text(l10n.a2uiAskAccount, style: type.subhead),
           const SizedBox(height: XpSpace.s8),

@@ -3,6 +3,7 @@
 import 'package:clock/clock.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:xpense_app/a2ui/testing/fake_xpense_actions.dart';
+import 'package:xpense_app/a2ui/xpense_surface_host.dart';
 import 'package:xpense_app/features/ask/capture/confidence_policy.dart';
 import 'package:xpense_app/features/ask/capture/draft_builder.dart';
 import 'package:xpense_app/services/feature_flags.dart';
@@ -201,15 +202,18 @@ void main() {
       );
     });
 
-    test('an account in another currency is not taken', () {
+    // Owner's phone test (2026-11-24): an account pays in the other
+    // currency; the written currency stays and the save converts it.
+    test('an account in another currency is taken; the currency stays', () {
       final d = _draft(
         '42.80 dollars at Costco',
         decide: DecideResponse(
           account: ChoiceAnswer(choice: 'acc_cash', confidence: 0.99),
         ),
       );
-      expect(d.accountId, isNull);
-      expect(d.missing, contains('accountId'));
+      expect(d.accountId, 'acc_cash');
+      expect((d.currency, d.amountMinor), ('USD', 4280));
+      expect(d.missing ?? const [], isNot(contains('accountId')));
     });
 
     test('a likely recurring entry carries the offer', () {
@@ -415,5 +419,56 @@ void main() {
     expect(d.confidence?.category, 0.80);
     expect(d.guessed, contains('categoryId'));
     expect(d.origin, 'on_device');
+  });
+
+  group("the owner's household: one member, dollar accounts", () {
+    const usdOnly = [
+      HouseholdAccount(id: 'a_cash', name: 'Cash', currency: 'USD'),
+      HouseholdAccount(id: 'a_bank', name: 'Bank', currency: 'USD'),
+    ];
+    XpenseHousehold solo(List<HouseholdAccount> accounts) => XpenseHousehold(
+      baseCurrency: 'USD',
+      accounts: accounts,
+      categories: sampleHousehold.categories,
+      soleMember: true,
+    );
+    EntryDraft dinner(List<HouseholdAccount> accounts) {
+      final household = solo(accounts);
+      const text = '10000 iqd dinner';
+      return buildDraft(
+        id: 'd1',
+        raw: text,
+        parse: parseText(text, parseContextFor(household, clock: _clock)),
+        household: household,
+        policy: _policy,
+      );
+    }
+
+    test('several accounts in the other currency: the account is asked, '
+        'who is me', () {
+      final d = dinner(usdOnly);
+      expect((d.currency, d.amountMinor), ('IQD', 10000));
+      expect(d.accountId, isNull);
+      expect(d.missing, contains('accountId'));
+      expect(d.who, 'me');
+    });
+
+    test('one account in the other currency: it is used', () {
+      final d = dinner(usdOnly.take(1).toList());
+      expect(d.accountId, 'a_cash');
+      expect(d.confidence?.account, 1);
+      expect((d.currency, d.amountMinor), ('IQD', 10000));
+    });
+
+    test('no accounts: the account stays missing', () {
+      final d = dinner(const []);
+      expect(d.accountId, isNull);
+      expect(d.missing, contains('accountId'));
+    });
+
+    test('with a partner, who is not assumed', () {
+      final d = _draft('10000 iqd dinner');
+      expect(d.who, isNull);
+    });
   });
 }

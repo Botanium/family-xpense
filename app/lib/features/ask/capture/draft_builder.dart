@@ -384,13 +384,14 @@ EntryDraft buildDraft({
   // duplicate answer was about the old figures.
   var currencyFollowed = false;
 
-  // As in the agent's `prepareEntries`: an account holds only its own
-  // currency. A guessed currency follows the chosen account, with the
-  // amount read again in it; a written one is kept. Returns whether
-  // [account] can hold the entry's currency now.
+  // As in the agent's `prepareEntries`: a guessed currency follows the
+  // chosen account, with the amount read again in it; a written one is
+  // kept, and the save converts it into the account's currency at the
+  // day's rate. Returns false only when a guessed amount does not fit the
+  // account's currency.
   bool followAccount(HouseholdAccount account) {
     if (currency == null || account.currency == currency) return true;
-    if (!currencyGuessed) return false;
+    if (!currencyGuessed) return true;
     final c = Currency.tryParse(account.currency);
     if (c == null) return false;
     if (Money.parseMajor(amount.value.toString(), c) case Ok(:final value)) {
@@ -437,7 +438,6 @@ EntryDraft buildDraft({
       case final p?) {
     confidence['account'] = p.confidence;
     final account = household.account(p.value);
-    // A written currency rules another account out.
     if (account != null && followAccount(account)) {
       accountId = account.id;
       if (p.show == FieldShow.guessed) guessed.add('accountId');
@@ -525,6 +525,10 @@ EntryDraft buildDraft({
       rule(RuleField.who) ??
       parse.hints.where((h) => h.kind == HintKind.who).firstOrNull?.who;
   if (who != null) {
+    confidence['who'] = 1;
+  } else if (household.soleMember) {
+    // A household of one has no one else to ask about.
+    who = 'me';
     confidence['who'] = 1;
   } else if (policy.pick(decide?.who, calibrated: calibrated) case final p?) {
     confidence['who'] = p.confidence;

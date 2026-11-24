@@ -30,6 +30,7 @@ class EntrySlipView extends StatefulWidget {
     required this.onRate,
     required this.onRateSaved,
     required this.onEdit,
+    this.onAddAccount,
     this.picking,
     this.duplicateKept = false,
     super.key,
@@ -67,6 +68,10 @@ class EntrySlipView extends StatefulWidget {
 
   /// Opens the manual form, for fields only it can set.
   final VoidCallback onEdit;
+
+  /// Opens the new-account sheet, offered when the household has no
+  /// account to pay from.
+  final VoidCallback? onAddAccount;
 
   @override
   State<EntrySlipView> createState() => _EntrySlipViewState();
@@ -147,6 +152,12 @@ class _EntrySlipViewState extends State<EntrySlipView> {
               _issueText(context, issue),
               style: type.meta.copyWith(color: colors.danger),
             ),
+        if (_accountCurrency case final accountCurrency?
+            when draft.currency != null && accountCurrency != draft.currency)
+          Text(
+            l10n.a2uiConvertedNote(accountCurrency),
+            style: type.meta.copyWith(color: colors.inkSecondary),
+          ),
         if (draft.duplicate case final hint? when !widget.duplicateKept)
           _DuplicateHint(
             onView: () => widget.onViewDuplicate(hint.txnId),
@@ -199,11 +210,23 @@ class _EntrySlipViewState extends State<EntrySlipView> {
     ).valueOrNull?.minorUnits;
   }
 
-  bool get _needsRate =>
-      widget.onAnswer != null &&
-      _draft.currency != null &&
-      _draft.currency != widget.household.baseCurrency &&
-      !widget.household.rateEnteredToday;
+  /// The currency of the draft's account, when it names a known one.
+  String? get _accountCurrency =>
+      widget.household.account(_draft.accountId)?.currency;
+
+  /// Today's rate is asked when the entry is not in the base currency, or
+  /// its account is in the other currency (the save converts it).
+  bool get _needsRate {
+    final currency = _draft.currency;
+    if (widget.onAnswer == null ||
+        currency == null ||
+        widget.household.rateEnteredToday) {
+      return false;
+    }
+    final account = _accountCurrency;
+    return currency != widget.household.baseCurrency ||
+        (account != null && account != currency);
+  }
 
   Widget _rate(BuildContext context) {
     final l10n = context.l10n;
@@ -269,13 +292,29 @@ class _EntrySlipViewState extends State<EntrySlipView> {
     final current = field == 'personName'
         ? _draft.personId
         : _draft.toJson()[field];
+    // Nothing to pay from: say so and offer to add an account.
+    final noAccounts =
+        (field == 'accountId' || field == 'toAccountId') &&
+        widget.household.accounts.isEmpty;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       mainAxisSize: MainAxisSize.min,
       children: [
-        Text(fieldQuestion(context, field), style: type.subhead),
+        if (noAccounts)
+          Text(l10n.a2uiNoAccounts, style: type.subhead)
+        else
+          Text(fieldQuestion(context, field), style: type.subhead),
         const SizedBox(height: XpSpace.s8),
-        if (options.isEmpty && field != 'occurredOn')
+        if (noAccounts && widget.onAddAccount != null)
+          Align(
+            alignment: AlignmentDirectional.centerStart,
+            child: XpButton.text(
+              key: const ValueKey('add_account'),
+              label: l10n.a2uiAddAccount,
+              onPressed: widget.onAddAccount,
+            ),
+          )
+        else if (options.isEmpty && field != 'occurredOn')
           Align(
             alignment: AlignmentDirectional.centerStart,
             child: XpButton.text(
@@ -335,9 +374,6 @@ class _EntrySlipViewState extends State<EntrySlipView> {
       },
       WrongCategoryKind() => l10n.a2uiWrongCategoryKind,
       DraftAmountOutOfRange() => l10n.a2uiAmountOutOfRange,
-      CurrencyMismatch(:final accountCurrency) => l10n.a2uiCurrencyMismatch(
-        accountCurrency,
-      ),
       MissingField() || MalformedField() => l10n.a2uiNeedsReview,
     };
   }

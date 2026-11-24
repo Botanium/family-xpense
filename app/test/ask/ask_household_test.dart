@@ -6,6 +6,7 @@ import 'package:clock/clock.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:xpense_app/a2ui/xpense_surface_host.dart';
 import 'package:xpense_app/app.dart';
 import 'package:xpense_app/bootstrap.dart';
 import 'package:xpense_app/core/routing/routing.dart';
@@ -64,6 +65,22 @@ void main() {
     expect(h.latestRate, '1520');
     expect(h.category('groceries')?.name, 'Groceries');
     expect(h.category('other_expense'), isNotNull);
+    expect(h.soleMember, isFalse);
+  });
+
+  test('a household of one is known only once the members load', () {
+    XpenseHousehold of(List<HouseholdMember> members) => xpenseHouseholdFrom(
+      membership: const InHousehold(FakeHouseholdRepository.sampleHousehold),
+      accounts: const [],
+      members: members,
+      viewerUid: 'me',
+      latestRate: null,
+    );
+    expect(
+      of(const [HouseholdMember(uid: 'me', displayName: 'Dara')]).soleMember,
+      isTrue,
+    );
+    expect(of(const []).soleMember, isFalse, reason: 'still loading');
   });
 
   testWidgets('in the fakes environment a card saves through the write path', (

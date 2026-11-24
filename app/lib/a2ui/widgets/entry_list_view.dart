@@ -106,6 +106,13 @@ class _EntryListViewState extends State<EntryListView>
 
   bool get _editable => widget.onDraftsChanged != null && !isSaved && !saving;
 
+  /// Opens the new-account sheet; the slips read the household again once
+  /// it closes, so a new account is offered at once.
+  Future<void> _addAccount() async {
+    await _scope.actions.openAddAccount();
+    if (mounted) setState(() {});
+  }
+
   void _write(int index, String field, Object? value) {
     final next = [
       for (final d in widget.drafts)
@@ -204,6 +211,7 @@ class _EntryListViewState extends State<EntryListView>
               onEdit: () => _scope.actions.openManualForm(
                 Map<String, Object?>.from(draftCheck.raw! as Map),
               ),
+              onAddAccount: () => unawaited(_addAccount()),
             ),
         ],
         const SizedBox(height: XpSpace.s16),

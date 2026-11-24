@@ -370,6 +370,9 @@ final class _RecordingActions implements XpenseActions {
       _inner.openManualForm(draft);
 
   @override
+  Future<void> openAddAccount() => _inner.openAddAccount();
+
+  @override
   void retryQueued(String captureId) => _inner.retryQueued(captureId);
 }
 

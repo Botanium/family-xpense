@@ -52,6 +52,7 @@ import 'package:xpense_app/data/write/memory_ledger_store.dart';
 import 'package:xpense_app/features/ask/ask_actions.dart';
 import 'package:xpense_app/features/ask/ask_household.dart';
 import 'package:xpense_app/features/ask/ledger_xpense_actions.dart';
+import 'package:xpense_app/features/ask/routed_xpense_actions.dart';
 import 'package:xpense_app/services/agent_client.dart';
 import 'package:xpense_app/services/agent_client_fake.dart';
 import 'package:xpense_app/services/agent_client_remote.dart';
@@ -326,14 +327,18 @@ HouseholdRepository connectHouseholds(
 /// The Ask cards' household and write path: the household from
 /// [askHouseholdProvider] (the same accounts the save path writes to),
 /// saves and Undo through the transaction write path (WP-20), the daily
-/// rate through the FX repository. The inner in-memory actions keep
-/// navigation for now.
+/// rate through the FX repository, navigation (Fix it in the form, View,
+/// Add an account) through the app's router. Loans and goals have no
+/// screens yet; the inner in-memory actions keep those.
 XpenseActions connectXpenseActions(Ref ref) {
   // Keeps the household's streams running while the actions are in use;
   // read, not watched, so a new account does not reset an Ask thread.
   ref.listen(askHouseholdProvider, (_, _) {});
   return LedgerXpenseActions(
-    inner: FakeXpenseActions(),
+    inner: RoutedXpenseActions(
+      router: () => ref.read(routerProvider),
+      inner: FakeXpenseActions(),
+    ),
     transactions: ref.watch(transactionsRepositoryProvider),
     fx: ref.watch(fxRepositoryProvider),
     readHousehold: () => ref.read(askHouseholdProvider),

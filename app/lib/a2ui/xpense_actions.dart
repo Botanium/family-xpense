@@ -68,6 +68,7 @@ final class XpenseHousehold {
     this.loans = const [],
     this.goals = const [],
     this.partnerName,
+    this.soleMember = false,
     this.latestRate,
     this.rateEnteredToday = false,
   });
@@ -92,6 +93,10 @@ final class XpenseHousehold {
 
   /// The partner's first name, for `who: partner`; null before they join.
   final String? partnerName;
+
+  /// Whether the signed-in member is the household's only member (known,
+  /// not still loading): an entry's `who` is then always `me`.
+  final bool soleMember;
 
   /// The latest USD/IQD rate as a decimal string, such as `"1705"`.
   final String? latestRate;
@@ -270,6 +275,10 @@ abstract interface class XpenseActions {
   /// Opens the manual form prefilled with [draft], as found in the data
   /// model (it may be malformed).
   void openManualForm(Map<String, Object?> draft);
+
+  /// Opens the new-account sheet: a slip whose household has no account
+  /// to pay from offers it. Completes when the sheet closes.
+  Future<void> openAddAccount();
 
   /// Retries a capture waiting in the offline queue.
   void retryQueued(String captureId);

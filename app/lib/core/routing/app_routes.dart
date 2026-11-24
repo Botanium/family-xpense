@@ -58,6 +58,10 @@ abstract final class AppRoutes {
   /// with an `EntryDraft` ("Change" on a slip); a link opens it empty.
   static const String addEntry = '/add';
 
+  /// The new-account sheet (screen 10's plus button) above whatever is
+  /// showing: an Ask slip with no account to pay from opens it.
+  static const String addAccount = '/new-account';
+
   /// Route pattern of a loan or debt's detail screen.
   static const String loanPattern = '/loans/:$idParam';
 

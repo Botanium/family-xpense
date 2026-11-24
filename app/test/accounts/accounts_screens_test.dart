@@ -132,7 +132,7 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text('New account'), findsOneWidget);
       await tapLabel(tester, 'Bank');
-      await tester.enterText(field('Name'), 'Rafidain ••2210');
+      await tester.enterText(field('Account name'), 'Rafidain ••2210');
       await tester.enterText(amountField(), '1200.50');
       await tapLabel(tester, 'Add account');
 
@@ -346,7 +346,7 @@ void main() {
         find.text("The currency can't change once an account is added."),
         findsOneWidget,
       );
-      await tester.enterText(field('Name'), 'Family Visa');
+      await tester.enterText(field('Account name'), 'Family Visa');
       await tapLabel(tester, 'Save');
 
       expect(
@@ -415,13 +415,49 @@ void main() {
       expect(location(container).path, AppRoutes.tryIt);
     });
 
+    // Owner's phone test (2026-11-24): with USD as the base, only USD
+    // accounts could be added (the currency toggle was a chevron on the
+    // amount), and balances went into the name ("1000", "500", "300").
+    testWidgets('the currency chips add a dinar account to a dollar '
+        'household', (tester) async {
+      final accounts = FakeAccountsRepository();
+      await pumpAt(tester, AppRoutes.addAccounts, accounts: accounts);
+      expect(find.text('Dollars · USD'), findsOneWidget);
+      await tapLabel(tester, 'Dinars · IQD');
+      await tester.enterText(field('Account name'), 'Wallet');
+      await tester.enterText(amountField(), '250000');
+      await tester.pumpAndSettle();
+      await tester.enterText(field("Today's dollar rate, in dinars"), '1,705');
+      await tapLabel(tester, 'Add account');
+
+      final draft = accounts.created.single;
+      expect(draft.name, 'Wallet');
+      expect(draft.currency, Currency.iqd);
+      expect(draft.openingBalanceMinor, 250000);
+    });
+
+    testWidgets('a balance typed as the name is refused', (tester) async {
+      final accounts = FakeAccountsRepository();
+      await pumpAt(tester, AppRoutes.addAccounts, accounts: accounts);
+      await tester.enterText(field('Account name'), '1,000');
+      await tapLabel(tester, 'Add account');
+      expect(
+        find.text(
+          'That looks like an amount. Enter the balance below, and a name '
+          'here.',
+        ),
+        findsOneWidget,
+      );
+      expect(accounts.created, isEmpty);
+    });
+
     testWidgets('a joint card owes money', (tester) async {
       final accounts = FakeAccountsRepository();
       await pumpAt(tester, AppRoutes.addAccounts, accounts: accounts);
       await tapLabel(tester, 'Card');
       expect(find.text('Card · amount owed'), findsOneWidget);
       await tapLabel(tester, 'Joint');
-      await tester.enterText(field('Name'), 'Joint Visa ••4021');
+      await tester.enterText(field('Account name'), 'Joint Visa ••4021');
       await tester.enterText(amountField(), '612');
       await tapLabel(tester, 'Add account');
 

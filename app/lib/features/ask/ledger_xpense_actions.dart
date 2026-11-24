@@ -55,6 +55,7 @@ final class LedgerXpenseActions implements XpenseActions {
       loans: h.loans,
       goals: h.goals,
       partnerName: h.partnerName,
+      soleMember: h.soleMember,
       latestRate: answered,
       rateEnteredToday: true,
     );
@@ -179,6 +180,9 @@ final class LedgerXpenseActions implements XpenseActions {
   @override
   void openManualForm(Map<String, Object?> draft) =>
       inner.openManualForm(draft);
+
+  @override
+  Future<void> openAddAccount() => inner.openAddAccount();
 
   @override
   void retryQueued(String captureId) => inner.retryQueued(captureId);

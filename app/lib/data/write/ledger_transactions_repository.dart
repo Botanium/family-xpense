@@ -606,12 +606,18 @@ final class LedgerTransactionsRepository implements TransactionsRepository {
     if (account == null) {
       return invalid('accountId', EntryIssue.unknownReference);
     }
-    final currency = draft.currency == null
+    // An account holds only its own currency (DATA_MODEL 1), but it can
+    // pay in the other: "10000 iqd dinner" from a dollar account. The
+    // entry is then stored in the account's currency, the amount converted
+    // at the rate for its date (below), and `fx` records that rate.
+    final spoken = draft.currency == null
         ? account.currency
         : Currency.tryParse(draft.currency!);
-    if (currency != account.currency) {
+    if (spoken == null) {
       return invalid('currency', EntryIssue.currencyMismatch);
     }
+    final currency = account.currency;
+    final converts = spoken != currency;
 
     // A goal's account is the destination of a savings move.
     String? goalAccount;
@@ -742,6 +748,7 @@ final class LedgerTransactionsRepository implements TransactionsRepository {
     // `toAmountSource` says which (Codex review, PR #35); an entry saved
     // before it was recorded is judged by comparing with the conversion.
     if (crossTransfer &&
+        !converts &&
         toAmount == null &&
         !extras.toAmountReset &&
         previous != null &&
@@ -759,7 +766,8 @@ final class LedgerTransactionsRepository implements TransactionsRepository {
       toSource = previous.toAmountSource;
       retainedFx = previous.fx;
     }
-    final needsRate = currency != base || (crossTransfer && toAmount == null);
+    final needsRate =
+        converts || currency != base || (crossTransfer && toAmount == null);
     FxRate? rate;
     StoredFx? fx;
     if (needsRate) {
@@ -774,8 +782,12 @@ final class LedgerTransactionsRepository implements TransactionsRepository {
           return Err(
             EntryRateNeeded(
               draftId: draftId,
-              from: currency!.code,
-              to: currency != base ? base.code : toCurrency!.code,
+              from: converts ? spoken.code : currency.code,
+              to: converts
+                  ? currency.code
+                  : currency != base
+                  ? base.code
+                  : toCurrency!.code,
             ),
           );
         case Err():
@@ -786,7 +798,20 @@ final class LedgerTransactionsRepository implements TransactionsRepository {
     } else {
       fx = retainedFx;
     }
-    final baseAmount = toBaseAmount(Money(amount, currency!), base, rate: rate);
+    // The amount in the account's currency: as written, or converted.
+    var stored = amount;
+    if (converts) {
+      final converted = rate!
+          .convert(Money(amount, spoken), currency)
+          .valueOrNull
+          ?.minorUnits;
+      if (converted == null) return invalid('fx', EntryIssue.malformed);
+      if (converted < 1 || converted > maxDraftAmountMinor) {
+        return invalid('amountMinor', EntryIssue.amountOutOfRange);
+      }
+      stored = converted;
+    }
+    final baseAmount = toBaseAmount(Money(stored, currency), base, rate: rate);
     final baseMinor = baseAmount.valueOrNull?.minorUnits;
     if (baseMinor == null) {
       return invalid(
@@ -798,7 +823,7 @@ final class LedgerTransactionsRepository implements TransactionsRepository {
     }
     if (crossTransfer && toAmount == null) {
       toAmount = rate!
-          .convert(Money(amount, currency), toCurrency)
+          .convert(Money(stored, currency), toCurrency)
           .valueOrNull
           ?.minorUnits;
       if (toAmount == null) return invalid('fx', EntryIssue.malformed);
@@ -818,7 +843,7 @@ final class LedgerTransactionsRepository implements TransactionsRepository {
       LedgerTransaction(
         id: previous?.id ?? _store.newId(),
         type: type,
-        amountMinor: amount,
+        amountMinor: stored,
         currency: currency,
         accountId: account.id,
         toAccountId: to?.id,

@@ -61,6 +61,9 @@ XpenseHousehold xpenseHouseholdFrom({
       .where((m) => m.uid != viewerUid)
       .map((m) => m.displayName)
       .firstOrNull,
+  // An empty list is still loading; one member who is the viewer is a
+  // household of one.
+  soleMember: members.length == 1 && members.single.uid == viewerUid,
   latestRate: latestRate?.pair == FxPair.usdIqd ? latestRate?.rateString : null,
   rateEnteredToday: rateEnteredToday,
 );
