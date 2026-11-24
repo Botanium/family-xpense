@@ -49,6 +49,9 @@ dependencies:
   go_router: ^18.1.4
   # Latin OCR and Android (D-08). Only lib/services/.
   google_mlkit_text_recognition: ^1.0.3
+  # Native Google Sign-In; its tokens go to Firebase Auth (the Firebase web
+  # flow is blocked by the iOS key's bundle id restriction). Only lib/data/.
+  google_sign_in: ^7.2.0
   # The HTTP client under remoteAgent, wrapped to read the trace header.
   # Already resolved through genkit. Only lib/services/.
   http: ^1.6.0

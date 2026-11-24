@@ -120,6 +120,7 @@ const Map<String, Set<Layer>> adapterOnlyPackages = {
   'shared_preferences': {Layer.services},
   'cloud_firestore': {Layer.data, Layer.root},
   'firebase_remote_config': {Layer.services},
+  'google_sign_in': {Layer.data},
 };
 
 /// Suffix of a fake service implementation. Fakes are wired by the
