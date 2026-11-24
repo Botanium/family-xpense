@@ -209,7 +209,10 @@ class _ReceiptSummaryViewState extends State<ReceiptSummaryView>
             Expanded(child: Text(l10n.a2uiReceiptSplit, style: type.subhead)),
             XpSwitch(
               value: widget.split,
-              onChanged: _editable && widget.onSplitChanged != null
+              onChanged:
+                  _editable &&
+                      widget.onSplitChanged != null &&
+                      saveStore?.read(formSavedPath) != true
                   ? _toggleSplit
                   : null,
               semanticLabel: l10n.a2uiReceiptSplit,
@@ -303,10 +306,13 @@ class _ReceiptSummaryViewState extends State<ReceiptSummaryView>
             alignment: AlignmentDirectional.centerStart,
             child: XpButton.text(
               label: l10n.a2uiFixInForm,
-              onPressed: () => _scope.actions.openManualForm(
-                widget.drafts.firstOrNull is Map
-                    ? Map<String, Object?>.from(widget.drafts.first! as Map)
-                    : const {},
+              onPressed: () => unawaited(
+                openInForm(
+                  widget.drafts.firstOrNull,
+                  current: () => widget.drafts,
+                  write: widget.onDraftsChanged,
+                  announce: l10n.a2uiSavedEntries(1),
+                ),
               ),
             ),
           ),

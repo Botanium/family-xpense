@@ -177,9 +177,28 @@ final class LedgerXpenseActions implements XpenseActions {
   @override
   void retakeReceipt() => inner.retakeReceipt();
 
+  /// A save in the form is kept like a save here, so the card's Undo
+  /// deletes it (Codex review, PR #46).
   @override
-  void openManualForm(Map<String, Object?> draft) =>
-      inner.openManualForm(draft);
+  Future<FormSaved?> openManualForm(
+    Map<String, Object?> draft, {
+    String? surfaceId,
+    bool quiet = false,
+  }) async {
+    final saved = await inner.openManualForm(
+      draft,
+      surfaceId: surfaceId,
+      quiet: quiet,
+    );
+    if (saved != null) {
+      _saved[saved.groupId] = SavedEntries(
+        groupId: saved.groupId,
+        txnIds: saved.txnIds,
+        ack: WriteAck.synced,
+      );
+    }
+    return saved;
+  }
 
   @override
   Future<void> openAddAccount() => inner.openAddAccount();

@@ -174,6 +174,22 @@ final class DraftsSaved extends SaveOutcome {
   final Map<String, BudgetStanding> budgets;
 }
 
+/// A draft the manual form saved ("Fix it in the form"): the card treats
+/// it as its own save, so it is never saved twice.
+final class FormSaved {
+  /// Creates the result.
+  const new({required this.groupId, required this.txnIds, required this.draft});
+
+  /// The save group, for [XpenseActions.undoSave].
+  final String groupId;
+
+  /// The new transaction ids.
+  final List<String> txnIds;
+
+  /// The draft as the form saved it (the member may have changed it).
+  final EntryDraft draft;
+}
+
 /// Why a save did not happen.
 enum SaveFailure {
   /// The repository rejected a draft (an id, amount or currency).
@@ -273,8 +289,18 @@ abstract interface class XpenseActions {
   void retakeReceipt();
 
   /// Opens the manual form prefilled with [draft], as found in the data
-  /// model (it may be malformed).
-  void openManualForm(Map<String, Object?> draft);
+  /// model (it may be malformed). Completes with what the form saved, or
+  /// null when it closed without saving. A save there is a save of
+  /// [surfaceId]'s draft: it is recorded for `xp.saved` and its Undo, as a
+  /// save from the card would be.
+  ///
+  /// [quiet]: the card shows the save and its Undo itself, so the form
+  /// shows no toast.
+  Future<FormSaved?> openManualForm(
+    Map<String, Object?> draft, {
+    String? surfaceId,
+    bool quiet = false,
+  });
 
   /// Opens the new-account sheet: a slip whose household has no account
   /// to pay from offers it. Completes when the sheet closes.

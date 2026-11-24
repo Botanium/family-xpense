@@ -14,6 +14,7 @@
 ///   compact `xp.saved` actions to attach to the member's next turn.
 library;
 
+import 'dart:async';
 import 'dart:collection';
 
 import 'package:a2ui_core/a2ui_core.dart';
@@ -219,10 +220,13 @@ class XpenseSurfaceHost extends ChangeNotifier {
     String text(String key) => c[key] is String ? c[key]! as String : '';
     switch (name) {
       case LocalActionNames.openManualForm:
-        _actions.openManualForm(
-          c['draft'] is Map
-              ? Map<String, Object?>.from(c['draft']! as Map)
-              : const {},
+        // A notice's offer ("add it by hand"): no draft of a card to settle.
+        unawaited(
+          _actions.openManualForm(
+            c['draft'] is Map
+                ? Map<String, Object?>.from(c['draft']! as Map)
+                : const {},
+          ),
         );
       case LocalActionNames.openTransaction:
         _actions.openTransaction(text('txnId'));
@@ -366,8 +370,23 @@ final class _RecordingActions implements XpenseActions {
   void retakeReceipt() => _inner.retakeReceipt();
 
   @override
-  void openManualForm(Map<String, Object?> draft) =>
-      _inner.openManualForm(draft);
+  Future<FormSaved?> openManualForm(
+    Map<String, Object?> draft, {
+    String? surfaceId,
+    bool quiet = false,
+  }) async {
+    final saved = await _inner.openManualForm(
+      draft,
+      surfaceId: surfaceId,
+      quiet: quiet,
+    );
+    if (saved != null && surfaceId != null) {
+      _host._saved.add(
+        _Saved(surfaceId, saved.groupId, [saved.draft.id], saved.txnIds),
+      );
+    }
+    return saved;
+  }
 
   @override
   Future<void> openAddAccount() => _inner.openAddAccount();

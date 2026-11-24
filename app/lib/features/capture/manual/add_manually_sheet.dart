@@ -22,13 +22,16 @@ import 'package:xpense_shared/xpense_shared.dart';
 @immutable
 final class ManualSheetOutcome {
   /// Creates the outcome.
-  const new({required this.ack, this.saved});
+  const new({required this.ack, this.saved, this.draft});
 
   /// Whether the write reached the server.
   final WriteAck ack;
 
   /// The new entry, when the sheet added one (null for an edit).
   final SavedEntries? saved;
+
+  /// The draft the sheet saved.
+  final EntryDraft? draft;
 }
 
 /// Opens Add manually (DESIGN_SYSTEM screen 9) above the tab bar.
@@ -45,6 +48,7 @@ Future<ManualSheetOutcome?> showAddManuallySheet(
   String? editTxnId,
   ManualField? focus,
   int? arrivesMinor,
+  bool quiet = false,
 }) {
   // The root navigator, so the sheet covers the floating tab bar.
   final root = Navigator.of(context, rootNavigator: true);
@@ -66,6 +70,7 @@ Future<ManualSheetOutcome?> showAddManuallySheet(
       editTxnId: editTxnId,
       focus: focus,
       arrivesMinor: arrivesMinor,
+      quiet: quiet,
     ),
   );
 }
@@ -100,8 +105,13 @@ class AddManuallyForm extends ConsumerStatefulWidget {
     this.editTxnId,
     this.focus,
     this.arrivesMinor,
+    this.quiet = false,
     super.key,
   });
+
+  /// Whether the opener shows the save and its Undo itself (an Ask card),
+  /// so no toast is shown here.
+  final bool quiet;
 
   /// The prefilled draft.
   final EntryDraft? initial;
@@ -395,14 +405,16 @@ class AddManuallyFormState extends ConsumerState<AddManuallyForm> {
         [draft],
         extras: {draft.id: check.extras},
       );
-      result = saved.map((s) => ManualSheetOutcome(ack: s.ack, saved: s));
+      result = saved.map(
+        (s) => ManualSheetOutcome(ack: s.ack, saved: s, draft: draft),
+      );
     }
     if (!mounted) return;
     setState(() => _saving = false);
     switch (result) {
       case Ok(:final value):
         unawaited(XpHaptics.saved());
-        _toast(value, repository);
+        if (!widget.quiet) _toast(value, repository);
         navigator.pop(value);
       case Err(:final failure):
         _show(failure);

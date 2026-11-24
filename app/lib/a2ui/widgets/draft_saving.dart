@@ -26,6 +26,11 @@ final class SurfaceStore {
   final void Function(String path, Object? value) write;
 }
 
+/// Set in a card's data model once one of several drafts was saved in the
+/// manual form: a receipt then keeps its groups as they are, since
+/// regrouping would bring the saved one back.
+const String formSavedPath = '/ui/formSaved';
+
 /// What a save produced, as kept at `/ui/saved`.
 final class SaveRecord {
   /// Creates a record.
@@ -187,30 +192,18 @@ mixin DraftSaving<T extends StatefulWidget> on State<T> {
     }
     switch (outcome) {
       case DraftsSaved(:final groupId, :final txnIds, :final budgets):
-        final record = SaveRecord(
-          groupId: groupId,
-          txnIds: txnIds,
-          savedAt: clock.now().toUtc(),
-          budgets: budgets,
-        );
-        store?.write(SurfacePaths.saved, record.toJson());
-        store?.write(SurfacePaths.status, 'saved');
         for (final correction in corrections) {
           unawaited(actions.learn(correction).catchError(_report));
         }
-        if (!mounted) return true;
-        setState(() {
-          saving = false;
-          saved = record;
-        });
-        _scheduleUndoExpiry();
-        unawaited(XpHaptics.saved());
-        unawaited(
-          SemanticsService.sendAnnouncement(
-            View.of(context),
-            announce,
-            Directionality.of(context),
+        _recordSaved(
+          SaveRecord(
+            groupId: groupId,
+            txnIds: txnIds,
+            savedAt: clock.now().toUtc(),
+            budgets: budgets,
           ),
+          store,
+          announce: announce,
         );
         return true;
       case SaveFailed(:final reason):
@@ -222,6 +215,83 @@ mixin DraftSaving<T extends StatefulWidget> on State<T> {
         });
         return false;
     }
+  }
+
+  /// Records [record] as the drafts' save, in the data model first (it
+  /// outlives this component), then on screen.
+  void _recordSaved(
+    SaveRecord record,
+    SurfaceStore? store, {
+    required String announce,
+  }) {
+    store?.write(SurfacePaths.saved, record.toJson());
+    store?.write(SurfacePaths.status, 'saved');
+    if (!mounted) return;
+    setState(() {
+      saving = false;
+      saved = record;
+    });
+    _scheduleUndoExpiry();
+    unawaited(XpHaptics.saved());
+    unawaited(
+      SemanticsService.sendAnnouncement(
+        View.of(context),
+        announce,
+        Directionality.of(context),
+      ),
+    );
+  }
+
+  /// Opens [raw], one of the drafts, in the manual form ("Fix it in the
+  /// form"). A save there is this card's save, so nothing is saved twice
+  /// (Codex review, PR #46): the draft leaves the card, read again with
+  /// [current] once the form closes, through [write]; the last one leaves
+  /// the card saved as the form saved it, with Undo. Closing the form
+  /// unsaved changes nothing.
+  Future<void> openInForm(
+    Object? raw, {
+    required List<Object?> Function() current,
+    required ValueChanged<List<Object?>>? write,
+    required String announce,
+  }) async {
+    if (saving || isSaved) return;
+    final store = saveStore;
+    final draft = raw is Map
+        ? Map<String, Object?>.from(raw)
+        : <String, Object?>{};
+    final id = draft['id'];
+    bool same(Object? d) =>
+        id is String ? d is Map && d['id'] == id : identical(d, raw);
+    // The card's last draft: the card then shows the save and its Undo,
+    // so the form shows none (one Undo, never two).
+    final last = current().every(same);
+    final result = await saveActions.openManualForm(
+      draft,
+      surfaceId: saveSurfaceId,
+      quiet: last,
+    );
+    if (result == null) return;
+    final drafts = current();
+    final rest = [
+      for (final d in drafts)
+        if (!same(d)) d,
+    ];
+    if (rest.isNotEmpty) {
+      store?.write(formSavedPath, true);
+      write?.call(rest);
+      return;
+    }
+    // The card shows what was saved, not the draft as it was before.
+    write?.call([result.draft.toJson()]);
+    _recordSaved(
+      SaveRecord(
+        groupId: result.groupId,
+        txnIds: result.txnIds,
+        savedAt: clock.now().toUtc(),
+      ),
+      store,
+      announce: announce,
+    );
   }
 
   /// Undoes the last save and returns the drafts to review. The saved state

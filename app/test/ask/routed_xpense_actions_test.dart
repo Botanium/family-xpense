@@ -3,6 +3,7 @@
 // the in-memory fake for navigation).
 import 'package:flutter_test/flutter_test.dart';
 import 'package:xpense_app/a2ui/testing/fake_xpense_actions.dart';
+import 'package:xpense_app/a2ui/xpense_surface_host.dart';
 import 'package:xpense_app/app.dart';
 import 'package:xpense_app/core/routing/routing.dart';
 import 'package:xpense_app/data/accounts_repository_fake.dart';
@@ -16,12 +17,13 @@ void main() {
   setUpAll(loadSignalFonts);
 
   Future<(RoutedXpenseActions, FakeXpenseActions)> pump(
-    WidgetTester tester,
-  ) async {
+    WidgetTester tester, {
+    FakeAccountsRepository? accounts,
+  }) async {
     usePhone(tester);
     final container = await pumpXpenseApp(
       tester,
-      TestServices(accounts: FakeAccountsRepository()),
+      TestServices(accounts: accounts ?? FakeAccountsRepository()),
     );
     final inner = FakeXpenseActions();
     return (
@@ -52,15 +54,62 @@ void main() {
   testWidgets('Fix it in the form opens Add manually, also for a draft '
       'that does not read', (tester) async {
     final (actions, inner) = await pump(tester);
-    actions.openManualForm({
-      'id': 'd1',
-      'intent': 'expense',
-      'amountMinor': 10000,
-      'currency': 'IQD',
-    });
+    FormSaved? result;
+    var closed = false;
+    final opened = actions
+        .openManualForm({
+          'id': 'd1',
+          'intent': 'expense',
+          'amountMinor': 10000,
+          'currency': 'IQD',
+        })
+        .then((r) {
+          result = r;
+          closed = true;
+        });
     await tester.pumpAndSettle();
     expect(find.text('Add manually'), findsOneWidget);
     expect(inner.calls, isEmpty);
+
+    // Closed unsaved: nothing to settle.
+    await tester.tap(find.text('Cancel'));
+    await tester.pumpAndSettle();
+    await opened;
+    expect(closed, isTrue);
+    expect(result, isNull);
+  });
+
+  // Codex review, PR #46: what the form saves goes back to the card, and
+  // a quiet form leaves the save's Undo to the card.
+  testWidgets('a save in the form comes back to the card, with no toast '
+      'when quiet', (tester) async {
+    final (actions, _) = await pump(
+      tester,
+      accounts: FakeAccountsRepository.sample(),
+    );
+    FormSaved? result;
+    final opened = actions
+        .openManualForm({
+          'id': 'd7',
+          'intent': 'expense',
+          'amountMinor': 4280,
+          'currency': 'USD',
+          'accountId': 'acc-checking',
+          'categoryId': 'groceries',
+          'who': 'me',
+        }, quiet: true)
+        .then((r) => result = r);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Save expense'));
+    await tester.pumpAndSettle();
+    await opened;
+
+    expect(find.text('Add manually'), findsNothing);
+    // No toast with its own Undo: the card offers it.
+    expect(find.text('Undo'), findsNothing);
+    expect(result?.draft.id, 'd7');
+    expect(result?.txnIds, hasLength(1));
+    expect(result?.groupId, isNotEmpty);
   });
 
   test('the add-account route is its own path', () {

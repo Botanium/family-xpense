@@ -1,5 +1,6 @@
 import 'package:go_router/go_router.dart';
 import 'package:xpense_app/core/routing/routing.dart';
+import 'package:xpense_app/data/transactions_repository.dart';
 import 'package:xpense_app/features/capture/manual/sheet_launcher.dart';
 import 'package:xpense_shared/xpense_shared.dart';
 
@@ -21,7 +22,12 @@ FeatureRoutes captureRoutes() => FeatureRoutes(
         AddManuallyLauncher(
           draft: switch (state.extra) {
             final EntryDraft draft => draft,
+            final FormRequest request => request.draft,
             _ => null,
+          },
+          quiet: switch (state.extra) {
+            final FormRequest request => request.quiet,
+            _ => false,
           },
         ),
       ),

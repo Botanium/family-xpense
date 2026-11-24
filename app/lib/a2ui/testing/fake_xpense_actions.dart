@@ -182,8 +182,17 @@ class FakeXpenseActions implements XpenseActions {
   void retakeReceipt() => calls.add((method: 'retakeReceipt', argument: null));
 
   @override
-  void openManualForm(Map<String, Object?> draft) =>
-      calls.add((method: 'openManualForm', argument: draft));
+  Future<FormSaved?> openManualForm(
+    Map<String, Object?> draft, {
+    String? surfaceId,
+    bool quiet = false,
+  }) async {
+    calls.add((method: 'openManualForm', argument: draft));
+    return manualFormResult?.call(draft);
+  }
+
+  /// What the manual form saves for a draft; null closes it unsaved.
+  FormSaved? Function(Map<String, Object?> draft)? manualFormResult;
 
   @override
   Future<void> openAddAccount() async =>

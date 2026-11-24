@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:go_router/go_router.dart';
 import 'package:xpense_app/a2ui/xpense_surface_host.dart';
 import 'package:xpense_app/core/routing/routing.dart';
+import 'package:xpense_app/data/transactions_repository.dart';
 import 'package:xpense_shared/xpense_shared.dart';
 
 /// The Ask cards' navigation through the app's router: "Fix it in the
@@ -57,14 +58,29 @@ final class RoutedXpenseActions implements XpenseActions {
   @override
   void retakeReceipt() => inner.retakeReceipt();
 
-  /// A draft that does not read opens the form empty.
+  /// A draft that does not read opens the form empty. What the form saves
+  /// comes back, so the card settles its draft (Codex review, PR #46).
   @override
-  void openManualForm(Map<String, Object?> draft) => unawaited(
-    router().push<void>(
+  Future<FormSaved?> openManualForm(
+    Map<String, Object?> draft, {
+    String? surfaceId,
+    bool quiet = false,
+  }) async {
+    final request = (
+      draft: checkDraft(draft, const HouseholdRefs()).draft,
+      quiet: quiet,
+    );
+    final result = await router().push<FormSave>(
       AppRoutes.addEntry,
-      extra: checkDraft(draft, const HouseholdRefs()).draft,
-    ),
-  );
+      extra: request,
+    );
+    if (result == null) return null;
+    return FormSaved(
+      groupId: result.saved.groupId,
+      txnIds: result.saved.txnIds,
+      draft: result.draft,
+    );
+  }
 
   @override
   Future<void> openAddAccount() => router().push<void>(AppRoutes.addAccount);

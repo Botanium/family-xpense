@@ -106,8 +106,11 @@ final class AskActions implements XpenseActions {
   void retakeReceipt() => _inner.retakeReceipt();
 
   @override
-  void openManualForm(Map<String, Object?> draft) =>
-      _inner.openManualForm(draft);
+  Future<FormSaved?> openManualForm(
+    Map<String, Object?> draft, {
+    String? surfaceId,
+    bool quiet = false,
+  }) => _inner.openManualForm(draft, surfaceId: surfaceId, quiet: quiet);
 
   @override
   Future<void> openAddAccount() => _inner.openAddAccount();
