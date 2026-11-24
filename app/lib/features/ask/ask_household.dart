@@ -47,10 +47,10 @@ XpenseHousehold xpenseHouseholdFrom({
         HouseholdAccount(id: a.id, name: a.name, currency: a.currency.code),
   ],
   categories: [
-    // The household's live categories (WP-24): an archived one is not
-    // offered for a new entry.
+    // The household's live categories (WP-24): an archived one, or one in
+    // an archived group, is not offered for a new entry.
     for (final c in categories ?? defaultCategoryRecords)
-      if (!c.archived)
+      if (isLiveCategory(c, categories ?? defaultCategoryRecords))
         HouseholdCategory(
           id: c.id,
           name: c.nameIn(fallbackLanguage),

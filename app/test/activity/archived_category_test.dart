@@ -92,4 +92,17 @@ void main() {
     await tester.pump(const Duration(seconds: 11));
     await tester.pumpAndSettle();
   });
+
+  testWidgets('Ask offers nothing from an archived group (Codex review, '
+      'PR #43)', (tester) async {
+    final app = LedgerApp();
+    await app.categories.setArchived('food', archived: true);
+    final container = await app.pump(tester);
+    container.listen(askHouseholdProvider, (_, _) {});
+    await tester.pumpAndSettle();
+    final household = container.read(askHouseholdProvider);
+    expect(household.category('food'), isNull);
+    expect(household.category('groceries'), isNull);
+    expect(household.category('fuel'), isNotNull);
+  });
 }

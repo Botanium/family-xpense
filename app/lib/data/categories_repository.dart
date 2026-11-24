@@ -231,6 +231,13 @@ Map<String, int> reorderedPositions(
     for (final id in ids)
       if (byId[id] case final c?) c.order,
   ]..sort();
+  // Siblings added at the same time on two phones (or offline) can share a
+  // position; spread ties out so a move always changes the order (Codex
+  // review, PR #43). Only siblings are compared, so a clash with another
+  // group's position does not matter.
+  for (var i = 1; i < slots.length; i++) {
+    if (slots[i] <= slots[i - 1]) slots[i] = slots[i - 1] + 1;
+  }
   final known = [
     for (final id in ids)
       if (byId.containsKey(id)) id,
@@ -266,14 +273,24 @@ final Provider<List<CategoryRecord>> householdCategoriesProvider =
       return stored == null || stored.isEmpty ? defaultCategoryRecords : stored;
     }, name: 'householdCategoriesProvider');
 
-/// The categories a picker offers, as definitions: the live ones, plus
-/// [keep] (the category an entry already has) even when archived, so
-/// editing that entry keeps it.
+/// Whether [category] is offered for new entries: neither it nor its group
+/// is archived (archiving a group retires its sub-categories with it,
+/// Codex review PR #43).
+bool isLiveCategory(CategoryRecord category, List<CategoryRecord> all) {
+  if (category.archived) return false;
+  final parent = category.parentId;
+  if (parent == null) return true;
+  return !(all.where((c) => c.id == parent).firstOrNull?.archived ?? false);
+}
+
+/// The categories a picker offers, as definitions: the live ones (see
+/// [isLiveCategory]), plus [keep] (the category an entry already has) and
+/// its group even when archived, so editing that entry keeps it.
 List<CategoryDef> pickableCategories(List<CategoryRecord> all, {String? keep}) {
   final keptParent = all.where((c) => c.id == keep).firstOrNull?.parentId;
   return [
     for (final c in all)
-      if (!c.archived || c.id == keep || c.id == keptParent) c.def,
+      if (isLiveCategory(c, all) || c.id == keep || c.id == keptParent) c.def,
   ];
 }
 

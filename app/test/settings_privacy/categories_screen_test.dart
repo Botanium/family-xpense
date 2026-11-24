@@ -200,4 +200,37 @@ void main() {
     expect(reorderedPositions(all, ['b', 'a']), {'b': 0, 'a': 10});
     expect(reorderedPositions(all, ['a', 'b', 'c']), isEmpty);
   });
+
+  test('reorderedPositions spreads tied siblings out (Codex review, '
+      'PR #43)', () {
+    // Added at the same time on two phones: both took position 5.
+    final all = [
+      for (final id in ['a', 'b'])
+        CategoryRecord(
+          id: id,
+          kind: CategoryKind.expense,
+          names: {'en': id},
+          order: 5,
+        ),
+    ];
+    expect(reorderedPositions(all, ['b', 'a']), {'a': 6});
+  });
+
+  test('archiving a group retires its sub-categories for new entries', () {
+    final all = [
+      for (final c in defaultCategoryRecords)
+        if (c.id == 'food') c.copyWith(archived: true) else c,
+    ];
+    final groceries = all.singleWhere((c) => c.id == 'groceries');
+    expect(isLiveCategory(groceries, all), isFalse);
+    expect(
+      pickableCategories(all).map((d) => d.slug),
+      isNot(contains('groceries')),
+    );
+    // An entry that already uses it keeps it, with its group.
+    expect(
+      pickableCategories(all, keep: 'groceries').map((d) => d.slug),
+      containsAll(['groceries', 'food']),
+    );
+  });
 }
