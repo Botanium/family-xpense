@@ -717,27 +717,23 @@ Account? accountFromFirestore(String id, Map<String, dynamic> data) {
   );
 }
 
-/// Reads a stored transaction as an entry on account [accountId].
+/// Reads a stored transaction as an entry on account [accountId]
+/// ([entryFromFields], with its `Timestamp` read as a time).
 @visibleForTesting
 AccountEntry? entryFromFirestore(
   String id,
   Map<String, dynamic> data,
   String accountId, {
   Currency? currency,
-}) {
-  final at = data['occurredAt'];
-  final occurredAt = at is Timestamp ? at.toDate() : null;
-  final own = currency ?? Currency.tryParse('${data['currency']}');
-  if (occurredAt == null || own == null) return null;
-  return AccountEntry(
-    id: id,
-    title: switch (data['title']) {
-      final String t => t,
-      _ => '',
+}) => entryFromFields(
+  id,
+  {
+    ...data,
+    'occurredAt': switch (data['occurredAt']) {
+      final Timestamp t => t.toDate(),
+      _ => null,
     },
-    type: '${data['type']}',
-    amountMinor: balanceEffect(data, accountId),
-    currency: own,
-    occurredAt: occurredAt,
-  );
-}
+  },
+  accountId,
+  currency: currency,
+);

@@ -273,7 +273,7 @@ class _AccountFormState extends ConsumerState<AccountForm> {
         ? l10n.accountsOwedLabel(kindChip)
         : l10n.accountsOpeningLabel(kindChip);
 
-    return Column(
+    final form = Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -401,6 +401,9 @@ class _AccountFormState extends ConsumerState<AccountForm> {
           ),
       ],
     );
+    // In a sheet, Cancel and a tap on the dimmed screen wait for a save in
+    // progress, so its result (or its error) is not lost.
+    return widget.inline ? form : PopScope(canPop: !_saving, child: form);
   }
 }
 
@@ -474,9 +477,12 @@ Future<void> _showAccountSheet(
   return showGlassSheet<void>(
     context: root.context,
     detent: SheetDetent.large,
+    // A swipe would close it mid-save; Cancel and the dimmed screen ask
+    // the form's PopScope, which holds while it saves.
+    enableDrag: false,
     header: SheetHeader(
       cancelLabel: context.l10n.accountsCancel,
-      onCancel: root.pop,
+      onCancel: root.maybePop,
       title: title,
     ),
     builder: (_) => SingleChildScrollView(

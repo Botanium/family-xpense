@@ -2429,6 +2429,12 @@ abstract class AppLocalizations {
   /// **'That category isn\'t in your household.'**
   String get a2uiUnknownCategory;
 
+  /// Problem line on an entry slip when an expense names an income category, or the reverse.
+  ///
+  /// In en, this message translates to:
+  /// **'This category doesn\'t fit this entry.'**
+  String get a2uiWrongCategoryKind;
+
   /// Problem line on an entry slip when a person, loan or goal id is not known.
   ///
   /// In en, this message translates to:

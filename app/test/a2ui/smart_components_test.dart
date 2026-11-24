@@ -552,6 +552,34 @@ void main() {
       expect(_enabled(tester, 'Save both'), isFalse);
     });
 
+    _test('a category of the wrong kind blocks Save and is asked again', (
+      tester,
+    ) async {
+      final messages = fixture('agent_two_entries');
+      final create = messages.last['createSurface']! as Map<String, Object?>;
+      final drafts = (create['dataModel']! as Map)['drafts']! as List;
+      // Income filed under an expense category (cleanups, item 2).
+      (drafts.first as Map)['categoryId'] = 'rent';
+      final (:host, :actions, :sent) = hostWith(messages);
+      await pumpThread(tester, host);
+      expect(
+        find.text("This category doesn't fit this entry."),
+        findsOneWidget,
+      );
+      expect(_enabled(tester, 'Save both'), isFalse);
+      // The picker offers income categories only, as the server does.
+      expect(
+        find.byKey(const ValueKey('pick_categoryId_salary')),
+        findsOneWidget,
+      );
+      expect(find.byKey(const ValueKey('pick_categoryId_rent')), findsNothing);
+      await tester.tap(find.byKey(const ValueKey('pick_categoryId_salary')));
+      await tester.pump();
+      expect(_model(host, 'cap_k3m9', '/drafts/0/categoryId'), 'salary');
+      expect(find.text("This category doesn't fit this entry."), findsNothing);
+      expect(_enabled(tester, 'Save both'), isTrue);
+    });
+
     _test("a currency that is not the account's blocks Save", (tester) async {
       final messages = fixture('agent_two_entries');
       final create = messages.last['createSurface']! as Map<String, Object?>;

@@ -433,6 +433,33 @@ int balanceEffect(Map<String, Object?> txn, String accountId) =>
     effectsOf(LedgerLine.fromFields({...txn, 'deletedAt': null}))
         .account(accountId);
 
+/// Reads stored transaction [data] as an entry on account [accountId], in
+/// [currency] (the account's) or else the entry's own. `occurredAt` is a
+/// [DateTime]; null when it is missing (a server time still pending) or the
+/// currency is unknown. The Firestore adapter and the fake both read
+/// entries through this, so they show the same list.
+AccountEntry? entryFromFields(
+  String id,
+  Map<String, Object?> data,
+  String accountId, {
+  Currency? currency,
+}) {
+  final at = data['occurredAt'];
+  final own = currency ?? Currency.tryParse('${data['currency']}');
+  if (at is! DateTime || own == null) return null;
+  return AccountEntry(
+    id: id,
+    title: switch (data['title']) {
+      final String t => t,
+      _ => '',
+    },
+    type: '${data['type']}',
+    amountMinor: balanceEffect(data, accountId),
+    currency: own,
+    occurredAt: at.toLocal(),
+  );
+}
+
 /// Adds, edits, archives and shares accounts, and streams them.
 ///
 /// Every list query includes `where('visibleTo', arrayContains: uid)`

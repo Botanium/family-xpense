@@ -221,6 +221,66 @@ void main() {
     expect(checkDraft(transfer('acc_sav'), refs).canSave, isTrue);
   });
 
+  group('category kind (cleanups: mirrors prepare_entries)', () {
+    const refs = HouseholdRefs(
+      accountCurrencies: {'acc_cash': 'IQD'},
+      categoryIds: {'dining', 'salary', 'mystery'},
+      categoryKinds: {'dining': 'expense', 'salary': 'income'},
+    );
+
+    test('an expense under an income category is asked again', () {
+      final check = checkDraft(_ok({'categoryId': 'salary'}), refs);
+      expect(check.canSave, isFalse);
+      final issue = check.issues.single as WrongCategoryKind;
+      expect(issue.field, 'categoryId');
+      expect(issue.categoryId, 'salary');
+      expect(issue.expected, 'expense');
+      expect(check.missing, ['categoryId']);
+    });
+
+    test('an income under an expense category is asked again', () {
+      final check = checkDraft(
+        _ok({'intent': 'income', 'categoryId': 'dining'}),
+        refs,
+      );
+      expect(check.canSave, isFalse);
+      expect(
+        check.issues.single,
+        isA<WrongCategoryKind>().having(
+          (i) => i.expected,
+          'expected',
+          'income',
+        ),
+      );
+    });
+
+    test('matching kinds, and categories of unknown kind, pass', () {
+      expect(checkDraft(_ok(), refs).canSave, isTrue);
+      expect(
+        checkDraft(
+          _ok({'intent': 'income', 'categoryId': 'salary'}),
+          refs,
+        ).canSave,
+        isTrue,
+      );
+      expect(checkDraft(_ok({'categoryId': 'mystery'}), refs).canSave, isTrue);
+      // No kinds known at all (the write path's shape check): unchanged.
+      expect(checkDraft(_ok({'categoryId': 'salary'}), _refs).canSave, isTrue);
+    });
+
+    test('a category already listed as missing is not asked twice', () {
+      final check = checkDraft(
+        _ok({
+          'categoryId': 'salary',
+          'missing': ['categoryId'],
+        }),
+        refs,
+      );
+      expect(check.missing, ['categoryId']);
+      expect(check.issues.whereType<WrongCategoryKind>(), hasLength(1));
+    });
+  });
+
   group('followAccountCurrency', () {
     const guessed = <String, Object?>{
       'id': 'd1',

@@ -7,8 +7,6 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:xpense_app/data/fx_repository.dart';
 import 'package:xpense_app/data/household_repository.dart';
-import 'package:xpense_app/data/read/home_reader_firebase.dart'
-    show isTransientDenial;
 import 'package:xpense_app/data/read/scoped_listen.dart';
 import 'package:xpense_app/services/clock.dart';
 import 'package:xpense_shared/xpense_shared.dart';
@@ -62,7 +60,6 @@ final class FirebaseFxRepository implements FxRepository {
     }),
     build: build,
     empty: empty,
-    isTransient: isTransientDenial,
   );
 
   DocumentReference<Map<String, dynamic>> _household(String hid) =>

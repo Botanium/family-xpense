@@ -163,9 +163,14 @@ List<FieldOption> fieldOptions(
           if (field == 'accountId' || a.id != draft.accountId)
             FieldOption(value: a.id, label: a.name),
     ],
+    // Only categories of the entry's kind, as the server's question does:
+    // an income category on an expense is not an answer (WrongCategoryKind).
     'categoryId' => [
       for (final c in household.categories)
-        FieldOption(value: c.id, label: c.name),
+        if (c.kind == null ||
+            (draft.intent != 'expense' && draft.intent != 'income') ||
+            c.kind == draft.intent)
+          FieldOption(value: c.id, label: c.name),
     ],
     'who' => [
       for (final who in whoValues)

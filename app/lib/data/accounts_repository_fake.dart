@@ -3,9 +3,11 @@
 import 'dart:async';
 
 import 'package:clock/clock.dart';
+import 'package:flutter/foundation.dart';
 import 'package:xpense_app/data/accounts_repository.dart';
 import 'package:xpense_app/data/fx_repository.dart';
 import 'package:xpense_app/data/fx_repository_fake.dart';
+import 'package:xpense_app/data/transactions_repository.dart';
 import 'package:xpense_app/data/write/ledger_store.dart';
 import 'package:xpense_app/data/write/ledger_transactions_repository.dart';
 import 'package:xpense_app/data/write/memory_ledger_store.dart';
@@ -21,7 +23,10 @@ import 'package:xpense_shared/xpense_shared.dart';
 /// With a [ledger] (the `fakes` build), the in-memory write path's store
 /// follows this one: the accounts, the members and every rate entered here
 /// are written to it, so what the app shows is what a save checks against,
-/// as one Firestore household would be.
+/// as one Firestore household would be. The other way round, as in
+/// Firestore, every save, edit, delete and restore moves the balances
+/// [watchAccounts] shows, and [watchEntries] lists the store's entries; an
+/// opening balance is an `adjustment` saved through the write path.
 final class FakeAccountsRepository implements AccountsRepository {
   /// Creates the fake for [viewerUid] in a household of [_members].
   new({
@@ -34,6 +39,7 @@ final class FakeAccountsRepository implements AccountsRepository {
     FxRate? rate,
     this.sharingDelay = Duration.zero,
     this.ledger,
+    this.entriesLimit = 50,
     Clock? clock,
   }) : _clock = clock ?? const Clock(),
        fx = MemoryFxRepository(
@@ -193,6 +199,10 @@ final class FakeAccountsRepository implements AccountsRepository {
   /// The write path's store this one keeps in step, in the `fakes` build.
   final MemoryLedgerStore? ledger;
 
+  /// How many entries [watchEntries] lists from [ledger], newest first
+  /// (`FirebaseAccountsRepository.entriesLimit`).
+  final int entriesLimit;
+
   final Clock _clock;
   final Map<String, Account> _all = {};
   List<HouseholdMember> _members;
@@ -210,7 +220,15 @@ final class FakeAccountsRepository implements AccountsRepository {
   final List<AccountDraft> created = [];
 
   /// Every account, including ones the viewer cannot see.
-  List<Account> get allAccounts => _sorted(_all.values);
+  List<Account> get allAccounts => _sorted(_all.values.map(_withLedger));
+
+  /// [a] with what the write path has committed to [ledger] since: as the
+  /// Firestore batch increments the account document's `balanceMinor`. The
+  /// store's balances start at zero, so they add to the stored balance.
+  Account _withLedger(Account a) {
+    final delta = ledger?.balances[a.id] ?? 0;
+    return delta == 0 ? a : _copy(a, balanceMinor: a.balanceMinor + delta);
+  }
 
   /// The household's daily rates (`fxRates`), which an opening balance in
   /// the other currency converts with. The composition root serves it as
@@ -269,17 +287,50 @@ final class FakeAccountsRepository implements AccountsRepository {
   }
 
   List<Account> _visible() => [
-    for (final a in _sorted(_all.values))
+    for (final a in allAccounts)
       if (a.visibleTo.contains(viewerUid)) a,
   ];
 
   static List<Account> _sorted(Iterable<Account> accounts) =>
       accounts.toList()..sort((a, b) => a.order.compareTo(b.order));
 
-  Stream<T> _watch<T>(T Function() read) async* {
-    yield read();
-    yield* _changes.stream.map((_) => read());
+  /// [read] now and after every change here or in [ledger]. It subscribes
+  /// when listened to, so a change right after the first value is not
+  /// missed (an `async*` "yield, then yield*" would miss it). A ledger
+  /// change that leaves the value as it was is not emitted, as a Firestore
+  /// query does not fire for writes outside it.
+  Stream<T> _watch<T>(T Function() read) {
+    late final StreamController<T> out;
+    final subs = <StreamSubscription<void>>[];
+    Object? last;
+    void emit({bool onlyIfChanged = false}) {
+      final next = read();
+      if (onlyIfChanged && _same(next, last)) return;
+      last = next;
+      out.add(next);
+    }
+
+    out = StreamController<T>(
+      onListen: () {
+        emit();
+        subs.add(_changes.stream.listen((_) => emit()));
+        if (ledger case final store?) {
+          subs.add(store.changes.listen((_) => emit(onlyIfChanged: true)));
+        }
+      },
+      // Cancelled without waiting: a `Future.wait` returned here never
+      // completes under a widget test's fake clock, so `.first` would hang.
+      onCancel: () {
+        for (final s in subs) {
+          unawaited(s.cancel());
+        }
+      },
+    );
+    return out.stream;
   }
+
+  static bool _same(Object? a, Object? b) =>
+      a is List && b is List ? listEquals(a, b) : a == b;
 
   @override
   Stream<List<Account>> watchAccounts() => _watch(_visible);
@@ -304,11 +355,34 @@ final class FakeAccountsRepository implements AccountsRepository {
   });
 
   @override
-  Stream<List<AccountEntry>> watchEntries(String accountId) => _watch(
-    () => _all[accountId]?.visibleTo.contains(viewerUid) ?? false
-        ? _entries[accountId] ?? const []
-        : const [],
-  );
+  Stream<List<AccountEntry>> watchEntries(String accountId) => _watch(() {
+    if (!(_all[accountId]?.visibleTo.contains(viewerUid) ?? false)) {
+      return const <AccountEntry>[];
+    }
+    final store = ledger;
+    return store == null
+        ? _entries[accountId] ?? const <AccountEntry>[]
+        : _ledgerEntries(store, accountId);
+  });
+
+  /// The live entries in [store] that leave or reach [accountId] and the
+  /// viewer can see, newest first, as the Firestore adapter's two queries
+  /// read them.
+  List<AccountEntry> _ledgerEntries(MemoryLedgerStore store, String accountId) {
+    final currency = _all[accountId]?.currency;
+    final entries = <AccountEntry>[
+      for (final MapEntry(key: id, value: data) in store.transactions.entries)
+        if (data['deletedAt'] == null &&
+            (data['accountId'] == accountId ||
+                data['toAccountId'] == accountId) &&
+            switch (data['visibleTo']) {
+              final List<Object?> v => v.contains(viewerUid),
+              _ => false,
+            })
+          ?entryFromFields(id, data, accountId, currency: currency),
+    ]..sort((a, b) => b.occurredAt.compareTo(a.occurredAt));
+    return entries.take(entriesLimit).toList();
+  }
 
   Result<T, AccountsFailure>? _fail<T>(String call) {
     calls.add(call);
@@ -360,9 +434,17 @@ final class FakeAccountsRepository implements AccountsRepository {
         sharedWithPartner: shared,
         memberIds: [for (final m in _members) m.uid],
       ),
-      balanceMinor: opening,
+      // With a ledger the opening balance arrives through the write path
+      // below, as in Firestore (the account starts at zero).
+      balanceMinor: ledger == null ? opening : 0,
       order: _all.values.fold(-1, (m, a) => a.order > m ? a.order : m) + 1,
     );
+    if (ledger case final store? when opening != 0) {
+      _changed();
+      final failure = await _saveOpening(store, id, draft);
+      if (failure != null) return Err(failure);
+      return Ok(id);
+    }
     if (opening != 0) {
       _entries[id] = [
         AccountEntry(
@@ -377,6 +459,47 @@ final class FakeAccountsRepository implements AccountsRepository {
     }
     _changed();
     return Ok(id);
+  }
+
+  /// Saves [draft]'s opening balance on account [id] as an `adjustment`
+  /// through the write path, as `FirebaseAccountsRepository.create` does.
+  Future<AccountsFailure?> _saveOpening(
+    MemoryLedgerStore store,
+    String id,
+    AccountDraft draft,
+  ) async {
+    final opening = draft.openingBalanceMinor;
+    final today = householdDay(_clock.now());
+    final typedRate = draft.openingRate;
+    const draftId = 'opening';
+    final saved = await LedgerTransactionsRepository(store).saveEntries(
+      [
+        EntryDraft(
+          id: draftId,
+          intent: CaptureIntent.adjustment.wire,
+          amountMinor: opening.abs(),
+          currency: draft.currency.code,
+          accountId: id,
+          occurredOn: today,
+          fx: typedRate == null
+              ? null
+              : FxQuote(
+                  pair: typedRate.pair.code,
+                  pairRate: typedRate.rateString,
+                  source: 'manual',
+                  asOf: today,
+                ),
+        ),
+      ],
+      source: EntrySource.manual,
+      extras: {draftId: EntryExtras(adjustmentSign: opening < 0 ? -1 : 1)},
+    );
+    return switch (saved) {
+      Ok() => null,
+      Err(failure: EntryRateNeeded()) => const AccountsRateNeeded(),
+      Err(failure: TransactionsNotAllowed()) => const AccountsNotAllowed(),
+      Err(:final failure) => AccountsUnknown(failure.code),
+    };
   }
 
   @override
@@ -461,6 +584,7 @@ final class FakeAccountsRepository implements AccountsRepository {
 
 Account _copy(
   Account a, {
+  int? balanceMinor,
   String? name,
   AccountKind? kind,
   bool? archived,
@@ -489,7 +613,7 @@ Account _copy(
     ownerUid: a.ownerUid,
     sharedWithPartner: sharedWithPartner ?? a.sharedWithPartner,
     visibleTo: visibleTo ?? a.visibleTo,
-    balanceMinor: a.balanceMinor,
+    balanceMinor: balanceMinor ?? a.balanceMinor,
     archived: archived ?? a.archived,
     order: a.order,
     appliedVisibleTo: next.appliedVisibleTo,

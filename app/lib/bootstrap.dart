@@ -450,6 +450,7 @@ NotifyingTransactionsRepository memoryTransactions({
     MemoryActivityReader(
       read: () => store.transactions,
       viewerUid: FakeAccountsRepository.sampleViewer,
+      changes: store.changes,
     ),
   );
   _memoryStores[repository] = store;

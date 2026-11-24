@@ -105,11 +105,5 @@ final class FirebaseHomeReader implements HomeReader {
       scope.uid,
     ),
     empty: const [],
-    isTransient: isTransientDenial,
   );
 }
-
-/// Whether [error] is the refusal a listener can meet while a new
-/// membership reaches the server: worth retrying.
-bool isTransientDenial(Object error) =>
-    error is FirebaseException && error.code == 'permission-denied';
