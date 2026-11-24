@@ -13,6 +13,7 @@ import 'package:xpense_shared/money/result.dart';
 import 'package:xpense_shared/schema/entry_draft.dart';
 import 'package:xpense_shared/schema/wire_values.dart';
 import 'package:xpense_shared/surface/surface_builder.dart';
+import 'package:xpense_shared/taxonomy/categories.dart';
 import 'package:xpense_shared/taxonomy/intents.dart';
 
 /// Largest amount a draft may carry, in minor units (A2UI_CATALOG 9).
@@ -24,6 +25,7 @@ final class HouseholdRefs {
   const new({
     this.accountCurrencies = const {},
     this.categoryIds = const {},
+    this.categoryKinds = const {},
     this.personIds = const {},
     this.loanIds = const {},
     this.goalIds = const {},
@@ -34,6 +36,10 @@ final class HouseholdRefs {
 
   /// Every category id.
   final Set<String> categoryIds;
+
+  /// The kind (`expense` or `income`) of each category whose kind is
+  /// known; a category not listed here is not checked for its kind.
+  final Map<String, String> categoryKinds;
 
   /// Every person (counterparty) id.
   final Set<String> personIds;
@@ -112,6 +118,25 @@ final class CurrencyMismatch extends DraftIssue {
   String toString() => 'CurrencyMismatch($draftCurrency ≠ $accountCurrency)';
 }
 
+/// An expense filed under an income category, or the reverse. The server
+/// treats such a category as no answer and asks again (`prepare_entries`),
+/// and the write path refuses it (`EntryIssue.wrongCategoryKind`); the
+/// slip asks for the category again too ([DraftCheck.missing]).
+final class WrongCategoryKind extends DraftIssue {
+  /// Creates the issue.
+  const new({required this.categoryId, required this.expected})
+    : super('categoryId');
+
+  /// The category the draft names.
+  final String categoryId;
+
+  /// The kind the entry's intent takes: `expense` or `income`.
+  final String expected;
+
+  @override
+  String toString() => 'WrongCategoryKind($categoryId, not $expected)';
+}
+
 /// The result of checking one draft.
 final class DraftCheck {
   /// Creates a result.
@@ -129,11 +154,17 @@ final class DraftCheck {
   /// Whether the draft cannot be read and needs the manual form.
   bool get isMalformed => draft == null;
 
-  /// The fields still to answer, in asking order.
+  /// The fields still to answer, in asking order. A category of the wrong
+  /// kind is asked again, as the server does.
   List<String> get missing => [
     for (final issue in issues)
-      if (issue is MissingField) issue.field,
+      if (issue is MissingField ||
+          (issue is WrongCategoryKind && !_listsMissing(issue.field)))
+        issue.field,
   ];
+
+  bool _listsMissing(String field) =>
+      issues.any((i) => i is MissingField && i.field == field);
 
   /// Whether this draft can be saved as it is.
   bool get canSave => draft != null && issues.isEmpty;
@@ -272,6 +303,17 @@ List<DraftIssue> _referenceIssues(EntryDraft d, HouseholdRefs refs) {
   ref('accountId', d.accountId, refs.accountCurrencies.containsKey);
   ref('toAccountId', d.toAccountId, refs.accountCurrencies.containsKey);
   ref('categoryId', d.categoryId, refs.categoryIds.contains);
+  final expected = switch (CaptureIntent.tryParse(d.intent)) {
+    CaptureIntent.expense => CategoryKind.expense.wire,
+    CaptureIntent.income => CategoryKind.income.wire,
+    _ => null,
+  };
+  final kind = refs.categoryKinds[d.categoryId];
+  if (expected != null && kind != null && kind != expected) {
+    issues.add(
+      WrongCategoryKind(categoryId: d.categoryId!, expected: expected),
+    );
+  }
   ref('personId', d.personId, refs.personIds.contains);
   ref('loanId', d.loanId, refs.loanIds.contains);
   ref('goalId', d.goalId, refs.goalIds.contains);

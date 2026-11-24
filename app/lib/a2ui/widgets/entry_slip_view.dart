@@ -333,6 +333,7 @@ class _EntrySlipViewState extends State<EntrySlipView> {
         'categoryId' => l10n.a2uiUnknownCategory,
         _ => l10n.a2uiUnknownReference,
       },
+      WrongCategoryKind() => l10n.a2uiWrongCategoryKind,
       DraftAmountOutOfRange() => l10n.a2uiAmountOutOfRange,
       CurrencyMismatch(:final accountCurrency) => l10n.a2uiCurrencyMismatch(
         accountCurrency,

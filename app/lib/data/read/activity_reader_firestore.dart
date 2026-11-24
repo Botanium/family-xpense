@@ -91,28 +91,29 @@ final class FirestoreActivityReader implements ActivityReader {
     open,
     int retries = scopedListenRetries,
     Duration retryDelay = scopedListenRetryDelay,
-  }) => scopedListen<({String hid, String uid}), ActivityWindow>(
-    scopes: membership.map((m) {
-      final hid = m is InHousehold ? m.household.id : null;
-      final member = hid == null ? null : uid();
-      return hid == null || member == null ? null : (hid: hid, uid: member);
-    }),
-    build: (scope) => _withIndexFallback(
-      query,
-      ({required serverFilter}) =>
-          open(scope.hid, scope.uid, serverFilter: serverFilter),
-    ),
-    empty: const ActivityWindow(entries: [], hasMore: false),
-    retries: retries,
-    retryDelay: retryDelay,
-  ).transform(
-    StreamTransformer.fromHandlers(
-      handleError: (error, stack, sink) {
-        _report(error, stack);
-        sink.addError(failureOf(error), stack);
-      },
-    ),
-  );
+  }) =>
+      scopedListen<({String hid, String uid}), ActivityWindow>(
+        scopes: membership.map((m) {
+          final hid = m is InHousehold ? m.household.id : null;
+          final member = hid == null ? null : uid();
+          return hid == null || member == null ? null : (hid: hid, uid: member);
+        }),
+        build: (scope) => _withIndexFallback(
+          query,
+          ({required serverFilter}) =>
+              open(scope.hid, scope.uid, serverFilter: serverFilter),
+        ),
+        empty: const ActivityWindow(entries: [], hasMore: false),
+        retries: retries,
+        retryDelay: retryDelay,
+      ).transform(
+        StreamTransformer.fromHandlers(
+          handleError: (error, stack, sink) {
+            _report(error, stack);
+            sink.addError(failureOf(error), stack);
+          },
+        ),
+      );
 
   /// [open] with the type or member filter on the server, falling back to
   /// filtering on the phone when Firestore has no index for it.

@@ -1905,6 +1905,10 @@
   "@a2uiUnknownCategory": {
     "description": "Problem line on an entry slip when the category id is not known."
   },
+  "a2uiWrongCategoryKind": "This category doesn't fit this entry.",
+  "@a2uiWrongCategoryKind": {
+    "description": "Problem line on an entry slip when an expense names an income category, or the reverse."
+  },
   "a2uiUnknownReference": "Something this entry points to isn't in your household.",
   "@a2uiUnknownReference": {
     "description": "Problem line on an entry slip when a person, loan or goal id is not known."

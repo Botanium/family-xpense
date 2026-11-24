@@ -1306,6 +1306,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get a2uiUnknownCategory => 'That category isn\'t in your household.';
 
   @override
+  String get a2uiWrongCategoryKind => 'This category doesn\'t fit this entry.';
+
+  @override
   String get a2uiUnknownReference =>
       'Something this entry points to isn\'t in your household.';
 

@@ -103,6 +103,7 @@ final class XpenseHousehold {
   HouseholdRefs get refs => HouseholdRefs(
     accountCurrencies: {for (final a in accounts) a.id: a.currency},
     categoryIds: {for (final c in categories) c.id},
+    categoryKinds: {for (final c in categories) c.id: ?c.kind},
     personIds: {for (final p in people) p.id},
     loanIds: {for (final l in loans) l.id},
     goalIds: {for (final g in goals) g.id},

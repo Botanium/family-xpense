@@ -249,9 +249,8 @@ void main() {
     var cancelled = false;
     sub = scopedListen<String, String>(
       scopes: scopes.stream,
-      build: (_) => StreamController<String>(
-        onCancel: () => cancelled = true,
-      ).stream,
+      build: (_) =>
+          StreamController<String>(onCancel: () => cancelled = true).stream,
       empty: 'empty',
     ).listen(values.add, onError: errors.add);
 
