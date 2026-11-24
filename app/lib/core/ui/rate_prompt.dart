@@ -330,6 +330,9 @@ Future<String?> showRateEntry({
       context: context,
       // Over the tab bar when asked from Home.
       useRootNavigator: true,
+      // The keypad needs more than half a small screen; the sheet still
+      // only takes the height it needs.
+      detent: SheetDetent.large,
       builder: (sheet) => RateChangeSheet(
         title: labels.title,
         initial: start,

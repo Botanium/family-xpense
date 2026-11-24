@@ -291,16 +291,50 @@ describe('loans, goals, budgets, recurring, rules, people', () => {
 });
 
 describe('categories', () => {
-  it('members read and edit categories with stamps', async () => {
+  const pets = (uid, extra = {}) => ({
+    slug: null, names: { en: 'Pets' }, kind: 'expense', parentId: null, colorKey: null, iconKey: null,
+    order: 40, system: false, archived: false, ...createdBy(uid), ...extra,
+  });
+
+  it('members read and add their own categories with stamps', async () => {
     const c = hh(db(BOB)).collection('categories');
     await assertSucceeds(c.get());
-    await assertSucceeds(c.doc('pets').set({ slug: 'pets', names: { en: 'Pets' }, kind: 'expense', system: false, archived: false, ...createdBy(BOB) }));
-    await assertSucceeds(c.doc('groceries').update({ archived: true, ...updatedBy(BOB) }));
+    await assertSucceeds(c.doc('pets').set(pets(BOB)));
+    await assertSucceeds(c.doc('vet').set(pets(BOB, { names: { en: 'Vet' }, parentId: 'pets', order: 41 })));
+  });
+
+  it('members rename, reorder, archive and restore (WP-24)', async () => {
+    const g = hh(db(BOB)).collection('categories').doc('groceries');
+    await assertSucceeds(g.update({ 'names.en': 'Food shop', ...updatedBy(BOB) }));
+    await assertSucceeds(g.update({ order: 7, ...updatedBy(BOB) }));
+    await assertSucceeds(g.update({ archived: true, ...updatedBy(BOB) }));
+    await assertSucceeds(g.update({ archived: false, ...updatedBy(BOB) }));
   });
 
   it('non-members cannot write and stamps are required', async () => {
-    await assertFails(hh(db(EVE)).collection('categories').doc('pets').set({ slug: 'pets', ...createdBy(EVE) }));
+    await assertFails(hh(db(EVE)).collection('categories').doc('pets').set(pets(EVE)));
     await assertFails(hh(db(BOB)).collection('categories').doc('groceries').update({ archived: true }));
+  });
+
+  it('an added category is never system, has a known kind and a 1-40 character name', async () => {
+    const c = hh(db(BOB)).collection('categories');
+    await assertFails(c.doc('x1').set(pets(BOB, { system: true })));
+    await assertFails(c.doc('x2').set(pets(BOB, { kind: 'transfer' })));
+    await assertFails(c.doc('x3').set(pets(BOB, { names: { en: '' } })));
+    await assertFails(c.doc('x4').set(pets(BOB, { names: { en: 'x'.repeat(41) } })));
+    await assertFails(c.doc('x5').set(pets(BOB, { archived: true })));
+    await assertFails(c.doc('x6').set(pets(BOB, { order: '1' })));
+  });
+
+  it('kind, slug, group and system never change; a name is never emptied', async () => {
+    const g = hh(db(BOB)).collection('categories').doc('groceries');
+    await assertFails(g.update({ kind: 'income', ...updatedBy(BOB) }));
+    await assertFails(g.update({ slug: 'food', ...updatedBy(BOB) }));
+    await assertFails(g.update({ parentId: 'home', ...updatedBy(BOB) }));
+    await assertFails(g.update({ system: false, ...updatedBy(BOB) }));
+    await assertFails(g.update({ 'names.en': '', ...updatedBy(BOB) }));
+    await assertFails(g.update({ archived: 'yes', ...updatedBy(BOB) }));
+    await assertFails(g.delete());
   });
 });
 

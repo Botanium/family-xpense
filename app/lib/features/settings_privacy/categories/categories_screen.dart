@@ -234,6 +234,7 @@ class _CategoriesScreenState extends ConsumerState<CategoriesScreen> {
             ),
             Expanded(
               child: ListView(
+                key: const ValueKey('categories_list'),
                 padding: EdgeInsetsDirectional.only(
                   start: XpSpace.screenMargin,
                   end: XpSpace.screenMargin,
@@ -278,6 +279,14 @@ class _CategoriesScreenState extends ConsumerState<CategoriesScreen> {
                         leading: c.isGroup
                             ? null
                             : const SizedBox(width: XpSpace.s16),
+                        // Shows the row opens actions; the row is the
+                        // button, so the glyph is not spoken.
+                        trailing: ExcludeSemantics(
+                          child: XpIcon(
+                            XpGlyph.more,
+                            color: colors.inkSecondary,
+                          ),
+                        ),
                         onTap: _busy ? null : () => _actions(c),
                       ),
                     ),
