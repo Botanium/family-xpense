@@ -1,6 +1,8 @@
 import 'package:go_router/go_router.dart';
 
 import 'package:xpense_app/core/routing/routing.dart';
+import 'package:xpense_app/features/settings_privacy/categories/categories_screen.dart';
+import 'package:xpense_app/features/settings_privacy/fx/rate_settings_screen.dart';
 import 'package:xpense_app/features/settings_privacy/settings_screen.dart';
 
 /// Routes of the Settings and privacy feature: Settings, opened from Home.
@@ -14,6 +16,16 @@ FeatureRoutes settingsPrivacyRoutes() => FeatureRoutes(
       path: AppRoutes.settings,
       pageBuilder: (context, state) =>
           xpPage(context, state, const SettingsScreen()),
+    ),
+    GoRoute(
+      path: AppRoutes.settingsRate,
+      pageBuilder: (context, state) =>
+          xpPage(context, state, const RateSettingsScreen()),
+    ),
+    GoRoute(
+      path: AppRoutes.settingsCategories,
+      pageBuilder: (context, state) =>
+          xpPage(context, state, const CategoriesScreen()),
     ),
   ],
 );

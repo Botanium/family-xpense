@@ -7,6 +7,8 @@ import 'package:xpense_app/core/l10n/l10n.dart';
 import 'package:xpense_app/core/routing/routing.dart';
 import 'package:xpense_app/core/theme/theme.dart';
 import 'package:xpense_app/core/ui/ui.dart';
+import 'package:xpense_app/data/fx_repository.dart';
+import 'package:xpense_app/features/settings_privacy/fx/rate_settings_screen.dart';
 import 'package:xpense_app/features/settings_privacy/settings_view_model.dart';
 import 'package:xpense_app/services/settings_store.dart';
 
@@ -63,6 +65,25 @@ class SettingsScreen extends ConsumerWidget {
                           selected: settings.appearance,
                           onSelected: model.setAppearance,
                         ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: XpSpace.s24),
+                  // WP-24: the household's daily rate and categories.
+                  XpSection(
+                    label: l10n.settingsHouseholdSection,
+                    children: [
+                      XpDisclosure(
+                        title: l10n.settingsFxTitle,
+                        value: rateKindLabel(
+                          l10n,
+                          ref.watch(rateKindProvider).value ?? RateKind.market,
+                        ),
+                        onTap: () => context.push(AppRoutes.settingsRate),
+                      ),
+                      XpDisclosure(
+                        title: l10n.settingsCategoriesTitle,
+                        onTap: () => context.push(AppRoutes.settingsCategories),
                       ),
                     ],
                   ),

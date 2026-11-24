@@ -9,6 +9,7 @@ import 'package:xpense_app/bootstrap.dart';
 import 'package:xpense_app/core/ui/ui.dart';
 import 'package:xpense_app/data/accounts_repository_fake.dart';
 import 'package:xpense_app/data/auth_repository_fake.dart';
+import 'package:xpense_app/data/categories_repository_fake.dart';
 import 'package:xpense_app/data/household_repository.dart';
 import 'package:xpense_app/data/household_repository_fake.dart';
 import 'package:xpense_app/data/rules_repository.dart';
@@ -120,6 +121,9 @@ final class TestServices {
   /// Learned rules.
   final MemoryRulesRepository rules = MemoryRulesRepository();
 
+  /// The household's categories: the default tree to start with (WP-24).
+  final MemoryCategoriesRepository categories = MemoryCategoriesRepository();
+
   /// Replaces [actions] when set, such as with bootstrap's
   /// `connectXpenseActions`.
   XpenseActions Function(Ref ref)? xpenseActionsFor;
@@ -139,6 +143,7 @@ final class TestServices {
     authRepository: auth,
     householdRepository: households,
     accountsRepository: accounts,
+    categoriesRepository: categories,
     featureFlags: flags,
     onDeviceLlm: onDeviceLlm,
     speechCapture: speech,

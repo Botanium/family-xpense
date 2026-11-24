@@ -8,11 +8,10 @@ import 'package:xpense_shared/xpense_shared.dart';
 ///
 /// Picking a group chooses the group itself; picking a sub-category
 /// narrows it. Only the [kind]'s categories are offered, so an expense
-/// never gets an income category (D-41 tree, `defaultCategories`).
+/// never gets an income category (D-41 tree).
 ///
-/// The names are the seeded English ones. Renamed and added categories
-/// arrive with the categories editor (WP-24, S2.7), which will feed this
-/// from the household's `categories` collection.
+/// The form passes the household's categories (WP-24, S2.7), with each
+/// category's id in [CategoryDef.slug].
 class CategoryChips extends StatelessWidget {
   /// Creates the chips.
   const new({

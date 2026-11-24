@@ -293,10 +293,34 @@ service cloud.firestore {
         allow delete: if canReadVisible(hid);
       }
 
+      // A category's name is 1 to 40 characters (WP-24 editor).
+      function categoryNameOk() {
+        return request.resource.data.names is map
+          && request.resource.data.names.en is string
+          && request.resource.data.names.en.size() > 0
+          && request.resource.data.names.en.size() <= 40;
+      }
+
       match /categories/{id} {
         allow read: if isMember(hid);
-        allow create: if (isMember(hid) || isFoundingBatch(hid)) && createStamps();
-        allow update: if isMember(hid) && updateStamps();
+        // The founding batch seeds the default tree (system categories).
+        // A member adds their own: never `system`, a known kind, a name,
+        // not archived, with a position (WP-24).
+        allow create: if createStamps() && (
+          isFoundingBatch(hid)
+          || (isMember(hid)
+            && request.resource.data.system == false
+            && request.resource.data.kind in ['expense', 'income']
+            && request.resource.data.archived == false
+            && request.resource.data.order is int
+            && categoryNameOk()));
+        // Rename, reorder, archive. The kind, slug, group and system flag
+        // never change: saved entries were checked against them.
+        allow update: if isMember(hid) && updateStamps()
+          && !changed().hasAny(['kind', 'slug', 'parentId', 'system'])
+          && request.resource.data.archived is bool
+          && request.resource.data.order is int
+          && categoryNameOk();
         allow delete: if false;                       // archive instead
       }
 

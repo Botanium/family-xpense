@@ -7,6 +7,7 @@ import 'package:xpense_app/app.dart';
 import 'package:xpense_app/bootstrap.dart';
 import 'package:xpense_app/data/accounts_repository.dart';
 import 'package:xpense_app/data/accounts_repository_fake.dart';
+import 'package:xpense_app/data/categories_repository_fake.dart';
 import 'package:xpense_app/data/fx_repository_fake.dart';
 import 'package:xpense_app/data/read/entry_reader.dart';
 import 'package:xpense_app/data/read/memory_entry_reader.dart';
@@ -108,6 +109,11 @@ final class LedgerApp {
   /// The household's daily rates, kept in step with [memory].
   final MemoryFxRepository fx;
 
+  /// The household's categories, kept in step with [memory] (WP-24).
+  late final MemoryCategoriesRepository categories = MemoryCategoriesRepository(
+    ledger: memory,
+  );
+
   /// The write path.
   final LedgerTransactionsRepository repository;
 
@@ -128,6 +134,7 @@ final class LedgerApp {
       householdRepository: services.households,
       accountsRepository: services.accounts,
       fxRepository: fx,
+      categoriesRepository: categories,
       transactionsRepository: _holdWrites == null
           ? repository
           : _HeldRepository(repository, _holdWrites),

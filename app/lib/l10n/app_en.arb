@@ -3207,5 +3207,179 @@
         "example": "Nov 20"
       }
     }
+  },
+  "settingsHouseholdSection": "Household",
+  "@settingsHouseholdSection": {
+    "description": "Settings section with the household's exchange rate and categories."
+  },
+  "settingsFxTitle": "Exchange rate",
+  "@settingsFxTitle": {
+    "description": "Settings row and screen title for the daily dollar rate."
+  },
+  "settingsFxKindOfficial": "Official",
+  "@settingsFxKindOfficial": {
+    "description": "The household's rate label: the official rate."
+  },
+  "settingsFxKindMarket": "Market",
+  "@settingsFxKindMarket": {
+    "description": "The household's rate label: the market rate."
+  },
+  "settingsFxKindSection": "Which rate you enter",
+  "@settingsFxKindSection": {
+    "description": "Section of the exchange rate screen where the household picks the label of its rate."
+  },
+  "settingsFxKindHint": "Saved with each day's rate, so reports can say which one was used.",
+  "@settingsFxKindHint": {
+    "description": "Under the official/market choice."
+  },
+  "settingsFxHistorySection": "Rate history",
+  "@settingsFxHistorySection": {
+    "description": "Section listing the rates the household entered, newest first."
+  },
+  "settingsFxHistoryEmpty": "No rates yet. Home asks for today's rate each day.",
+  "@settingsFxHistoryEmpty": {
+    "description": "Shown when the household has never entered a rate."
+  },
+  "settingsFxToday": "Today",
+  "@settingsFxToday": {
+    "description": "Row for today's rate in the rate history."
+  },
+  "settingsFxNotEntered": "Not entered yet",
+  "@settingsFxNotEntered": {
+    "description": "Value of today's row when nobody has entered today's rate."
+  },
+  "settingsFxEnteredBy": "{who} · {kind}",
+  "@settingsFxEnteredBy": {
+    "description": "Subtitle of a rate history row: who entered it and its label.",
+    "placeholders": {
+      "who": {
+        "type": "String",
+        "example": "Sam"
+      },
+      "kind": {
+        "type": "String",
+        "example": "Market"
+      }
+    }
+  },
+  "settingsFxYou": "You",
+  "@settingsFxYou": {
+    "description": "Who entered a rate: the viewer."
+  },
+  "settingsFxPartner": "Partner",
+  "@settingsFxPartner": {
+    "description": "Who entered a rate: the other member, when their name is unknown."
+  },
+  "settingsFxEditNote": "Tap a day to correct its rate. Entries already saved keep the rate they were saved with.",
+  "@settingsFxEditNote": {
+    "description": "Note under the rate history."
+  },
+  "settingsFxSaveFailed": "Couldn't save. Try again.",
+  "@settingsFxSaveFailed": {
+    "description": "Shown when a rate or label could not be saved."
+  },
+  "settingsCategoriesTitle": "Categories",
+  "@settingsCategoriesTitle": {
+    "description": "Settings row and screen title for the categories editor."
+  },
+  "settingsCategoriesExpense": "Spending",
+  "@settingsCategoriesExpense": {
+    "description": "Tab of the categories editor with spending categories."
+  },
+  "settingsCategoriesIncome": "Income",
+  "@settingsCategoriesIncome": {
+    "description": "Tab of the categories editor with income categories."
+  },
+  "settingsCategoriesAdd": "Add category",
+  "@settingsCategoriesAdd": {
+    "description": "Button that adds a top-level category."
+  },
+  "settingsCategoriesAddSub": "Add a category under it",
+  "@settingsCategoriesAddSub": {
+    "description": "Action on a group that adds a sub-category."
+  },
+  "settingsCategoriesRename": "Rename",
+  "@settingsCategoriesRename": {
+    "description": "Action that renames a category."
+  },
+  "settingsCategoriesMoveUp": "Move up",
+  "@settingsCategoriesMoveUp": {
+    "description": "Action that moves a category one place up among its siblings."
+  },
+  "settingsCategoriesMoveDown": "Move down",
+  "@settingsCategoriesMoveDown": {
+    "description": "Action that moves a category one place down among its siblings."
+  },
+  "settingsCategoriesArchive": "Archive",
+  "@settingsCategoriesArchive": {
+    "description": "Action that archives a category."
+  },
+  "settingsCategoriesRestore": "Restore",
+  "@settingsCategoriesRestore": {
+    "description": "Action that brings an archived category back."
+  },
+  "settingsCategoriesCancel": "Cancel",
+  "@settingsCategoriesCancel": {
+    "description": "Cancel button of the category sheets and actions."
+  },
+  "settingsCategoriesSave": "Save",
+  "@settingsCategoriesSave": {
+    "description": "Save button of the category name sheet."
+  },
+  "settingsCategoriesArchivedSection": "Archived",
+  "@settingsCategoriesArchivedSection": {
+    "description": "Section with the archived categories."
+  },
+  "settingsCategoriesArchivedNote": "Archived categories are not offered for new entries. Entries that use one keep it.",
+  "@settingsCategoriesArchivedNote": {
+    "description": "Note in the archived section."
+  },
+  "settingsCategoriesNameLabel": "Name",
+  "@settingsCategoriesNameLabel": {
+    "description": "Label of the category name field."
+  },
+  "settingsCategoriesNameHint": "Such as Pets",
+  "@settingsCategoriesNameHint": {
+    "description": "Hint of the category name field."
+  },
+  "settingsCategoriesNewTitle": "New category",
+  "@settingsCategoriesNewTitle": {
+    "description": "Title of the sheet that adds a category."
+  },
+  "settingsCategoriesNewSubTitle": "New under {group}",
+  "@settingsCategoriesNewSubTitle": {
+    "description": "Title of the sheet that adds a sub-category.",
+    "placeholders": {
+      "group": {
+        "type": "String",
+        "example": "Food"
+      }
+    }
+  },
+  "settingsCategoriesRenameTitle": "Rename category",
+  "@settingsCategoriesRenameTitle": {
+    "description": "Title of the sheet that renames a category."
+  },
+  "settingsCategoriesNameInvalid": "Enter a name of up to 40 characters.",
+  "@settingsCategoriesNameInvalid": {
+    "description": "Error under the category name field."
+  },
+  "settingsCategoriesFailed": "Couldn't save. Try again.",
+  "@settingsCategoriesFailed": {
+    "description": "Shown when a category change could not be saved."
+  },
+  "settingsCategoriesSubSpoken": "{name}, in {group}",
+  "@settingsCategoriesSubSpoken": {
+    "description": "VoiceOver label of a sub-category row.",
+    "placeholders": {
+      "name": {
+        "type": "String",
+        "example": "Groceries"
+      },
+      "group": {
+        "type": "String",
+        "example": "Food"
+      }
+    }
   }
 }

@@ -8,6 +8,7 @@ import 'package:xpense_app/core/routing/routing.dart';
 import 'package:xpense_app/core/theme/theme.dart';
 import 'package:xpense_app/core/ui/ui.dart';
 import 'package:xpense_app/data/accounts_repository.dart';
+import 'package:xpense_app/data/categories_repository.dart';
 import 'package:xpense_app/data/household_repository.dart';
 import 'package:xpense_app/data/read/entry_reader.dart';
 import 'package:xpense_app/data/transactions_repository.dart';
@@ -301,12 +302,10 @@ class _EntryBody extends ConsumerWidget {
     String accountName(Object? id) =>
         accounts.where((a) => a.id == id).firstOrNull?.name ??
         l10n.activityEntryNone;
+    // The household's names, archived categories too (WP-24).
+    final categoryNames = ref.watch(categoryNamesProvider);
     String categoryLabel(Object? id) =>
-        defaultCategories
-            .where((c) => c.slug == id)
-            .firstOrNull
-            ?.nameIn(fallbackLanguage) ??
-        l10n.activityEntryNone;
+        categoryNames[id] ?? l10n.activityEntryNone;
     String person(Object? uid) {
       if (uid == null) return '';
       if (uid == viewer) return l10n.activityEntryWhoYou;

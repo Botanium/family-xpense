@@ -9,6 +9,7 @@ import 'package:xpense_app/core/routing/routing.dart';
 import 'package:xpense_app/core/theme/theme.dart';
 import 'package:xpense_app/core/ui/ui.dart';
 import 'package:xpense_app/data/accounts_repository.dart';
+import 'package:xpense_app/data/categories_repository.dart';
 import 'package:xpense_app/data/household_repository.dart';
 import 'package:xpense_app/features/home/home_providers.dart';
 import 'package:xpense_app/features/home/home_rate_prompt.dart';
@@ -201,7 +202,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           ),
         )
       else
-        for (final entry in s.recent) _RecentRow(entry: entry, summary: s),
+        for (final entry in s.recent)
+          _RecentRow(
+            entry: entry,
+            summary: s,
+            categoryNames: ref.watch(categoryNamesProvider),
+          ),
     ];
   }
 
@@ -340,10 +346,17 @@ class _ChartHead extends StatelessWidget {
 
 /// One Recent row: title, "Category · Who", the signed amount.
 class _RecentRow extends StatelessWidget {
-  const new({required this.entry, required this.summary});
+  const new({
+    required this.entry,
+    required this.summary,
+    required this.categoryNames,
+  });
 
   final RecentEntry entry;
   final HomeSummary summary;
+
+  /// The household's category names by id (WP-24).
+  final Map<String, String> categoryNames;
 
   @override
   Widget build(BuildContext context) {
@@ -376,10 +389,9 @@ class _RecentRow extends StatelessWidget {
   String _what(BuildContext context) {
     final l10n = context.l10n;
     final slug = entry.categorySlug;
-    final category = slug == null
-        ? null
-        : defaultCategories.where((c) => c.slug == slug).firstOrNull;
-    if (category != null) return category.nameIn(fallbackLanguage);
+    // The household's names, archived categories too (WP-24).
+    final category = slug == null ? null : categoryNames[slug];
+    if (category != null) return category;
     return switch (entry.type) {
       LedgerType.expense => l10n.homeTypeExpense,
       LedgerType.income => l10n.homeTypeIncome,

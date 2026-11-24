@@ -30,6 +30,12 @@ abstract final class AppRoutes {
   /// Settings.
   static const String settings = '/settings';
 
+  /// Settings: the daily exchange rate, its label and history (WP-24).
+  static const String settingsRate = '/settings/rate';
+
+  /// Settings: the categories editor (WP-24).
+  static const String settingsCategories = '/settings/categories';
+
   /// Join a household from an invite.
   static const String join = '/join';
 

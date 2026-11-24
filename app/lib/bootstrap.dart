@@ -23,6 +23,9 @@ import 'package:xpense_app/data/accounts_repository_firebase.dart';
 import 'package:xpense_app/data/auth_repository.dart';
 import 'package:xpense_app/data/auth_repository_fake.dart';
 import 'package:xpense_app/data/auth_repository_firebase.dart';
+import 'package:xpense_app/data/categories_repository.dart';
+import 'package:xpense_app/data/categories_repository_fake.dart';
+import 'package:xpense_app/data/categories_repository_firebase.dart';
 import 'package:xpense_app/data/fx_repository.dart';
 import 'package:xpense_app/data/fx_repository_fake.dart';
 import 'package:xpense_app/data/fx_repository_firebase.dart';
@@ -665,6 +668,9 @@ Future<Bootstrapped> bootstrap({required AppEnvironment environment}) async {
       fxRepository: environment == AppEnvironment.fakes
           ? null
           : FirebaseFxRepository.connect(households: households),
+      categoriesRepository: environment == AppEnvironment.fakes
+          ? null
+          : FirebaseCategoriesRepository.connect(households: households),
       transactionsRepository: transactions,
       entryReader: environment == AppEnvironment.fakes
           ? null
@@ -703,6 +709,7 @@ List<Override> appOverrides({
   required HouseholdRepository householdRepository,
   required AccountsRepository accountsRepository,
   FxRepository? fxRepository,
+  CategoriesRepository? categoriesRepository,
   TransactionsRepository? transactionsRepository,
   EntryReader? entryReader,
   ActivityReader? activityReader,
@@ -735,6 +742,15 @@ List<Override> appOverrides({
   ),
   transactionsRepositoryProvider.overrideWithValue(
     transactionsRepository ?? memoryTransactions(),
+  ),
+  // In memory, the categories follow the memory write path's store, so a
+  // category added in the editor can be saved on an entry.
+  categoriesRepositoryProvider.overrideWith(
+    (ref) =>
+        categoriesRepository ??
+        MemoryCategoriesRepository(
+          ledger: memoryStoreOf(ref.watch(transactionsRepositoryProvider)),
+        ),
   ),
   entryReaderProvider.overrideWith(
     (ref) =>

@@ -392,6 +392,7 @@ ManualEntryCheck checkManualEntry(
   required Currency base,
   EntryDraft? initial,
   bool arrivesWasTyped = false,
+  List<CategoryDef> categories = defaultCategories,
 }) {
   final errors = <ManualField, ManualIssue>{};
   final currency = switch (values.accountId) {
@@ -464,7 +465,7 @@ ManualEntryCheck checkManualEntry(
   // A category of the other kind (left from another tab) shows as none
   // chosen, so it counts as none.
   final categoryKind = values.categoryKind;
-  final categoryDef = defaultCategories
+  final categoryDef = categories
       .where((c) => c.slug == values.categoryId)
       .firstOrNull;
   final categoryFits =
