@@ -106,19 +106,29 @@ else
 fi
 
 # 4. Phones --------------------------------------------------------------------
-if [[ ${#DEVICES[@]} -eq 0 ]]; then
-  say "Looking for connected iPhones"
-  while IFS= read -r id; do [[ -n "$id" ]] && DEVICES+=("$id"); done < <(
-    flutter devices --machine 2>/dev/null | python3 -c '
+# Each phone is resolved to its id here, because devicectl (step 5) takes an
+# id and not a name prefix. A -d value matches an id or the start of a name.
+say "Looking for connected iPhones"
+WANTED=("${DEVICES[@]+"${DEVICES[@]}"}")
+DEVICES=()
+while IFS= read -r id; do [[ -n "$id" ]] && DEVICES+=("$id"); done < <(
+  flutter devices --machine 2>/dev/null | python3 -c '
 import json, sys
+wanted = [w.lower() for w in sys.argv[1:]]
 text = sys.stdin.read()
 start = text.find("[")
-for d in json.loads(text[start:]) if start >= 0 else []:
-    if d.get("targetPlatform") == "ios" and not d.get("emulator"):
+phones = [d for d in (json.loads(text[start:]) if start >= 0 else [])
+          if d.get("targetPlatform") == "ios" and not d.get("emulator")]
+def matches(d, w):
+    return d["id"].lower() == w or (d.get("name") or "").lower().startswith(w)
+for w in wanted:
+    if not any(matches(d, w) for d in phones):
+        print("!   No connected iPhone matches %r" % w, file=sys.stderr)
+for d in phones:
+    if not wanted or any(matches(d, w) for w in wanted):
         print(d["id"])
         print("    %s (%s)" % (d.get("name"), d["id"]), file=sys.stderr)
-')
-fi
+' "${WANTED[@]+"${WANTED[@]}"}")
 if [[ ${#DEVICES[@]} -eq 0 ]]; then
   die "No iPhone found. Plug it in with USB, unlock it, tap Trust, and turn on Developer Mode (docs/PHONE_TESTING.md)."
 fi
@@ -147,11 +157,20 @@ PY
 )
 
 cd "$ROOT/app"
+# flutter build plus devicectl, not flutter run: flutter run cannot read the
+# Xcode build settings for a phone connected over Wi-Fi ("No Xcode build
+# settings have been found"). One signed build serves every phone.
+say "Building Xpense Dev (the first build takes a few minutes)"
+flutter build ios --release --flavor dev \
+  --dart-define-from-file="$defines_dir/defines.json" ||
+  die "The build failed. Signing: open Xcode > Settings > Accounts and sign in with your Apple ID."
+APP="$ROOT/app/build/ios/iphoneos/Runner.app"
+
 failed=()
 for device in "${DEVICES[@]}"; do
-  say "Building and installing Xpense Dev on $device (the first build takes a few minutes)"
-  if flutter run --release --no-resident --flavor dev -d "$device" \
-    --dart-define-from-file="$defines_dir/defines.json"; then
+  say "Installing Xpense Dev on $device"
+  if xcrun devicectl device install app --device "$device" "$APP" >/dev/null &&
+    xcrun devicectl device process launch --device "$device" "$BUNDLE_ID" >/dev/null; then
     echo "Installed and opened on $device."
   else
     failed+=("$device")
@@ -168,6 +187,8 @@ Most common causes (docs/PHONE_TESTING.md has the details):
     your Apple ID > Trust. Then tap Xpense Dev; no need to run this again.
   - Developer Mode is off: Settings > Privacy & Security > Developer Mode.
   - The phone is locked, or "Trust This Computer" was not accepted.
+  - "A connection to this device could not be established": the phone is
+    asleep or off the Mac's Wi-Fi. Unlock it, or plug it in with USB.
   - Signing: open Xcode > Settings > Accounts and sign in with your Apple ID.
 EOF
   exit 1
