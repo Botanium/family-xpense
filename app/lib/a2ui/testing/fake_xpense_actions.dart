@@ -152,6 +152,7 @@ class FakeXpenseActions implements XpenseActions {
       loans: household.loans,
       goals: household.goals,
       partnerName: household.partnerName,
+      soleMember: household.soleMember,
       latestRate: pairRate,
       rateEnteredToday: true,
     );
@@ -181,8 +182,27 @@ class FakeXpenseActions implements XpenseActions {
   void retakeReceipt() => calls.add((method: 'retakeReceipt', argument: null));
 
   @override
-  void openManualForm(Map<String, Object?> draft) =>
-      calls.add((method: 'openManualForm', argument: draft));
+  Future<FormSaved?> openManualForm(
+    Map<String, Object?> draft, {
+    String? surfaceId,
+    bool quiet = false,
+    Future<void> Function(String groupId)? undo,
+  }) async {
+    calls.add((method: 'openManualForm', argument: draft));
+    formUndo = undo;
+    return manualFormResult?.call(draft);
+  }
+
+  /// What the manual form saves for a draft; null closes it unsaved.
+  FormSaved? Function(Map<String, Object?> draft)? manualFormResult;
+
+  /// The Undo the last [openManualForm] gave the form's toast: a test taps
+  /// the toast by calling it.
+  Future<void> Function(String groupId)? formUndo;
+
+  @override
+  Future<void> openAddAccount() async =>
+      calls.add((method: 'openAddAccount', argument: null));
 
   @override
   void retryQueued(String captureId) =>

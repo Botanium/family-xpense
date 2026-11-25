@@ -22,13 +22,16 @@ import 'package:xpense_shared/xpense_shared.dart';
 @immutable
 final class ManualSheetOutcome {
   /// Creates the outcome.
-  const new({required this.ack, this.saved});
+  const new({required this.ack, this.saved, this.draft});
 
   /// Whether the write reached the server.
   final WriteAck ack;
 
   /// The new entry, when the sheet added one (null for an edit).
   final SavedEntries? saved;
+
+  /// The draft the sheet saved.
+  final EntryDraft? draft;
 }
 
 /// Opens Add manually (DESIGN_SYSTEM screen 9) above the tab bar.
@@ -45,6 +48,8 @@ Future<ManualSheetOutcome?> showAddManuallySheet(
   String? editTxnId,
   ManualField? focus,
   int? arrivesMinor,
+  bool quiet = false,
+  FormUndo? undo,
 }) {
   // The root navigator, so the sheet covers the floating tab bar.
   final root = Navigator.of(context, rootNavigator: true);
@@ -66,6 +71,8 @@ Future<ManualSheetOutcome?> showAddManuallySheet(
       editTxnId: editTxnId,
       focus: focus,
       arrivesMinor: arrivesMinor,
+      quiet: quiet,
+      undo: undo,
     ),
   );
 }
@@ -100,8 +107,18 @@ class AddManuallyForm extends ConsumerStatefulWidget {
     this.editTxnId,
     this.focus,
     this.arrivesMinor,
+    this.quiet = false,
+    this.undo,
     super.key,
   });
+
+  /// Whether the opener shows the save and its Undo itself (an Ask card),
+  /// so no toast is shown here.
+  final bool quiet;
+
+  /// What the toast's Undo does instead of the write path's undo: an Ask
+  /// card's, so its draft returns to the card (Codex review, PR #46).
+  final FormUndo? undo;
 
   /// The prefilled draft.
   final EntryDraft? initial;
@@ -152,6 +169,16 @@ class AddManuallyFormState extends ConsumerState<AddManuallyForm> {
     _values = initial == null
         ? ManualEntryValues(kind: ManualKind.expense, occurredOn: today)
         : ManualEntryValues.fromDraft(initial, today: today);
+    // A slip's amount in a currency its account is not in (or with no
+    // account yet) keeps that currency: "10000 iqd" stays dinars, and the
+    // save converts them (Codex review, PR #46).
+    final spoken = Currency.tryParse(initial?.currency ?? '');
+    final source = (ref.read(accountsProvider).value ?? const [])
+        .where((a) => a.id == initial?.accountId)
+        .firstOrNull;
+    if (spoken != null && source?.currency != spoken) {
+      _values = _values.copyWith(currency: spoken);
+    }
     final arrives = widget.arrivesMinor;
     final destination = (ref.read(accountsProvider).value ?? const [])
         .where((a) => a.id == initial?.toAccountId)
@@ -269,6 +296,7 @@ class AddManuallyFormState extends ConsumerState<AddManuallyForm> {
   String? _rateAskDay(
     ManualEntryValues values,
     Currency currency,
+    Currency accountCurrency,
     bool crossCurrency,
   ) {
     if (_editing || _values.rateAsked) return null;
@@ -276,6 +304,7 @@ class AddManuallyFormState extends ConsumerState<AddManuallyForm> {
     if (values.occurredOn != today) return null;
     final converts =
         currency != _base() ||
+        currency != accountCurrency ||
         (crossCurrency && values.toAmountText.trim().isEmpty);
     return converts ? today : null;
   }
@@ -292,7 +321,8 @@ class AddManuallyFormState extends ConsumerState<AddManuallyForm> {
   ManualEntryValues _resolved(List<Account> accounts) {
     var values = _values;
     if (values.accountId == null && accounts.isNotEmpty) {
-      final base = _base();
+      // One in the amount's own currency first, so nothing converts.
+      final base = values.currency ?? _base();
       final first =
           accounts.where((a) => a.currency == base).firstOrNull ??
           accounts.first;
@@ -382,14 +412,16 @@ class AddManuallyFormState extends ConsumerState<AddManuallyForm> {
         [draft],
         extras: {draft.id: check.extras},
       );
-      result = saved.map((s) => ManualSheetOutcome(ack: s.ack, saved: s));
+      result = saved.map(
+        (s) => ManualSheetOutcome(ack: s.ack, saved: s, draft: draft),
+      );
     }
     if (!mounted) return;
     setState(() => _saving = false);
     switch (result) {
       case Ok(:final value):
         unawaited(XpHaptics.saved());
-        _toast(value, repository);
+        if (!widget.quiet) _toast(value, repository);
         navigator.pop(value);
       case Err(:final failure):
         _show(failure);
@@ -405,7 +437,9 @@ class AddManuallyFormState extends ConsumerState<AddManuallyForm> {
     final offline = outcome.ack == WriteAck.queued;
     _dismissFailure?.call();
     _dismissFailure = null;
-    // These outlive the sheet; their actions use only the repository.
+    // These outlive the sheet; their actions use only the repository, or
+    // the card the draft came from.
+    final undo = widget.undo;
     if (saved != null) {
       showUndoToast(
         context: context,
@@ -413,7 +447,9 @@ class AddManuallyFormState extends ConsumerState<AddManuallyForm> {
             ? l10n.captureManualSavedOffline
             : l10n.captureManualSaved,
         actionLabel: l10n.captureManualUndo,
-        onAction: () => unawaited(repository.undoSave(saved)),
+        onAction: () => unawaited(
+          undo != null ? undo(saved.groupId) : repository.undoSave(saved),
+        ),
       );
     } else if (offline) {
       showUndoToast(
@@ -503,10 +539,19 @@ class AddManuallyFormState extends ConsumerState<AddManuallyForm> {
       return;
     }
     final account = accounts.firstWhere((a) => a.id == picked);
-    final fitted = _fitDecimals(_values.amountText, account.currency.exponent);
+    // An amount in its own currency keeps it (the save converts); once the
+    // account is in that currency, the amount follows the account again.
+    final entered = _values.currency;
+    final fitted = entered != null
+        ? _values.amountText
+        : _fitDecimals(_values.amountText, account.currency.exponent);
     if (fitted != _values.amountText) _amount.text = fitted;
     _edit(
-      _values.copyWith(accountId: picked, amountText: fitted),
+      _values.copyWith(
+        accountId: picked,
+        amountText: fitted,
+        followAccount: entered == account.currency,
+      ),
       clears: const [
         ManualField.account,
         ManualField.amount,
@@ -576,7 +621,9 @@ class AddManuallyFormState extends ConsumerState<AddManuallyForm> {
         id == null ? null : accounts.where((a) => a.id == id).firstOrNull;
     final account = byId(values.accountId);
     final toAccount = byId(values.toAccountId);
-    final currency = account?.currency ?? _base();
+    final accountCurrency = account?.currency ?? _base();
+    // The amount's own currency; the account's unless it pays in the other.
+    final currency = values.currency ?? accountCurrency;
     final kind = ManualKind.fromIntent(values.intent);
     // A savings move into a goal has no To row: the goal names the
     // account. It still has Arrives when that account's currency differs.
@@ -589,7 +636,7 @@ class AddManuallyFormState extends ConsumerState<AddManuallyForm> {
         (transfer || goalMove) &&
         toAccount != null &&
         account != null &&
-        toAccount.currency != account.currency;
+        toAccount.currency != accountCurrency;
     final categoryKind = values.categoryKind;
     final effectiveWho = values.who;
 
@@ -658,9 +705,18 @@ class AddManuallyFormState extends ConsumerState<AddManuallyForm> {
               ),
             ),
             _FieldError(error(ManualField.amount)),
+            if (account != null && currency != accountCurrency)
+              Padding(
+                padding: const EdgeInsetsDirectional.only(top: XpSpace.s4),
+                child: Text(
+                  l10n.captureManualConverted(accountCurrency.code),
+                  style: type.meta.copyWith(color: colors.inkSecondary),
+                ),
+              ),
             // WP-24: today's rate, asked inline while nobody has entered
             // it; skippable.
-            if (_rateAskDay(values, currency, crossCurrency) case final day?)
+            if (_rateAskDay(values, currency, accountCurrency, crossCurrency)
+                case final day?)
               if (inlineRateAskFor(ref, day) case final latest?) ...[
                 const SizedBox(height: XpSpace.s12),
                 InlineRateAsk(day: day, latest: latest),

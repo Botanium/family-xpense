@@ -102,22 +102,6 @@ final class DraftAmountOutOfRange extends DraftIssue {
   String toString() => 'DraftAmountOutOfRange($amountMinor)';
 }
 
-/// The draft's currency differs from its account's currency.
-final class CurrencyMismatch extends DraftIssue {
-  /// Creates the issue.
-  const new({required this.accountCurrency, required this.draftCurrency})
-    : super('currency');
-
-  /// The account's currency.
-  final String accountCurrency;
-
-  /// The draft's currency.
-  final String draftCurrency;
-
-  @override
-  String toString() => 'CurrencyMismatch($draftCurrency ≠ $accountCurrency)';
-}
-
 /// An expense filed under an income category, or the reverse. The server
 /// treats such a category as no answer and asks again (`prepare_entries`),
 /// and the write path refuses it (`EntryIssue.wrongCategoryKind`); the
@@ -256,8 +240,9 @@ List<String> missingFields(EntryDraft draft) {
 /// An amount the new currency cannot hold ("12.50" in dinars) is removed, so
 /// the slip asks for it. The currency stays guessed, so picking another
 /// account moves it again. The duplicate hint and FX quote, worked out for
-/// the old figures, are dropped. A currency the member wrote is left alone; the
-/// slip then reports [CurrencyMismatch] rather than change their words.
+/// the old figures, are dropped. A currency the member wrote is left alone:
+/// the account pays it, and the save converts the amount into the
+/// account's currency at the day's rate (DATA_MODEL 1).
 Map<String, Object?> followAccountCurrency(
   Map<String, Object?> draft,
   String? accountCurrency,
@@ -320,18 +305,6 @@ List<DraftIssue> _referenceIssues(EntryDraft d, HouseholdRefs refs) {
   final amount = d.amountMinor;
   if (amount != null && (amount < 1 || amount > maxDraftAmountMinor)) {
     issues.add(DraftAmountOutOfRange(amount));
-  }
-  final accountCurrency = refs.accountCurrencies[d.accountId];
-  final currency = d.currency;
-  if (accountCurrency != null &&
-      currency != null &&
-      accountCurrency != currency) {
-    issues.add(
-      CurrencyMismatch(
-        accountCurrency: accountCurrency,
-        draftCurrency: currency,
-      ),
-    );
   }
   return issues;
 }

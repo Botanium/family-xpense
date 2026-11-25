@@ -606,12 +606,18 @@ final class LedgerTransactionsRepository implements TransactionsRepository {
     if (account == null) {
       return invalid('accountId', EntryIssue.unknownReference);
     }
-    final currency = draft.currency == null
+    // An account holds only its own currency (DATA_MODEL 1), but it can
+    // pay in the other: "10000 iqd dinner" from a dollar account. The
+    // entry is then stored in the account's currency, the amount converted
+    // at the rate for its date (below), and `fx` records that rate.
+    final spoken = draft.currency == null
         ? account.currency
         : Currency.tryParse(draft.currency!);
-    if (currency != account.currency) {
+    if (spoken == null) {
       return invalid('currency', EntryIssue.currencyMismatch);
     }
+    final currency = account.currency;
+    final converts = spoken != currency;
 
     // A goal's account is the destination of a savings move.
     String? goalAccount;
@@ -742,6 +748,7 @@ final class LedgerTransactionsRepository implements TransactionsRepository {
     // `toAmountSource` says which (Codex review, PR #35); an entry saved
     // before it was recorded is judged by comparing with the conversion.
     if (crossTransfer &&
+        !converts &&
         toAmount == null &&
         !extras.toAmountReset &&
         previous != null &&
@@ -759,7 +766,8 @@ final class LedgerTransactionsRepository implements TransactionsRepository {
       toSource = previous.toAmountSource;
       retainedFx = previous.fx;
     }
-    final needsRate = currency != base || (crossTransfer && toAmount == null);
+    final needsRate =
+        converts || currency != base || (crossTransfer && toAmount == null);
     FxRate? rate;
     StoredFx? fx;
     if (needsRate) {
@@ -774,8 +782,12 @@ final class LedgerTransactionsRepository implements TransactionsRepository {
           return Err(
             EntryRateNeeded(
               draftId: draftId,
-              from: currency!.code,
-              to: currency != base ? base.code : toCurrency!.code,
+              from: converts ? spoken.code : currency.code,
+              to: converts
+                  ? currency.code
+                  : currency != base
+                  ? base.code
+                  : toCurrency!.code,
             ),
           );
         case Err():
@@ -783,10 +795,49 @@ final class LedgerTransactionsRepository implements TransactionsRepository {
         case Ok(:final value):
           (rate, fx) = value;
       }
-    } else {
+    } else if (retainedFx != null) {
       fx = retainedFx;
+    } else if (draft.fx case final named?
+        when named.baseAmountMinor == amount &&
+            FxRate.parse(named.pair, named.pairRate).isOk) {
+      // The same for the rate an edit or a restored version names, when
+      // it is the one this amount was converted with: in the base
+      // currency, the base amount is the amount itself.
+      fx = StoredFx(
+        pair: named.pair,
+        pairRate: named.pairRate,
+        source: fxSourceValues.contains(named.source)
+            ? named.source!
+            : 'manual',
+        asOf: named.asOf != null && DateTime.tryParse(named.asOf!) != null
+            ? named.asOf!
+            : occurredOn,
+      );
+    } else if (previous != null &&
+        previous.fx != null &&
+        previous.currency == currency &&
+        previous.amountMinor == amount &&
+        !_namesNewRate(draft.fx, previous.fx)) {
+      // An entry in the base currency whose amount was converted from the
+      // other one keeps the rate it was converted with while the amount
+      // stays: a note or a category edit does not erase it (Codex review,
+      // PR #46). A new amount was not converted, so it has no rate.
+      fx = previous.fx;
     }
-    final baseAmount = toBaseAmount(Money(amount, currency!), base, rate: rate);
+    // The amount in the account's currency: as written, or converted.
+    var stored = amount;
+    if (converts) {
+      final converted = rate!
+          .convert(Money(amount, spoken), currency)
+          .valueOrNull
+          ?.minorUnits;
+      if (converted == null) return invalid('fx', EntryIssue.malformed);
+      if (converted < 1 || converted > maxDraftAmountMinor) {
+        return invalid('amountMinor', EntryIssue.amountOutOfRange);
+      }
+      stored = converted;
+    }
+    final baseAmount = toBaseAmount(Money(stored, currency), base, rate: rate);
     final baseMinor = baseAmount.valueOrNull?.minorUnits;
     if (baseMinor == null) {
       return invalid(
@@ -797,12 +848,22 @@ final class LedgerTransactionsRepository implements TransactionsRepository {
       );
     }
     if (crossTransfer && toAmount == null) {
-      toAmount = rate!
-          .convert(Money(amount, currency), toCurrency)
-          .valueOrNull
-          ?.minorUnits;
-      if (toAmount == null) return invalid('fx', EntryIssue.malformed);
-      toSource = ToAmountSource.rate;
+      if (spoken == toCurrency) {
+        // The member's figure is what arrives: "move 10,000 dinars from
+        // the dollar account to the wallet" credits exactly 10,000; only
+        // the debit is converted (Codex review, PR #46).
+        toAmount = amount;
+        toSource = ToAmountSource.entered;
+      } else {
+        // From the amount as written, so rounding the debit does not
+        // change the credit too.
+        toAmount = rate!
+            .convert(Money(amount, spoken), toCurrency)
+            .valueOrNull
+            ?.minorUnits;
+        if (toAmount == null) return invalid('fx', EntryIssue.malformed);
+        toSource = ToAmountSource.rate;
+      }
     }
     if (toAmount != null && (toAmount < 1 || toAmount > maxDraftAmountMinor)) {
       return invalid('toAmountMinor', EntryIssue.amountOutOfRange);
@@ -818,7 +879,7 @@ final class LedgerTransactionsRepository implements TransactionsRepository {
       LedgerTransaction(
         id: previous?.id ?? _store.newId(),
         type: type,
-        amountMinor: amount,
+        amountMinor: stored,
         currency: currency,
         accountId: account.id,
         toAccountId: to?.id,

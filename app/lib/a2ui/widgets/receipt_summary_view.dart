@@ -82,6 +82,12 @@ class _ReceiptSummaryViewState extends State<ReceiptSummaryView>
     _scope = XpenseScope.of(context);
   }
 
+  /// Opens the new-account sheet, then reads the household again.
+  Future<void> _addAccount() async {
+    await _scope.actions.openAddAccount();
+    if (mounted) setState(() {});
+  }
+
   bool get _editable => widget.onDraftsChanged != null && !isSaved && !saving;
 
   void _toggleSplit(bool split) {
@@ -203,7 +209,10 @@ class _ReceiptSummaryViewState extends State<ReceiptSummaryView>
             Expanded(child: Text(l10n.a2uiReceiptSplit, style: type.subhead)),
             XpSwitch(
               value: widget.split,
-              onChanged: _editable && widget.onSplitChanged != null
+              onChanged:
+                  _editable &&
+                      widget.onSplitChanged != null &&
+                      formSaves(saveStore) == 0
                   ? _toggleSplit
                   : null,
               semanticLabel: l10n.a2uiReceiptSplit,
@@ -258,7 +267,19 @@ class _ReceiptSummaryViewState extends State<ReceiptSummaryView>
             ),
           ],
         const Hairline(),
-        if (needsAccount && _editable) ...[
+        if (needsAccount && _editable && household.accounts.isEmpty) ...[
+          // Nothing to pay from: say so and offer to add an account.
+          const SizedBox(height: XpSpace.s12),
+          Text(l10n.a2uiNoAccounts, style: type.subhead),
+          Align(
+            alignment: AlignmentDirectional.centerStart,
+            child: XpButton.text(
+              key: const ValueKey('add_account'),
+              label: l10n.a2uiAddAccount,
+              onPressed: () => unawaited(_addAccount()),
+            ),
+          ),
+        ] else if (needsAccount && _editable) ...[
           const SizedBox(height: XpSpace.s12),
           Text(l10n.a2uiAskAccount, style: type.subhead),
           const SizedBox(height: XpSpace.s8),
@@ -285,10 +306,13 @@ class _ReceiptSummaryViewState extends State<ReceiptSummaryView>
             alignment: AlignmentDirectional.centerStart,
             child: XpButton.text(
               label: l10n.a2uiFixInForm,
-              onPressed: () => _scope.actions.openManualForm(
-                widget.drafts.firstOrNull is Map
-                    ? Map<String, Object?>.from(widget.drafts.first! as Map)
-                    : const {},
+              onPressed: () => unawaited(
+                openInForm(
+                  widget.drafts.firstOrNull,
+                  current: () => widget.drafts,
+                  write: widget.onDraftsChanged,
+                  announce: l10n.a2uiSavedEntries(1),
+                ),
               ),
             ),
           ),

@@ -155,6 +155,7 @@ final class ManualEntryValues {
     this.personName = '',
     this.rateText = '',
     this.rateAsked = false,
+    this.currency,
     this.otherIntent,
     this.savingsMove = false,
   });
@@ -204,7 +205,7 @@ final class ManualEntryValues {
   /// The Loan tab's direction.
   final LoanDirection loanDirection;
 
-  /// The amount as typed, in the account's currency.
+  /// The amount as typed, in [currency] when set, else the account's.
   final String amountText;
 
   /// The account money leaves (or enters).
@@ -240,6 +241,12 @@ final class ManualEntryValues {
 
   /// Whether the write path asked for a rate, so the field shows.
   final bool rateAsked;
+
+  /// The currency [amountText] is in when it is not the account's: a
+  /// slip's "10000 iqd" opened on a dollar account, or with no account
+  /// yet. The save converts it into the account's currency at the day's
+  /// rate (DATA_MODEL 1). Null follows the account.
+  final Currency? currency;
 
   /// The draft intent.
   String get intent =>
@@ -279,6 +286,8 @@ final class ManualEntryValues {
     String? personName,
     String? rateText,
     bool? rateAsked,
+    Currency? currency,
+    bool followAccount = false,
   }) => ManualEntryValues(
     kind: kind ?? this.kind,
     otherIntent: otherIntent,
@@ -297,6 +306,7 @@ final class ManualEntryValues {
     personName: personName ?? this.personName,
     rateText: rateText ?? this.rateText,
     rateAsked: rateAsked ?? this.rateAsked,
+    currency: followAccount ? null : currency ?? this.currency,
   );
 
   @override
@@ -317,7 +327,8 @@ final class ManualEntryValues {
       other.note == note &&
       other.personName == personName &&
       other.rateText == rateText &&
-      other.rateAsked == rateAsked;
+      other.rateAsked == rateAsked &&
+      other.currency == currency;
 
   @override
   int get hashCode => Object.hash(
@@ -337,6 +348,7 @@ final class ManualEntryValues {
     personName,
     rateText,
     rateAsked,
+    currency,
   );
 
   /// [minor] as the form types it: digits and the currency's decimals,
@@ -405,13 +417,16 @@ ManualEntryCheck checkManualEntry(
     errors[ManualField.account] = ManualIssue.unknown;
   }
 
+  // The amount's own currency: the account's, or another the account
+  // pays in (the write path converts it).
+  final entered = values.currency ?? currency;
   int? amount;
   if (values.amountText.trim().isEmpty) {
     errors[ManualField.amount] = ManualIssue.missing;
-  } else if (currency != null) {
+  } else if (entered != null && currency != null) {
     amount = MoneyFormat.parseMinor(
       values.amountText,
-      exponent: currency.exponent,
+      exponent: entered.exponent,
     );
     if (amount == null) {
       errors[ManualField.amount] = ManualIssue.invalid;
@@ -514,7 +529,7 @@ ManualEntryCheck checkManualEntry(
     }
   } else if (initial?.fx case final named?
       when currency != null &&
-          currency != base &&
+          (entered != base || entered != currency) &&
           named.asOf != null &&
           named.asOf != values.occurredOn) {
     // A stored rate belongs to its day: moved to another day, the entry
@@ -550,7 +565,7 @@ ManualEntryCheck checkManualEntry(
     id: draftId,
     intent: intent,
     amountMinor: amount,
-    currency: currency!.code,
+    currency: entered!.code,
     accountId: values.accountId,
     toAccountId: transfer && !keepsGoal ? values.toAccountId : null,
     categoryId: values.categoryKind == null ? null : values.categoryId,

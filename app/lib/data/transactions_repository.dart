@@ -415,6 +415,21 @@ enum WriteAck {
   queued,
 }
 
+/// What a new entry saved from the manual form wrote: its save and the
+/// draft as saved. Add manually's route returns it when it was opened with
+/// a draft from an Ask card, so the card counts it as its own save.
+typedef FormSave = ({SavedEntries saved, EntryDraft draft});
+
+/// Undoes a form save of a card's draft by its save group, through the
+/// card, so the draft returns to it and the agent stops hearing it was
+/// saved (Codex review, PR #46).
+typedef FormUndo = Future<void> Function(String groupId);
+
+/// The route extra that opens Add manually on a card's draft. `quiet`: the
+/// card shows the save and its Undo itself, so the sheet shows no toast.
+/// `undo`: what the sheet's own Undo does instead of the write path's.
+typedef FormRequest = ({EntryDraft? draft, bool quiet, FormUndo? undo});
+
 /// The result of [TransactionsRepository.saveEntries].
 @immutable
 final class SavedEntries {

@@ -22,6 +22,42 @@ const _day = '2026-11-22';
 
 void main() {
   group('checkManualEntry', () {
+    // Codex review, PR #46: the amount is read in its own currency.
+    test(
+      'an amount in the other currency keeps it for the save to convert',
+      () {
+        final check = _check(
+          const ManualEntryValues(
+            kind: ManualKind.expense,
+            occurredOn: _day,
+            amountText: '10000',
+            accountId: 'usd',
+            categoryId: 'groceries',
+            currency: Currency.iqd,
+          ),
+        );
+        expect(check.ok, isTrue);
+        expect(
+          (check.draft!.currency, check.draft!.amountMinor),
+          ('IQD', 10000),
+        );
+        // Dinars have no decimals, whatever the account's currency.
+        expect(
+          _check(
+            const ManualEntryValues(
+              kind: ManualKind.expense,
+              occurredOn: _day,
+              amountText: '12.5',
+              accountId: 'usd',
+              categoryId: 'groceries',
+              currency: Currency.iqd,
+            ),
+          ).errors[ManualField.amount],
+          ManualIssue.invalid,
+        );
+      },
+    );
+
     test('an expense reads into a draft in the account currency', () {
       final check = _check(
         const ManualEntryValues(

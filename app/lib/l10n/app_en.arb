@@ -1317,13 +1317,25 @@
   "@accountsEditTitle": {
     "description": "Title of the sheet that edits an account."
   },
-  "accountsNameLabel": "Name",
+  "accountsNameLabel": "Account name",
   "@accountsNameLabel": {
     "description": "Label of the account name field."
   },
   "accountsNameHint": "Cash wallet",
   "@accountsNameHint": {
     "description": "Placeholder of the account name field."
+  },
+  "accountsNameAmount": "That looks like an amount. Enter the balance below, and a name here.",
+  "@accountsNameAmount": {
+    "description": "Error under the account name when it holds only a number (owner typed balances into the name)."
+  },
+  "accountsCurrencyUsd": "Dollars · USD",
+  "@accountsCurrencyUsd": {
+    "description": "Currency chip on the add-account form."
+  },
+  "accountsCurrencyIqd": "Dinars · IQD",
+  "@accountsCurrencyIqd": {
+    "description": "Currency chip on the add-account form."
   },
   "accountsNameError": "Use up to 40 characters.",
   "@accountsNameError": {
@@ -1425,7 +1437,7 @@
   "@accountsSetupHeadline": {
     "description": "Headline of onboarding step 3."
   },
-  "accountsSetupBody": "Add each account with today's balance. You can add more later.",
+  "accountsSetupBody": "Add each account in dollars or dinars, with today's balance. You can add more later.",
   "@accountsSetupBody": {
     "description": "Paragraph under the headline of onboarding step 3."
   },
@@ -1888,9 +1900,9 @@
   "@a2uiAmountOutOfRange": {
     "description": "Problem line on an entry slip when the amount is outside the allowed range."
   },
-  "a2uiCurrencyMismatch": "This account is in {currency}.",
-  "@a2uiCurrencyMismatch": {
-    "description": "Problem line on an entry slip when the entry currency differs from its account.",
+  "a2uiConvertedNote": "This account is in {currency}: saving converts the amount at the day's rate.",
+  "@a2uiConvertedNote": {
+    "description": "Note on an entry slip when the entry is in one currency and its account in the other.",
     "placeholders": {
       "currency": {
         "type": "String"
@@ -2052,6 +2064,14 @@
   "a2uiAskInForm": "This needs the full form.",
   "@a2uiAskInForm": {
     "description": "Shown on an entry slip when a missing field can only be set in the manual form."
+  },
+  "a2uiNoAccounts": "There are no accounts yet. Add one to save this.",
+  "@a2uiNoAccounts": {
+    "description": "Shown on an entry slip in place of the account question when the household has no accounts."
+  },
+  "a2uiAddAccount": "Add an account",
+  "@a2uiAddAccount": {
+    "description": "Text button on an entry slip that opens the new-account sheet."
   },
   "a2uiFixInForm": "Fix it in the form",
   "@a2uiFixInForm": {
@@ -2919,6 +2939,16 @@
   "captureManualArrives": "Arrives",
   "@captureManualArrives": {
     "description": "Caption of the optional amount that arrives when a transfer crosses currencies."
+  },
+  "captureManualConverted": "This account is in {currency}: saving converts the amount at the day's rate.",
+  "@captureManualConverted": {
+    "description": "Note under the amount when it is in one currency and the account in the other.",
+    "placeholders": {
+      "currency": {
+        "type": "String",
+        "example": "USD"
+      }
+    }
   },
   "captureManualArrivesHint": "At the day's rate",
   "@captureManualArrivesHint": {

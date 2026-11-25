@@ -106,6 +106,21 @@ class _EntryListViewState extends State<EntryListView>
 
   bool get _editable => widget.onDraftsChanged != null && !isSaved && !saving;
 
+  /// Opens the new-account sheet; the slips read the household again once
+  /// it closes, so a new account is offered at once.
+  Future<void> _addAccount() async {
+    await _scope.actions.openAddAccount();
+    if (mounted) setState(() {});
+  }
+
+  /// "Fix it in the form": a save there settles this draft on the card.
+  Future<void> _openInForm(Object? raw) => openInForm(
+    raw,
+    current: () => widget.drafts,
+    write: widget.onDraftsChanged,
+    announce: context.l10n.a2uiSavedEntries(1),
+  );
+
   void _write(int index, String field, Object? value) {
     final next = [
       for (final d in widget.drafts)
@@ -167,11 +182,7 @@ class _EntryListViewState extends State<EntryListView>
           if (draftCheck.isMalformed)
             NeedsReviewSlip(
               raw: draftCheck.raw,
-              onEdit: () => _scope.actions.openManualForm(
-                draftCheck.raw is Map
-                    ? Map<String, Object?>.from(draftCheck.raw! as Map)
-                    : const {},
-              ),
+              onEdit: () => unawaited(_openInForm(draftCheck.raw)),
             )
           else if (isSaved)
             SavedSlip(
@@ -201,9 +212,8 @@ class _EntryListViewState extends State<EntryListView>
               onViewDuplicate: _scope.actions.openTransaction,
               onRate: _scope.actions.setDailyRate,
               onRateSaved: () => setState(() {}),
-              onEdit: () => _scope.actions.openManualForm(
-                Map<String, Object?>.from(draftCheck.raw! as Map),
-              ),
+              onEdit: () => unawaited(_openInForm(draftCheck.raw)),
+              onAddAccount: () => unawaited(_addAccount()),
             ),
         ],
         const SizedBox(height: XpSpace.s16),

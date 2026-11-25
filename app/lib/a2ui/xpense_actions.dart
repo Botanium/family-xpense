@@ -68,6 +68,7 @@ final class XpenseHousehold {
     this.loans = const [],
     this.goals = const [],
     this.partnerName,
+    this.soleMember = false,
     this.latestRate,
     this.rateEnteredToday = false,
   });
@@ -92,6 +93,10 @@ final class XpenseHousehold {
 
   /// The partner's first name, for `who: partner`; null before they join.
   final String? partnerName;
+
+  /// Whether the signed-in member is the household's only member (known,
+  /// not still loading): an entry's `who` is then always `me`.
+  final bool soleMember;
 
   /// The latest USD/IQD rate as a decimal string, such as `"1705"`.
   final String? latestRate;
@@ -167,6 +172,22 @@ final class DraftsSaved extends SaveOutcome {
 
   /// Budget standings by draft id, where the entry falls in a budget.
   final Map<String, BudgetStanding> budgets;
+}
+
+/// A draft the manual form saved ("Fix it in the form"): the card treats
+/// it as its own save, so it is never saved twice.
+final class FormSaved {
+  /// Creates the result.
+  const new({required this.groupId, required this.txnIds, required this.draft});
+
+  /// The save group, for [XpenseActions.undoSave].
+  final String groupId;
+
+  /// The new transaction ids.
+  final List<String> txnIds;
+
+  /// The draft as the form saved it (the member may have changed it).
+  final EntryDraft draft;
 }
 
 /// Why a save did not happen.
@@ -268,8 +289,26 @@ abstract interface class XpenseActions {
   void retakeReceipt();
 
   /// Opens the manual form prefilled with [draft], as found in the data
-  /// model (it may be malformed).
-  void openManualForm(Map<String, Object?> draft);
+  /// model (it may be malformed). Completes with what the form saved, or
+  /// null when it closed without saving. A save there is a save of
+  /// [surfaceId]'s draft: it is recorded for `xp.saved` and its Undo, as a
+  /// save from the card would be.
+  ///
+  /// [quiet]: the card shows the save and its Undo itself, so the form
+  /// shows no toast. [undo]: what the form's own Undo toast does (a card
+  /// that keeps other drafts): it undoes the save through these actions
+  /// and puts the draft back on the card. Null undoes through the write
+  /// path alone.
+  Future<FormSaved?> openManualForm(
+    Map<String, Object?> draft, {
+    String? surfaceId,
+    bool quiet = false,
+    Future<void> Function(String groupId)? undo,
+  });
+
+  /// Opens the new-account sheet: a slip whose household has no account
+  /// to pay from offers it. Completes when the sheet closes.
+  Future<void> openAddAccount();
 
   /// Retries a capture waiting in the offline queue.
   void retryQueued(String captureId);

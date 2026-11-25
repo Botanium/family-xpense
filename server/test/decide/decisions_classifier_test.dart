@@ -112,6 +112,7 @@ void main() {
   (DecisionsClassifier, ScriptedHttp) build(
     List<Object> script, {
     DocumentStore? store,
+    Future<String?> Function(String hid, String day)? usdIqdOn,
   }) {
     final net = ScriptedHttp(script);
     final s = store ?? docs;
@@ -127,6 +128,7 @@ void main() {
         clock: clock,
         random: Random(1),
         sleep: (d) async => sleeps.add(d),
+        usdIqdOn: usdIqdOn,
       ),
       net,
     );
@@ -456,6 +458,115 @@ void main() {
       final (c, net) = build([]);
       final r = await classify(c);
       expect(r.unavailable, isTrue);
+      expect(net.requests, isEmpty);
+    });
+  });
+
+  // Codex review, PR #46: an entry paid from an account in the other
+  // currency is saved converted, so capturing it again searches for the
+  // converted amount too.
+  group('an entry saved converted', () {
+    // 10,000 IQD paid from the USD checking account at 1,705 IQD per USD,
+    // as the phone's write path stores it.
+    final stored = FxRate.parse(
+      'USD/IQD',
+      '1705',
+    ).valueOrNull!.convert(const Money(10000, Currency.iqd), Currency.usd);
+    final dinner = RecentEntry(
+      id: 't-dinner',
+      amountMinor: stored.valueOrNull!.minorUnits,
+      currency: 'USD',
+      occurredOn: '2026-11-22',
+      accountId: checkingId,
+      title: 'Dinner',
+    );
+    final days = <String>[];
+    Future<String?> rate(String hid, String day) async {
+      days.add(day);
+      return '1705';
+    }
+
+    Future<DecideResponse> again(
+      DecisionsClassifier c, {
+      List<ParseHint> hints = const [],
+    }) => classify(
+      c,
+      ask: {.duplicate},
+      text: '10000 iqd dinner',
+      parsed: DecideParsed(amountMinor: 10000, currency: 'IQD'),
+      hints: hints,
+    );
+
+    setUp(days.clear);
+
+    test('is found when the same dinars are captured again', () async {
+      expect(dinner.amountMinor, 587);
+      households.entries = [dinner];
+      final (c, net) = build([
+        ok({'duplicate': yesNo(0.9)}),
+      ], usdIqdOn: rate);
+      final r = await again(c);
+      expect(days, ['2026-11-22']);
+      expect(households.queries.map((q) => q.amountMinor), [10000, 587]);
+      final input = net.bodyOf(0)['input']! as String;
+      expect(
+        input,
+        contains("amount IQD 10,000 (USD 5.87 at that day's rate)"),
+      );
+      expect(
+        input,
+        endsWith('- USD 5.87, 2026-11-22, Dinner, Checking account'),
+      );
+      expect(r.duplicateOf, 't-dinner');
+    });
+
+    test('also when the USD account is named', () async {
+      households.entries = [dinner];
+      final (c, net) = build([
+        ok({'duplicate': yesNo(0.9)}),
+      ], usdIqdOn: rate);
+      final r = await again(
+        c,
+        hints: [ParseHint(kind: 'account', id: checkingId)],
+      );
+      expect(r.duplicateOf, 't-dinner');
+      expect(net.requests, hasLength(1));
+    });
+
+    test('not when the dinars are on the cash wallet (IQD)', () async {
+      households.entries = [dinner];
+      final (c, net) = build([], usdIqdOn: rate);
+      await again(
+        c,
+        hints: [ParseHint(kind: 'account', id: cashId)],
+      );
+      expect(days, isEmpty);
+      expect(households.queries.map((q) => q.amountMinor), [10000]);
+      expect(net.requests, isEmpty);
+    });
+
+    test('a dinar match alone adds no converted figure', () async {
+      households.entries = [
+        const RecentEntry(
+          id: 't-cash',
+          amountMinor: 10000,
+          currency: 'IQD',
+          occurredOn: '2026-11-22',
+          accountId: cashId,
+        ),
+      ];
+      final (c, net) = build([
+        ok({'duplicate': yesNo(0.9)}),
+      ], usdIqdOn: rate);
+      await again(c);
+      expect(net.bodyOf(0)['input'], contains('amount IQD 10,000, date'));
+    });
+
+    test('without a rate, only the dinars are searched', () async {
+      households.entries = [dinner];
+      final (c, net) = build([], usdIqdOn: (_, _) async => null);
+      await again(c);
+      expect(households.queries.map((q) => q.amountMinor), [10000]);
       expect(net.requests, isEmpty);
     });
   });

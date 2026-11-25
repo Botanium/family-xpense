@@ -11,7 +11,7 @@ These rules apply to every field that holds money. The pure-Dart implementation 
 | Type | `int` minor units plus an ISO currency code. Never `double`. |
 | Exponent table | Explicit, app-owned: `USD → 2`, `IQD → 0`. Unknown code is a typed failure, never a default. |
 | Why IQD is 0 | ISO 4217 lists 3 (fils) but CLDR lists 0, the smallest note is 250, and no fils circulate. Storing whole dinars avoids a 1,000× trap. The table is versioned (`moneySchema: 1`) so a redenomination can be migrated (D-14). |
-| One currency per account | A transaction's `currency` always equals its account's currency. |
+| One currency per account | A transaction's `currency` always equals its account's currency. An account can still pay in the other currency ("10000 iqd dinner" from a dollar account): the write path converts the amount into the account's currency at the rate for the entry's date, asking for the day's rate when there is none, and stores that rate in `fx` (owner's phone test, 2026-11-24). The amount as spoken is not kept. |
 | Base amount | Every transaction also stores `baseAmountMinor` in the household base currency, computed once at save time and never recomputed. Reports sum this field. |
 | Stored rate | `fx.pair` is always `"USD/IQD"` style (market convention), `fx.pairRate` is a decimal **string** (for example `"1520"`), never a float. |
 | Rate source | A member enters the day's USD/IQD rate when the app asks (once a day). `official` or `market` is the household's label for that rate; `manual` marks a rate typed for a single transaction. No rate is fetched automatically (D-16). |
@@ -102,7 +102,7 @@ One document per money event. A transfer is one document with both accounts (D-1
 | `toAmountMinor` | int? | transfers between currencies: amount that arrives |
 | `toAmountSource` | `entered` \| `rate`? | whether `toAmountMinor` was typed (kept when the entry moves to another day) or converted with the rate (converted again); absent on entries saved before it was recorded (PR #35) |
 | `baseAmountMinor` | int | in household base currency |
-| `fx` | map? | `{pair, pairRate, source, asOf}`; absent when currency equals base |
+| `fx` | map? | `{pair, pairRate, source, asOf}`; absent when currency equals base, unless the amount was converted into the account's currency (then it is the rate used) |
 | `categoryId` | string? | required for `expense` and `income` |
 | `who` | `me` resolved to a uid, or `joint` | stored as `whoUid` (string?) plus `whoScope` (`member` \| `joint`) |
 | `occurredAt` | timestamp | |

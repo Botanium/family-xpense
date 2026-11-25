@@ -394,6 +394,94 @@ void main() {
       });
     });
 
+    // Owner's phone test (2026-11-24): "10000 iqd dinner" with only
+    // dollar accounts. The entry is stored in the account's currency, the
+    // amount converted at the day's rate, which `fx` records.
+    test('dinars paid from a dollar account are converted', () async {
+      // 10,000 IQD at 1,705 = 5.865… USD → 5.87 (half-even).
+      final id = await saveOne(
+        repo,
+        draft(account: 'mine-usd', amount: 10000, currency: 'IQD'),
+      );
+      final doc = store.transactions[id]!;
+      expect(doc['currency'], 'USD');
+      expect(doc['amountMinor'], 587);
+      expect(doc['baseAmountMinor'], 587);
+      expect(doc['fx'], {
+        'pair': 'USD/IQD',
+        'pairRate': '1705',
+        'source': 'market',
+        'asOf': '2026-11-20',
+      });
+      expect(store.balances['mine-usd'], -587);
+    });
+
+    test('dollars paid from a dinar account are converted', () async {
+      // 12.50 USD at 1,705 = 21,312.5 IQD → 21,312 (half-even).
+      final id = await saveOne(
+        repo,
+        draft(account: 'cash-iqd', currency: 'USD'),
+      );
+      final doc = store.transactions[id]!;
+      expect((doc['currency'], doc['amountMinor']), ('IQD', 21312));
+      expect(doc['baseAmountMinor'], 1250);
+      expect(store.balances['cash-iqd'], -21312);
+    });
+
+    // Codex review, PR #46: the credit is the member's figure, not the
+    // rounded debit converted back (10,008).
+    test('dinars moved from a dollar account to a dinar account arrive '
+        'exactly', () async {
+      final id = await saveOne(
+        repo,
+        draft(
+          intent: 'transfer',
+          account: 'mine-usd',
+          to: 'cash-iqd',
+          amount: 10000,
+          currency: 'IQD',
+        ),
+      );
+      final doc = store.transactions[id]!;
+      expect((doc['currency'], doc['amountMinor']), ('USD', 587));
+      expect(doc['toAmountMinor'], 10000);
+      expect(doc['toAmountSource'], 'entered');
+      expect(store.balances['mine-usd'], -587);
+      expect(store.balances['cash-iqd'], 10000);
+    });
+
+    test('dollars moved from a dinar account to a dollar account arrive '
+        'exactly', () async {
+      final id = await saveOne(
+        repo,
+        draft(
+          intent: 'transfer',
+          account: 'cash-iqd',
+          to: 'mine-usd',
+          currency: 'USD',
+        ),
+      );
+      final doc = store.transactions[id]!;
+      expect((doc['currency'], doc['amountMinor']), ('IQD', 21312));
+      expect(doc['toAmountMinor'], 1250);
+    });
+
+    test('a conversion with no rate for the day asks for one', () async {
+      final result = await repo.saveEntries([
+        draft(
+          account: 'mine-usd',
+          amount: 10000,
+          currency: 'IQD',
+          on: '2026-11-19',
+        ),
+      ]);
+      expect(
+        result.failureOrNull,
+        const EntryRateNeeded(draftId: 'd1', from: 'IQD', to: 'USD'),
+      );
+      expect(store.transactions, isEmpty);
+    });
+
     test('no rate for the day or earlier asks for one', () async {
       final result = await repo.saveEntries([
         draft(account: 'cash-iqd', amount: 1000, on: '2026-11-19'),
@@ -574,10 +662,6 @@ void main() {
 
     test('money rules', () async {
       expect(
-        await failureOf([draft(currency: 'IQD')]),
-        issue('currency', EntryIssue.currencyMismatch),
-      );
-      expect(
         await failureOf([draft(amount: 0)]),
         issue('amountMinor', EntryIssue.amountOutOfRange),
       );
@@ -749,6 +833,55 @@ void main() {
       final doc = store.transactions[id]!;
       expect((doc['fx']! as Map)['pairRate'], '1705');
       expect(doc['baseAmountMinor'], 2000);
+    });
+
+    // Codex review, PR #46: 10,000 IQD paid from a dollar account in a
+    // dollar household is stored as USD 5.87 with the rate it was
+    // converted with; an edit that keeps the amount keeps that rate.
+    group('a converted entry in the base currency', () {
+      Future<(String, EntryDraft)> converted() async {
+        final id = await saveOne(
+          repo,
+          draft(account: 'mine-usd', amount: 10000, currency: 'IQD'),
+        );
+        final stored = transactionFromFields(id, store.transactions[id]!)!;
+        return (id, draftFromTransaction(stored, viewerUid: me));
+      }
+
+      Map<String, Object?>? fxOf(String id) =>
+          store.transactions[id]!['fx'] as Map<String, Object?>?;
+
+      test('keeps its rate through a note edit and a day move', () async {
+        final (id, edit) = await converted();
+        store.rates['2026-11-22'] = DayRate(
+          day: '2026-11-22',
+          rate: FxRate.forPair(FxPair.usdIqd, '1500').valueOrNull!,
+        );
+        final noted = EntryDraft.fromJson({
+          ...edit.toJson(),
+          'note': 'with the kids',
+          'occurredOn': '2026-11-22',
+        });
+        expect((await repo.editEntry(id, noted)).isOk, isTrue);
+        expect(store.transactions[id]!['amountMinor'], 587);
+        expect(fxOf(id)?['pairRate'], '1705');
+        expect(fxOf(id)?['asOf'], '2026-11-20');
+      });
+
+      test('a new amount was not converted, so it has no rate', () async {
+        final (id, edit) = await converted();
+        final changed = EntryDraft.fromJson({
+          ...edit.toJson(),
+          'amountMinor': 600,
+        });
+        expect((await repo.editEntry(id, changed)).isOk, isTrue);
+        expect(fxOf(id), isNull);
+
+        // Restoring the converted version brings its rate back.
+        expect((await repo.editEntry(id, edit)).isOk, isTrue);
+        expect(store.transactions[id]!['amountMinor'], 587);
+        expect(fxOf(id)?['pairRate'], '1705');
+      });
     });
 
     test("a new day takes that day's rate", () async {

@@ -152,16 +152,14 @@ List<FieldOption> fieldOptions(
 ) {
   final l10n = context.l10n;
   final options = switch (field) {
-    // A guessed currency follows the account picked (withField), so every
-    // account is offered; a written one rules out other currencies.
+    // Every account, whatever the entry's currency: a guessed currency
+    // follows the account picked (withField); a written one stays, and the
+    // save converts it into the account's currency at the day's rate. A
+    // transfer may arrive in another currency too.
     'accountId' || 'toAccountId' => [
       for (final a in household.accounts)
-        if (draft.currency == null ||
-            a.currency == draft.currency ||
-            (field == 'accountId' &&
-                (draft.guessed ?? const []).contains('currency')))
-          if (field == 'accountId' || a.id != draft.accountId)
-            FieldOption(value: a.id, label: a.name),
+        if (field == 'accountId' || a.id != draft.accountId)
+          FieldOption(value: a.id, label: a.name),
     ],
     // Only categories of the entry's kind, as the server's question does:
     // an income category on an expense is not an answer (WrongCategoryKind).

@@ -55,6 +55,7 @@ final class LedgerXpenseActions implements XpenseActions {
       loans: h.loans,
       goals: h.goals,
       partnerName: h.partnerName,
+      soleMember: h.soleMember,
       latestRate: answered,
       rateEnteredToday: true,
     );
@@ -176,9 +177,33 @@ final class LedgerXpenseActions implements XpenseActions {
   @override
   void retakeReceipt() => inner.retakeReceipt();
 
+  /// A save in the form is kept like a save here, so the card's Undo
+  /// deletes it (Codex review, PR #46).
   @override
-  void openManualForm(Map<String, Object?> draft) =>
-      inner.openManualForm(draft);
+  Future<FormSaved?> openManualForm(
+    Map<String, Object?> draft, {
+    String? surfaceId,
+    bool quiet = false,
+    Future<void> Function(String groupId)? undo,
+  }) async {
+    final saved = await inner.openManualForm(
+      draft,
+      surfaceId: surfaceId,
+      quiet: quiet,
+      undo: undo,
+    );
+    if (saved != null) {
+      _saved[saved.groupId] = SavedEntries(
+        groupId: saved.groupId,
+        txnIds: saved.txnIds,
+        ack: WriteAck.synced,
+      );
+    }
+    return saved;
+  }
+
+  @override
+  Future<void> openAddAccount() => inner.openAddAccount();
 
   @override
   void retryQueued(String captureId) => inner.retryQueued(captureId);

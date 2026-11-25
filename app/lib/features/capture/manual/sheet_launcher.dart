@@ -27,10 +27,18 @@ Page<void> sheetLauncherPage(GoRouterState state, Widget launcher) =>
 /// Presents Add manually, prefilled with [draft], then closes its page.
 class AddManuallyLauncher extends StatefulWidget {
   /// Creates the launcher.
-  const new({this.draft, super.key});
+  const new({this.draft, this.quiet = false, this.undo, super.key});
 
   /// The draft to prefill ("Change" on a slip).
   final EntryDraft? draft;
+
+  /// Whether the opener shows the save itself (an Ask card), so the sheet
+  /// shows no toast.
+  final bool quiet;
+
+  /// What the sheet's Undo does instead of the write path's (an Ask card's
+  /// draft, so it returns to the card).
+  final FormUndo? undo;
 
   @override
   State<AddManuallyLauncher> createState() => _AddManuallyLauncherState();
@@ -43,10 +51,23 @@ class _AddManuallyLauncherState extends State<AddManuallyLauncher> {
     WidgetsBinding.instance.addPostFrameCallback((_) => unawaited(_open()));
   }
 
+  /// A new entry saved from a slip's draft goes back to whoever opened
+  /// the route ([FormSave]), so the Ask card counts it as its own save.
   Future<void> _open() async {
     if (!mounted) return;
-    await showAddManuallySheet(context, draft: widget.draft);
-    if (mounted) _close(context);
+    final outcome = await showAddManuallySheet(
+      context,
+      draft: widget.draft,
+      quiet: widget.quiet,
+      undo: widget.undo,
+    );
+    if (!mounted) return;
+    final saved = outcome?.saved;
+    final draft = outcome?.draft;
+    _close(
+      context,
+      saved == null || draft == null ? null : (saved: saved, draft: draft),
+    );
   }
 
   @override
@@ -117,10 +138,10 @@ class _EditEntryLauncherState extends ConsumerState<EditEntryLauncher> {
   }
 }
 
-void _close(BuildContext context) {
+void _close(BuildContext context, [FormSave? result]) {
   final router = GoRouter.of(context);
   if (router.canPop()) {
-    router.pop();
+    router.pop(result);
   } else {
     // Opened cold from a link: nothing is under it.
     router.go(AppRoutes.home);
