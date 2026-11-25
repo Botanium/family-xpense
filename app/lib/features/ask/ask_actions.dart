@@ -110,7 +110,13 @@ final class AskActions implements XpenseActions {
     Map<String, Object?> draft, {
     String? surfaceId,
     bool quiet = false,
-  }) => _inner.openManualForm(draft, surfaceId: surfaceId, quiet: quiet);
+    Future<void> Function(String groupId)? undo,
+  }) => _inner.openManualForm(
+    draft,
+    surfaceId: surfaceId,
+    quiet: quiet,
+    undo: undo,
+  );
 
   @override
   Future<void> openAddAccount() => _inner.openAddAccount();

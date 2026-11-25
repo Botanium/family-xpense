@@ -112,6 +112,35 @@ void main() {
     expect(result?.groupId, isNotEmpty);
   });
 
+  // Codex review, PR #46: the form's Undo toast for a card's draft goes
+  // back through the card, not straight to the write path.
+  testWidgets("the form's Undo toast goes through the card", (tester) async {
+    final accounts = FakeAccountsRepository.sample();
+    final (actions, _) = await pump(tester, accounts: accounts);
+    String? undone;
+    FormSaved? result;
+    final opened = actions
+        .openManualForm({
+          'id': 'd7',
+          'intent': 'expense',
+          'amountMinor': 4280,
+          'currency': 'USD',
+          'accountId': 'acc-checking',
+          'categoryId': 'groceries',
+          'who': 'me',
+        }, undo: (groupId) async => undone = groupId)
+        .then((r) => result = r);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Save expense'));
+    await tester.pumpAndSettle();
+    await opened;
+
+    await tester.tap(find.text('Undo'));
+    await tester.pumpAndSettle();
+    expect(undone, isNotNull);
+    expect(undone, result?.groupId);
+  });
+
   test('the add-account route is its own path', () {
     expect(AppRoutes.addAccount, isNot(startsWith('${AppRoutes.accounts}/')));
   });

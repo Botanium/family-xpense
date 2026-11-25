@@ -295,11 +295,15 @@ abstract interface class XpenseActions {
   /// save from the card would be.
   ///
   /// [quiet]: the card shows the save and its Undo itself, so the form
-  /// shows no toast.
+  /// shows no toast. [undo]: what the form's own Undo toast does (a card
+  /// that keeps other drafts): it undoes the save through these actions
+  /// and puts the draft back on the card. Null undoes through the write
+  /// path alone.
   Future<FormSaved?> openManualForm(
     Map<String, Object?> draft, {
     String? surfaceId,
     bool quiet = false,
+    Future<void> Function(String groupId)? undo,
   });
 
   /// Opens the new-account sheet: a slip whose household has no account

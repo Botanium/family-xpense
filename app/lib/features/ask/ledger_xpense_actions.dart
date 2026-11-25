@@ -184,11 +184,13 @@ final class LedgerXpenseActions implements XpenseActions {
     Map<String, Object?> draft, {
     String? surfaceId,
     bool quiet = false,
+    Future<void> Function(String groupId)? undo,
   }) async {
     final saved = await inner.openManualForm(
       draft,
       surfaceId: surfaceId,
       quiet: quiet,
+      undo: undo,
     );
     if (saved != null) {
       _saved[saved.groupId] = SavedEntries(

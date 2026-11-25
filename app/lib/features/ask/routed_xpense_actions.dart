@@ -65,10 +65,12 @@ final class RoutedXpenseActions implements XpenseActions {
     Map<String, Object?> draft, {
     String? surfaceId,
     bool quiet = false,
+    FormUndo? undo,
   }) async {
     final request = (
       draft: checkDraft(draft, const HouseholdRefs()).draft,
       quiet: quiet,
+      undo: undo,
     );
     final result = await router().push<FormSave>(
       AppRoutes.addEntry,

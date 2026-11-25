@@ -26,10 +26,17 @@ final class SurfaceStore {
   final void Function(String path, Object? value) write;
 }
 
-/// Set in a card's data model once one of several drafts was saved in the
-/// manual form: a receipt then keeps its groups as they are, since
-/// regrouping would bring the saved one back.
+/// How many of a card's drafts were saved in the manual form while others
+/// stayed on it: a receipt then keeps its groups as they are, since
+/// regrouping would bring the saved ones back.
 const String formSavedPath = '/ui/formSaved';
+
+/// The count at [formSavedPath].
+int formSaves(SurfaceStore? store) => switch (store?.read(formSavedPath)) {
+  final num n => n.toInt(),
+  true => 1,
+  _ => 0,
+};
 
 /// What a save produced, as kept at `/ui/saved`.
 final class SaveRecord {
@@ -248,6 +255,11 @@ mixin DraftSaving<T extends StatefulWidget> on State<T> {
   /// [current] once the form closes, through [write]; the last one leaves
   /// the card saved as the form saved it, with Undo. Closing the form
   /// unsaved changes nothing.
+  ///
+  /// The form's own Undo toast (a draft that leaves others on the card)
+  /// undoes through [saveActions], so the agent stops hearing it was
+  /// saved, and puts the draft back where it was. A card saved meanwhile
+  /// keeps its drafts as saved: the undone one is not put back.
   Future<void> openInForm(
     Object? raw, {
     required List<Object?> Function() current,
@@ -264,11 +276,32 @@ mixin DraftSaving<T extends StatefulWidget> on State<T> {
         id is String ? d is Map && d['id'] == id : identical(d, raw);
     // The card's last draft: the card then shows the save and its Undo,
     // so the form shows none (one Undo, never two).
-    final last = current().every(same);
-    final result = await saveActions.openManualForm(
+    final before = current();
+    final last = before.every(same);
+    final at = before.indexWhere(same);
+    final actions = saveActions;
+
+    Future<void> undo(String groupId) async {
+      try {
+        await actions.undoSave(groupId);
+      } on Object catch (error, stack) {
+        _report(error, stack);
+        return;
+      }
+      final left = formSaves(store) - 1;
+      store?.write(formSavedPath, left > 0 ? left : null);
+      final now = current();
+      if (isSaved || now.any(same)) return;
+      final i = at.clamp(0, now.length);
+      write?.call([...now.take(i), raw, ...now.skip(i)]);
+      if (mounted) setState(() {});
+    }
+
+    final result = await actions.openManualForm(
       draft,
       surfaceId: saveSurfaceId,
       quiet: last,
+      undo: last ? null : undo,
     );
     if (result == null) return;
     final drafts = current();
@@ -277,12 +310,15 @@ mixin DraftSaving<T extends StatefulWidget> on State<T> {
         if (!same(d)) d,
     ];
     if (rest.isNotEmpty) {
-      store?.write(formSavedPath, true);
+      store?.write(formSavedPath, formSaves(store) + 1);
       write?.call(rest);
       return;
     }
-    // The card shows what was saved, not the draft as it was before.
-    write?.call([result.draft.toJson()]);
+    // The card shows what was saved, not the draft as it was before, under
+    // the card's own id (a draft that did not read is saved as "manual").
+    write?.call([
+      {...result.draft.toJson(), 'id': ?(id is String ? id : null)},
+    ]);
     _recordSaved(
       SaveRecord(
         groupId: result.groupId,

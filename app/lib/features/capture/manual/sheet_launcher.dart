@@ -27,7 +27,7 @@ Page<void> sheetLauncherPage(GoRouterState state, Widget launcher) =>
 /// Presents Add manually, prefilled with [draft], then closes its page.
 class AddManuallyLauncher extends StatefulWidget {
   /// Creates the launcher.
-  const new({this.draft, this.quiet = false, super.key});
+  const new({this.draft, this.quiet = false, this.undo, super.key});
 
   /// The draft to prefill ("Change" on a slip).
   final EntryDraft? draft;
@@ -35,6 +35,10 @@ class AddManuallyLauncher extends StatefulWidget {
   /// Whether the opener shows the save itself (an Ask card), so the sheet
   /// shows no toast.
   final bool quiet;
+
+  /// What the sheet's Undo does instead of the write path's (an Ask card's
+  /// draft, so it returns to the card).
+  final FormUndo? undo;
 
   @override
   State<AddManuallyLauncher> createState() => _AddManuallyLauncherState();
@@ -55,6 +59,7 @@ class _AddManuallyLauncherState extends State<AddManuallyLauncher> {
       context,
       draft: widget.draft,
       quiet: widget.quiet,
+      undo: widget.undo,
     );
     if (!mounted) return;
     final saved = outcome?.saved;

@@ -212,7 +212,7 @@ class _ReceiptSummaryViewState extends State<ReceiptSummaryView>
               onChanged:
                   _editable &&
                       widget.onSplitChanged != null &&
-                      saveStore?.read(formSavedPath) != true
+                      formSaves(saveStore) == 0
                   ? _toggleSplit
                   : null,
               semanticLabel: l10n.a2uiReceiptSplit,

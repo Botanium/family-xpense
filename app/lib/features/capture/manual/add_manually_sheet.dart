@@ -49,6 +49,7 @@ Future<ManualSheetOutcome?> showAddManuallySheet(
   ManualField? focus,
   int? arrivesMinor,
   bool quiet = false,
+  FormUndo? undo,
 }) {
   // The root navigator, so the sheet covers the floating tab bar.
   final root = Navigator.of(context, rootNavigator: true);
@@ -71,6 +72,7 @@ Future<ManualSheetOutcome?> showAddManuallySheet(
       focus: focus,
       arrivesMinor: arrivesMinor,
       quiet: quiet,
+      undo: undo,
     ),
   );
 }
@@ -106,12 +108,17 @@ class AddManuallyForm extends ConsumerStatefulWidget {
     this.focus,
     this.arrivesMinor,
     this.quiet = false,
+    this.undo,
     super.key,
   });
 
   /// Whether the opener shows the save and its Undo itself (an Ask card),
   /// so no toast is shown here.
   final bool quiet;
+
+  /// What the toast's Undo does instead of the write path's undo: an Ask
+  /// card's, so its draft returns to the card (Codex review, PR #46).
+  final FormUndo? undo;
 
   /// The prefilled draft.
   final EntryDraft? initial;
@@ -430,7 +437,9 @@ class AddManuallyFormState extends ConsumerState<AddManuallyForm> {
     final offline = outcome.ack == WriteAck.queued;
     _dismissFailure?.call();
     _dismissFailure = null;
-    // These outlive the sheet; their actions use only the repository.
+    // These outlive the sheet; their actions use only the repository, or
+    // the card the draft came from.
+    final undo = widget.undo;
     if (saved != null) {
       showUndoToast(
         context: context,
@@ -438,7 +447,9 @@ class AddManuallyFormState extends ConsumerState<AddManuallyForm> {
             ? l10n.captureManualSavedOffline
             : l10n.captureManualSaved,
         actionLabel: l10n.captureManualUndo,
-        onAction: () => unawaited(repository.undoSave(saved)),
+        onAction: () => unawaited(
+          undo != null ? undo(saved.groupId) : repository.undoSave(saved),
+        ),
       );
     } else if (offline) {
       showUndoToast(

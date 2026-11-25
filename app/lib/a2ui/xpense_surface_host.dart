@@ -374,15 +374,22 @@ final class _RecordingActions implements XpenseActions {
     Map<String, Object?> draft, {
     String? surfaceId,
     bool quiet = false,
+    Future<void> Function(String groupId)? undo,
   }) async {
     final saved = await _inner.openManualForm(
       draft,
       surfaceId: surfaceId,
       quiet: quiet,
+      undo: undo,
     );
     if (saved != null && surfaceId != null) {
+      // The card's own draft id: a draft that did not read opens the form
+      // empty, and the form names its save "manual" (Codex review, PR #46).
+      final id = draft['id'];
       _host._saved.add(
-        _Saved(surfaceId, saved.groupId, [saved.draft.id], saved.txnIds),
+        _Saved(surfaceId, saved.groupId, [
+          if (id is String && id.isNotEmpty) id else saved.draft.id,
+        ], saved.txnIds),
       );
     }
     return saved;

@@ -3,6 +3,7 @@
 // same draft again.
 import 'package:flutter_test/flutter_test.dart';
 import 'package:xpense_app/a2ui/testing/fake_xpense_actions.dart';
+import 'package:xpense_app/a2ui/widgets/draft_saving.dart';
 import 'package:xpense_app/a2ui/xpense_surface_host.dart';
 import 'package:xpense_app/core/ui/ui.dart';
 import 'package:xpense_shared/xpense_shared.dart';
@@ -75,6 +76,73 @@ void main() {
     await tester.pumpAndSettle();
     expect(actions.methods, ['openManualForm', 'undoSave']);
     expect(actions.calls.last.argument, 'grp_form');
+    // The card offers the Undo, so the form's toast had none.
+    expect(fake.formUndo, isNull);
+  });
+
+  // Codex review, PR #46: a draft that does not read opens the form empty,
+  // and the form names its save "manual"; the agent hears the card's id.
+  testWidgets('a form save of a draft that did not read keeps its id', (
+    tester,
+  ) async {
+    final fake = FakeXpenseActions()
+      ..manualFormResult = (raw) => _formSave({...raw, 'id': 'manual'});
+    final (:host, :actions, :sent) = hostWith(
+      _messages(only: true),
+      actions: fake,
+    );
+    await pumpThread(tester, host);
+    await tester.tap(find.text('Edit'));
+    await tester.pumpAndSettle();
+
+    final [saved] = host.takeSavedActions();
+    expect(saved.context['draftIds'], ['d1']);
+    final [draft] = host.debugDataModel('cap_bad', '/drafts')! as List;
+    expect((draft as Map)['id'], 'd1');
+  });
+
+  // Codex review, PR #46: the form's own Undo toast, for a draft that left
+  // others on the card, goes back through the card.
+  testWidgets('the form toast Undo puts a draft that left others back and '
+      'stops telling the agent it was saved', (tester) async {
+    final fake = FakeXpenseActions()..manualFormResult = _formSave;
+    final (:host, :actions, :sent) = hostWith(_messages(), actions: fake);
+    await pumpThread(tester, host);
+    await tester.tap(find.text('Edit'));
+    await tester.pumpAndSettle();
+    expect(find.text('NEEDS REVIEW'), findsNothing);
+    expect(host.debugDataModel('cap_bad', formSavedPath), 1);
+
+    await fake.formUndo!('grp_form');
+    await tester.pumpAndSettle();
+    expect(actions.methods, ['openManualForm', 'undoSave']);
+    expect(actions.calls.last.argument, 'grp_form');
+    // d1 is back where it was, unsaved, and the agent hears of no save.
+    expect(find.text('NEEDS REVIEW'), findsOneWidget);
+    expect(_enabled(tester, 'Save both'), isFalse);
+    final drafts = host.debugDataModel('cap_bad', '/drafts')! as List;
+    expect([for (final d in drafts) (d as Map)['id']], ['d1', 'd2']);
+    expect(host.debugDataModel('cap_bad', formSavedPath), isNull);
+    expect(host.takeSavedActions(), isEmpty);
+  });
+
+  testWidgets('a failed toast Undo leaves the draft off the card', (
+    tester,
+  ) async {
+    final fake = FakeXpenseActions()
+      ..manualFormResult = _formSave
+      ..undoError = StateError('offline');
+    final (:host, :actions, :sent) = hostWith(_messages(), actions: fake);
+    await pumpThread(tester, host);
+    await tester.tap(find.text('Edit'));
+    await tester.pumpAndSettle();
+
+    await fake.formUndo!('grp_form');
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isA<StateError>());
+    expect(find.text('NEEDS REVIEW'), findsNothing);
+    final [saved] = host.takeSavedActions();
+    expect(saved.context['draftIds'], ['d1']);
   });
 
   testWidgets('one of two drafts saved in the form leaves the card; Save '

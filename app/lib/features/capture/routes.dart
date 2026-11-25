@@ -29,6 +29,10 @@ FeatureRoutes captureRoutes() => FeatureRoutes(
             final FormRequest request => request.quiet,
             _ => false,
           },
+          undo: switch (state.extra) {
+            final FormRequest request => request.undo,
+            _ => null,
+          },
         ),
       ),
     ),
