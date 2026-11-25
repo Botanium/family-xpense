@@ -59,6 +59,7 @@ final class DecisionsClassifier implements EntryClassifier {
     Clock? clock,
     Random? random,
     Future<void> Function(Duration)? sleep,
+    this._usdIqdOn,
   }) : _cache = cache ?? DecideCache(clock: clock),
        _clock = clock ?? const Clock(),
        _random = random ?? Random(),
@@ -73,6 +74,11 @@ final class DecisionsClassifier implements EntryClassifier {
   final Clock _clock;
   final Random _random;
   final Future<void> Function(Duration) _sleep;
+
+  /// IQD per USD for a household on a day (`YYYY-MM-DD`): that day's rate
+  /// or the latest before it, null when it has none. Without it the
+  /// duplicate search looks in the message's currency only.
+  final Future<String?> Function(String hid, String day)? _usdIqdOn;
 
   static final _unavailable = DecideResponse(unavailable: true);
 
@@ -108,9 +114,9 @@ final class DecisionsClassifier implements EntryClassifier {
     if (!now.known) {
       _log.warning({'message': 'decide: unknown time zone', 'tz': context.tz});
     }
-    final found = ask.contains(DecideQuestion.duplicate)
+    final (found, alsoAs) = ask.contains(DecideQuestion.duplicate)
         ? await _candidates(context, profile, now.day, parsed, hints)
-        : const <DuplicateCandidate>[];
+        : (const <DuplicateCandidate>[], null);
 
     final plan = buildPlan(
       profile: profile,
@@ -120,6 +126,7 @@ final class DecisionsClassifier implements EntryClassifier {
       ask: ask,
       parsed: parsed,
       candidates: found,
+      alsoAs: alsoAs,
     );
     if (plan.questions.isEmpty) {
       return DecideResponse(calibrated: true);
@@ -243,7 +250,9 @@ final class DecisionsClassifier implements EntryClassifier {
     return response;
   }
 
-  Future<List<DuplicateCandidate>> _candidates(
+  /// The duplicate candidates, and the converted amount when one of them
+  /// was found in the other currency (the model is told both figures).
+  Future<(List<DuplicateCandidate>, SameAmount?)> _candidates(
     XpenseContext context,
     HouseholdProfile profile,
     LocalDay today,
@@ -252,22 +261,37 @@ final class DecisionsClassifier implements EntryClassifier {
   ) async {
     final amount = parsed?.amountMinor;
     final currency = parsed?.currency;
-    if (amount == null || currency == null) return const [];
+    if (amount == null || currency == null) {
+      return (const <DuplicateCandidate>[], null);
+    }
     final day = parseDay(parsed?.date) ?? today;
     final accountId = [
       for (final h in hints)
         if (h.kind == 'account' && h.id != null) h.id!,
     ].firstOrNull;
-    var entries = const <RecentEntry>[];
+    final alsoAs = await _converted(
+      context,
+      amount,
+      currency,
+      day,
+      accountCurrency: accountId == null
+          ? null
+          : profile.account(accountId)?.currency,
+    );
+    final entries = <RecentEntry>[];
     try {
       final window = candidateWindow(day);
-      entries = await _households.entriesWithAmount(
-        hid: context.hid,
-        uid: context.uid,
-        amountMinor: amount,
-        fromDay: window.from,
-        toDay: window.to,
-      );
+      for (final minor in {amount, ?alsoAs?.amountMinor}) {
+        entries.addAll(
+          await _households.entriesWithAmount(
+            hid: context.hid,
+            uid: context.uid,
+            amountMinor: minor,
+            fromDay: window.from,
+            toDay: window.to,
+          ),
+        );
+      }
     } on GatewayUnavailable catch (e) {
       // No candidates: `duplicate` is not asked.
       _log.warning({
@@ -275,14 +299,52 @@ final class DecisionsClassifier implements EntryClassifier {
         'op': e.operation,
       });
     }
-    return selectCandidates(
+    final found = selectCandidates(
       entries: entries,
       profile: profile,
       amountMinor: amount,
       currency: currency,
       day: day,
       accountId: accountId,
+      alsoAs: alsoAs,
     );
+    return (
+      found,
+      found.any((c) => c.currency == alsoAs?.currency) ? alsoAs : null,
+    );
+  }
+
+  /// [amountMinor] of [code] in the household's other currency at [day]'s
+  /// rate: what an entry paid from an account in that currency was saved
+  /// as (DATA_MODEL 1). Null when the account named is in [code] itself,
+  /// or there is no rate.
+  Future<SameAmount?> _converted(
+    XpenseContext context,
+    int amountMinor,
+    String code,
+    LocalDay day, {
+    String? accountCurrency,
+  }) async {
+    final lookup = _usdIqdOn;
+    final (from, to) = switch (code) {
+      'USD' => (Currency.usd, Currency.iqd),
+      'IQD' => (Currency.iqd, Currency.usd),
+      _ => (null, null),
+    };
+    if (lookup == null || from == null || to == null) return null;
+    if (accountCurrency != null && accountCurrency != to.code) return null;
+    final String? usdIqd;
+    try {
+      usdIqd = await lookup(context.hid, isoDay(day));
+    } on Object catch (e) {
+      _log.warning({'message': 'decide: rate unreadable', 'error': '$e'});
+      return null;
+    }
+    if (usdIqd == null) return null;
+    final rate = FxRate.parse('USD/IQD', usdIqd).valueOrNull;
+    final converted = rate?.convert(Money(amountMinor, from), to).valueOrNull;
+    if (converted == null || converted.minorUnits < 1) return null;
+    return (amountMinor: converted.minorUnits, currency: to.code);
   }
 
   Future<void> _count(String hid, Map<UsageCounter, int> amounts) async {

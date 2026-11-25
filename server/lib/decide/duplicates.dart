@@ -1,6 +1,10 @@
 /// Deterministic duplicate candidates (AI_PIPELINE 7): same amount and
 /// currency, same account when the account is known, dated within one day
 /// of the message. The model judges `duplicate` only when this finds one.
+///
+/// An entry paid from an account in the other currency is saved converted
+/// (DATA_MODEL 1), so the message's amount converted at that day's rate
+/// counts as the same amount (Codex review, PR #46).
 library;
 
 import 'package:xpense_agent/decide/household_profile.dart';
@@ -36,9 +40,14 @@ bool isCandidate(
   return iso.compareTo(w.from) >= 0 && iso.compareTo(w.to) <= 0;
 }
 
+/// The same amount in another currency: the message's amount at the day's
+/// rate.
+typedef SameAmount = ({int amountMinor, String currency});
+
 /// The candidates for one message: the household's saved entries visible
 /// to the speaker that pass the rule (titled with the account name),
-/// nearest date first, at most [maxCandidates].
+/// nearest date first, at most [maxCandidates]. An entry in [alsoAs]'s
+/// currency passes with that amount.
 ///
 /// Only entries the server read itself count. Candidates a caller sends are
 /// never merged in: a stale phone cache could otherwise bring back a deleted
@@ -50,6 +59,7 @@ List<DuplicateCandidate> selectCandidates({
   required String currency,
   required LocalDay day,
   String? accountId,
+  SameAmount? alsoAs,
 }) {
   final out = <String, DuplicateCandidate>{};
   for (final e in entries) {
@@ -65,14 +75,16 @@ List<DuplicateCandidate> selectCandidates({
       occurredOn: e.occurredOn,
       title: title.isEmpty ? null : title,
     );
-    if (isCandidate(
+    bool matches(int amount, String code) => isCandidate(
       c,
-      amountMinor: amountMinor,
-      currency: currency,
+      amountMinor: amount,
+      currency: code,
       day: day,
       accountId: accountId,
       candidateAccountId: e.accountId,
-    )) {
+    );
+    if (matches(amountMinor, currency) ||
+        (alsoAs != null && matches(alsoAs.amountMinor, alsoAs.currency))) {
       out[e.id] = c;
     }
   }

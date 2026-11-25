@@ -76,6 +76,8 @@ Future<void> main() async {
     exitCode = 78; // EX_CONFIG
     return;
   }
+  // The day's rate, so `/decide` also finds an entry saved converted.
+  final rates = FirestoreHouseholdReader(admin.firestore);
   final server = XpenseServer.create(
     role: env.role,
     ai: ai,
@@ -93,6 +95,8 @@ Future<void> main() async {
             config: config,
             usage: usage,
             fallback: GenkitFallbackClassifier(ai),
+            usdIqdOn: (hid, day) async =>
+                (await rates.fxRateOn(hid, day))?.usdIqd,
           ),
   );
 

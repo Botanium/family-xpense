@@ -9,6 +9,7 @@ library;
 import 'package:meta/meta.dart';
 import 'package:xpense_agent/decide/category_examples.dart';
 import 'package:xpense_agent/decide/classifier.dart';
+import 'package:xpense_agent/decide/duplicates.dart';
 import 'package:xpense_agent/decide/household_profile.dart';
 import 'package:xpense_shared/xpense_shared.dart';
 
@@ -242,6 +243,7 @@ DecideRequestPlan buildPlan({
   required Set<DecideQuestion> ask,
   DecideParsed? parsed,
   List<DuplicateCandidate> candidates = const [],
+  SameAmount? alsoAs,
 }) {
   final speaker = profile.member(speakerUid);
   final partner = [
@@ -272,6 +274,7 @@ DecideRequestPlan buildPlan({
       candidates: asked.contains(DecideQuestion.duplicate)
           ? candidates
           : const [],
+      alsoAs: asked.contains(DecideQuestion.duplicate) ? alsoAs : null,
     ),
     questions: {
       for (final q in asked)
@@ -300,10 +303,17 @@ String sharedInput({
   required String text,
   DecideParsed? parsed,
   List<DuplicateCandidate> candidates = const [],
+  SameAmount? alsoAs,
 }) {
+  // A recent entry saved in the other currency is compared with the amount
+  // at the day's rate, so the model is told that figure too.
+  final converted = alsoAs == null
+      ? ''
+      : ' (${displayAmount(alsoAs.amountMinor, alsoAs.currency)} at that '
+            "day's rate)";
   final amount = switch (parsed) {
     DecideParsed(amountMinor: final int minor, currency: final String code) =>
-      'amount ${displayAmount(minor, code)}',
+      'amount ${displayAmount(minor, code)}$converted',
     _ => 'no amount',
   };
   final date = switch (parseDay(parsed?.date)) {
